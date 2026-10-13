@@ -10,6 +10,8 @@ const panel = read('assets/js/node-panel.js');
 const projectCss = read('assets/css/mobile-project-scroll.css');
 const today = read('assets/js/mobile-today-continuity.js');
 const you = read('assets/js/mobile-you.js');
+const index = read('index.html');
+const sw = read('sw.js');
 
 // One active mobile surface owns visibility, touch, and focus state.
 assert.match(nav, /function setMobileSurface\(surface\)/);
@@ -46,5 +48,13 @@ assert.match(youCss, /z-index: 700/);
 assert.match(projectCss, /100dvh/);
 assert.match(projectCss, /env\(safe-area-inset-bottom/);
 assert.match(projectCss, /scroll-padding-bottom/);
+
+// The isolation fix must actually reach clients; stale asset URLs were the
+// production failure mode that allowed the pre-fix shell to remain visible.
+assert.match(index, /command-dashboard\.css\?v=mobile-shell-isolation-20261013/);
+assert.match(index, /mobile-nav\.js\?v=mobile-shell-isolation-20261013/);
+assert.match(index, /mobile-you\.css\?v=mobile-shell-isolation-20261013/);
+assert.match(index, /mobile-you\.js\?v=mobile-shell-isolation-20261013/);
+assert.match(sw, /v9-mobile-shell-isolation-20261013/);
 
 console.log('Mobile UX stabilization contracts passed');
