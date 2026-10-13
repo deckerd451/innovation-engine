@@ -284,22 +284,8 @@
       console.log('✅ Project request submitted');
       showToast('Request submitted successfully!', 'success');
 
-      // Create notification for project creator
-      const { data: project } = await window.supabase
-        .from('projects')
-        .select('creator_id, title')
-        .eq('id', projectId)
-        .single();
-
-      if (project) {
-        await createNotification(
-          project.creator_id,
-          'project_request',
-          'New Project Request',
-          `Someone wants to join your project: ${project.title}`,
-          `?project=${projectId}`
-        );
-      }
+      // The project creator is notified server-side by the
+      // notify_project_request trigger, which confirms the requester.
 
       return data;
 
@@ -349,52 +335,12 @@
       console.log('✅ Organization join request submitted');
       showToast('Join request submitted! The organization will review your request.', 'success');
 
-      // Get organization details and owner
-      const { data: org } = await window.supabase
-        .from('organizations')
-        .select('name, created_by')
-        .eq('id', orgId)
-        .single();
-
-      if (org && org.created_by) {
-        // Notify organization owner
-        await createNotification(
-          org.created_by,
-          'org_join_request',
-          'New Organization Join Request',
-          `Someone wants to join ${org.name}`,
-          `?org=${orgId}`
-        );
-      }
+      // The organization owner is notified server-side by the
+      // notify_organization_join_request trigger, which confirms the requester.
 
     } catch (err) {
       console.error('Error submitting organization join request:', err);
       showToast('Error submitting join request', 'error');
-    }
-  }
-
-  // ================================================================
-  // NOTIFICATION HELPER
-  // ================================================================
-
-  async function createNotification(userId, type, title, message, link = null) {
-    try {
-      const { error } = await window.supabase
-        .from('notifications')
-        .insert([{
-          user_id: userId,
-          type: type,
-          title: title,
-          message: message,
-          link: link,
-          read: false
-        }]);
-
-      if (error) throw error;
-      console.log('✅ Notification created');
-
-    } catch (err) {
-      console.error('Error creating notification:', err);
     }
   }
 
@@ -566,8 +512,7 @@
     // Organizations
     submitOrganizationJoinRequest,
 
-    // Notifications
-    createNotification,
+    // Notifications are created server-side only.
     showToast
   };
 

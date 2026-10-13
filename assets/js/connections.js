@@ -736,12 +736,13 @@ export async function cancelConnectionRequest(connectionIdOrTargetCommunityId) {
         return { success: true, action: "deleted", id: row.id };
       }
 
-      // If DELETE blocked for some reason, try UPDATE to canceled (recipient-only)
-      const upd = await safeUpdateConnectionRow(row.id, { status: "canceled" });
+      // If DELETE is blocked, fall back to a status change. The database only
+      // lets the sender cancel and the recipient decline a pending request.
+      const upd = await safeUpdateConnectionRow(row.id, { status: isSender ? "canceled" : "rejected" });
       if (upd.ok) {
         showToast("Request canceled.", "info");
         if (window.refreshSynapseConnections) await window.refreshSynapseConnections();
-        return { success: true, action: "updated", status: "canceled", id: row.id };
+        return { success: true, action: "updated", status: isSender ? "canceled" : "rejected", id: row.id };
       }
 
       showToast(del.error?.message || upd.error?.message || "Failed to cancel", "error");

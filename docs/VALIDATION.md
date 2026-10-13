@@ -57,6 +57,21 @@ role: private packages, another team's tasks and the stats RPC stay hidden;
 new learning cannot be forged or claim evidence; shared learning is readable
 by a later member. All rows are rolled back.
 
+## Notification and connection authorization against PostgreSQL
+
+```
+scripts/tests/run-authz-db.sh
+```
+
+Creates a throwaway local cluster in a temporary directory (127.0.0.1 only,
+removed on exit), loads a copy of production's notification/connection
+policies, grants and functions, and checks that: the tests fail without the
+migration; the migration is idempotent; members, unrelated members and
+anonymous callers cannot forge notifications or connection state while every
+legitimate notification and the Collaboration Concierge journey still work;
+undoing any single protection is caught; and the rollback restores the
+baseline exactly. See docs/SECURITY_NOTIFICATION_CONNECTION_AUTHZ.md.
+
 ## Known gaps
 
 - **No `npm run build`.** This is a static HTML/CSS/JS site with no bundler
