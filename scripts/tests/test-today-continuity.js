@@ -1,0 +1,16 @@
+#!/usr/bin/env node
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const read = (file) => fs.readFileSync(file, 'utf8');
+const moduleText = read('assets/js/mobile-today-continuity.js');
+const nav = read('assets/js/mobile-nav.js');
+const css = read('assets/css/mobile-today-continuity.css');
+assert.match(moduleText, /from\('project_tasks'\)/);
+assert.match(moduleText, /from\('capability_attempts'\)/);
+assert.match(moduleText, /viewProjectDetails/);
+assert.match(moduleText, /data-continuity-tab="tasks"/);
+assert.match(moduleText, /data-continuity-tab="capabilities"/);
+assert.match(nav, /mobile-today-entered/);
+assert.match(css, /@media \(max-width: 1023px\)/);
+assert.match(css, /min-height: 44px/);
+console.log('Today continuity contracts passed');

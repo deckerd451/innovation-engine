@@ -19,6 +19,7 @@
       setMobileMapButton(false);
       removeMobileNetworkHistory();
       renderMobileRightNow();
+      window.dispatchEvent(new CustomEvent('mobile-today-entered'));
       document.getElementById('cd-panel-tab')?.focus();
     },
     discover: () => setDiscoverMode('explore'),
@@ -56,6 +57,8 @@
       document.querySelector('[data-resource="themes"]')?.click();
     }
     const toggle = document.getElementById('cd-explore-toggle');
+    const browse = document.querySelector('.cd-mobile-browse');
+    if (browse) browse.open = true;
     if (toggle) {
       toggle.querySelector('span').textContent = isNetwork ? 'My network' : 'Discover';
       if (toggle.getAttribute('aria-expanded') === 'false') toggle.click();
