@@ -61,8 +61,9 @@
     if (!tasks && !attempts) { card.innerHTML = ''; return; }
     const task = chooseNextTask(tasks);
     const attempt = attempts?.[0];
-    card.innerHTML = `${task ? `<div class="cd-continuity-label">Your next step</div><h3>${escape(task.title)}</h3><p>${escape(task.project?.title || 'Project task')} · ${task.status === 'in_progress' ? 'In progress' : 'Ready to start'}</p><button type="button" data-continuity-project="${escape(task.project_id)}" data-continuity-tab="tasks">Continue</button>` : '<div class="cd-continuity-empty">No open project tasks yet.</div>'}${attempt ? `<div class="cd-continuity-reminder"><strong>Ready to record a result?</strong><span>${escape(attempt.goal || 'Your work is still in progress')}</span><button type="button" data-continuity-project="${escape(attempt.project_id)}" data-continuity-tab="capabilities">Record result</button></div>` : ''}`;
+    card.innerHTML = `${task ? `<div class="cd-continuity-label">Your next step</div><h3>${escape(task.title)}</h3><p>${escape(task.project?.title || 'Project task')} · ${task.status === 'in_progress' ? 'In progress' : 'Ready to start'}</p><button type="button" data-continuity-project="${escape(task.project_id)}" data-continuity-task="${escape(task.id)}" data-continuity-tab="tasks">Continue</button>` : '<div class="cd-continuity-empty">No open project tasks yet.</div>'}${attempt ? `<div class="cd-continuity-reminder"><strong>Ready to record a result?</strong><span>${escape(attempt.goal || 'Your work is still in progress')}</span><button type="button" data-continuity-project="${escape(attempt.project_id)}" data-continuity-tab="capabilities">Record result</button></div>` : ''}`;
     card.querySelectorAll('[data-continuity-project]').forEach(button => button.addEventListener('click', () => {
+      if (button.dataset.continuityTask && window.viewProjectTask) return window.viewProjectTask(button.dataset.continuityProject, button.dataset.continuityTask);
       window.viewProjectDetails?.(button.dataset.continuityProject);
       setTimeout(() => document.querySelector(`#project-detail-overlay [data-tab="${button.dataset.continuityTab}"]`)?.click(), 250);
     }));

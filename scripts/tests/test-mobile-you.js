@@ -16,6 +16,8 @@ assert.match(you, /openProfileModal/);
 assert.match(you, /SettingsModal/);
 assert.match(you, /doLogout/);
 assert.match(you, /viewProjectDetails/);
+assert.match(you, /viewProjectTask/);
+assert.match(you, /data-next-task/);
 assert.match(css, /inset: 0 0 var\(--mobile-tab-bar-height, 68px\) 0/);
 assert.match(css, /overflow-y: auto/);
 assert.match(css, /min-height:44px/);

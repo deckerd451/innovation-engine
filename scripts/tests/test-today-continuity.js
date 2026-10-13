@@ -8,6 +8,8 @@ const css = read('assets/css/mobile-today-continuity.css');
 assert.match(moduleText, /from\('project_tasks'\)/);
 assert.match(moduleText, /from\('capability_attempts'\)/);
 assert.match(moduleText, /viewProjectDetails/);
+assert.match(moduleText, /viewProjectTask/);
+assert.match(moduleText, /data-continuity-task/);
 assert.match(moduleText, /data-continuity-tab="tasks"/);
 assert.match(moduleText, /data-continuity-tab="capabilities"/);
 assert.match(moduleText, /function chooseNextTask\(tasks, now = Date\.now\(\)\)/);

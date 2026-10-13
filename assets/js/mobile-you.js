@@ -80,7 +80,7 @@
     const activeProject = task?.project || activeAttempt?.project || data.projects.find(project => ['active', 'in_progress', 'open'].includes(String(project.status || '').toLowerCase()));
     const focus = activeProject?.title || profile.intent || '';
     const completedAttempts = data.attempts.filter(item => ['succeeded', 'not_succeeded'].includes(item.outcome_status)).length;
-    const taskAction = task ? `<button type="button" class="mobile-you-primary" data-next-project="${esc(task.project_id)}" data-next-tab="tasks">${task.status === 'in_progress' ? 'Continue' : 'Start'}: ${esc(task.title)}</button><p class="mobile-you-supporting">${esc(task.project?.title || 'Project task')}</p>` : activeAttempt ? `<button type="button" class="mobile-you-primary" data-next-project="${esc(activeAttempt.project_id)}" data-next-tab="capabilities">Record what happened</button><p class="mobile-you-supporting">${esc(activeAttempt.goal || 'Active method attempt')}</p>` : '<p class="mobile-you-muted">No open work yet. Describe a goal below to find a useful path forward.</p>';
+    const taskAction = task ? `<button type="button" class="mobile-you-primary" data-next-project="${esc(task.project_id)}" data-next-task="${esc(task.id)}" data-next-tab="tasks">${task.status === 'in_progress' ? 'Continue' : 'Start'}: ${esc(task.title)}</button><p class="mobile-you-supporting">${esc(task.project?.title || 'Project task')}</p>` : activeAttempt ? `<button type="button" class="mobile-you-primary" data-next-project="${esc(activeAttempt.project_id)}" data-next-tab="capabilities">Record what happened</button><p class="mobile-you-supporting">${esc(activeAttempt.goal || 'Active method attempt')}</p>` : '<p class="mobile-you-muted">No open work yet. Describe a goal below to find a useful path forward.</p>';
     const workSummary = focus ? `<p>${esc(focus)}</p>` : '<p class="mobile-you-muted">Nothing active yet.</p>';
     el.innerHTML = `<header class="mobile-you-header"><div class="mobile-you-avatar" aria-hidden="true">${esc(name.slice(0, 1).toUpperCase())}</div><div><p class="mobile-you-eyebrow">My Space</p><h1 id="mobile-you-title">${esc(name)}</h1></div></header>
       <section class="mobile-you-card mobile-you-focus"><div class="mobile-you-section-heading"><h2>What are you working on?</h2><button type="button" class="mobile-you-inline-action" data-profile-action="open">Change</button></div>${workSummary}</section>
@@ -95,7 +95,9 @@
     el.querySelector('[data-profile-action="logout"]')?.addEventListener('click', () => window.doLogout?.());
     el.querySelector('[data-go-to-discover]')?.addEventListener('click', () => document.querySelector('.mob-tab[data-tab="discover"]')?.click());
     el.querySelector('[data-next-project]')?.addEventListener('click', (event) => {
-      window.viewProjectDetails?.(event.currentTarget.dataset.nextProject, event.currentTarget.dataset.nextTab);
+      const target = event.currentTarget;
+      if (target.dataset.nextTask && window.viewProjectTask) window.viewProjectTask(target.dataset.nextProject, target.dataset.nextTask);
+      else window.viewProjectDetails?.(target.dataset.nextProject, target.dataset.nextTab);
     });
     el.querySelectorAll('[data-project-id]').forEach(btn => btn.addEventListener('click', () => window.viewProjectDetails?.(btn.dataset.projectId)));
     mountGoalSearch();
