@@ -131,15 +131,73 @@
     return `${tie ? 'Tied at the top' : 'Leading'}: <strong>${esc(ranked[0].name)}</strong> (${ranked[0].total}/${max})${tie ? ` and <strong>${esc(ranked[1].name)}</strong>` : ranked[1] ? ` · next: ${esc(ranked[1].name)} (${ranked[1].total})` : ''}`;
   }
 
+  // Deterministic guides answer familiar objectives. When no guide fits and
+  // the intelligence layer is on, its validated assistance (or its loading /
+  // failure state) takes the place of the generic obstacle question. A failed
+  // request falls back to the general guide, labelled as such.
   function decisionFor(session) {
-    return engine().decide({ objective: session.objective, source: session.task ? 'task' : 'member', projectTitle: session.project?.title, state: session.state });
+    const base = engine().decide({ objective: session.objective, source: session.task ? 'task' : 'member', projectTitle: session.project?.title, state: session.state });
+    const AI = window.AssistanceIntelligence;
+    if (!AI || base.playbook || session.state.obstacle) return base;
+    if (session.aiStatus === 'loading') return { ...base, clarify: null, aiLoading: true };
+    const stored = session.state.ai?.result;
+    if (stored) return AI.decisionFrom(stored, session.state.ai.gen || 1, base);
+    return session.aiStatus === 'error' ? { ...base, aiFallback: session.aiError } : base;
+  }
+
+  function wantsIntelligence(session, decision) {
+    return Boolean(window.AssistanceIntelligence?.enabled() && !decision.playbook && !session.state.obstacle && !session.state.ai?.result && !session.aiStatus);
+  }
+
+  async function requestIntelligence(session, { alreadyLoading = false } = {}) {
+    const AI = window.AssistanceIntelligence;
+    session.aiStatus = 'loading';
+    session.aiError = null;
+    if (!alreadyLoading) render(session);
+    const ai = session.state.ai || {};
+    const payload = session.task ? { mode: 'task', projectId: session.project.id, taskId: session.task.id } : { mode: 'objective', objective: session.objective };
+    const result = await AI.request({ ...payload, clarifications: ai.clarifications || [] });
+    if (current !== session) return;
+    if (result.status === 'ok') {
+      const gen = (Number(ai.gen) || 0) + 1;
+      // Earlier generations' values stay (their block ids differ), so work
+      // from a previous step remains in the task notes.
+      session.state.ai = { ...ai, gen, result: { assistance: result.assistance, communityUsed: result.communityUsed, provenance: result.provenance } };
+      session.aiStatus = 'ready';
+      if (session.task && session.canWork) session.dirty = true;
+      persistDraft(session);
+      window.CapabilityJourney?.emit('assistance_tailored', { surface: 'assistance', mode: result.assistance.mode });
+    } else {
+      session.aiStatus = 'error';
+      session.aiError = { status: result.status, message: result.message, retryable: result.retryable };
+    }
+    const keepFocus = !document.activeElement || document.activeElement === document.body || document.activeElement.id === 'mta-title' || Boolean(document.activeElement.closest?.('#mobile-task-assistance'));
+    render(session, { focusTitle: keepFocus });
+  }
+
+  // First render of a session: show the loading state straight away rather
+  // than flashing the generic guide when tailored help is about to replace it.
+  function renderFirst(session) {
+    const tailor = wantsIntelligence(session, decisionFor(session));
+    if (tailor) session.aiStatus = 'loading';
+    render(session, { focusTitle: true });
+    if (tailor) requestIntelligence(session, { alreadyLoading: true });
+  }
+
+  function answerClarification(session, question, answer) {
+    const ai = session.state.ai || {};
+    session.state.ai = { ...ai, clarifications: [...(ai.clarifications || []), { question, answer: String(answer).slice(0, 300) }], result: null };
+    session.aiStatus = null;
+    persistDraft(session);
+    requestIntelligence(session);
   }
 
   function headerMarkup(session, decision) {
     const last = session.progress[session.progress.length - 1];
+    const understood = decision.ai?.assistance?.interpretation?.objective;
     const interpretation = decision.playbook
       ? `<p class="mta-interpretation">Looks like <strong>${esc(decision.playbook.label.toLowerCase())}</strong>${decision.stepCount ? ` · step ${Math.min(decision.stepIndex + 1, decision.stepCount)} of ${decision.stepCount}` : ''} <button type="button" class="mta-link" data-mta-not-this>Not this?</button></p>`
-      : '';
+      : understood ? `<p class="mta-interpretation">Understood as: <strong>${esc(understood)}</strong>${(session.state.ai?.clarifications || []).length ? ' <button type="button" class="mta-link" data-mta-ai-reset>Change my answers</button>' : ''}</p>` : '';
     return `<header class="mta-header"><button type="button" class="mta-back" data-mta-back>‹ My Space</button><button type="button" class="mta-close" aria-label="Close" data-mta-close>×</button></header>
       <p class="mta-context">${session.project ? esc(session.project.title || 'Project') : 'New objective'}${session.task ? ` · ${esc(statusLabel(session.task.status))}` : ''}</p>
       <h1 id="mta-title" tabindex="-1">${esc(session.objective)}</h1>
@@ -160,15 +218,55 @@
     return '<button type="button" class="mta-primary" data-mta-save-objective>Save to a project</button><div class="mta-project-choice" data-mta-project-choice aria-live="polite"></div>';
   }
 
+  function fallbackNotice(decision) {
+    const failure = decision.aiFallback;
+    if (!failure) return '';
+    return `<div class="mta-fallback" role="status"><p><strong>${esc(failure.message || 'Tailored help isn’t available right now.')}</strong> Below is Buildspace’s general guide instead — it isn’t specific to this ${decision.objectiveSource === 'task' ? 'task' : 'objective'}.</p>${failure.retryable ? '<button type="button" class="mta-link" data-mta-ai-retry>Try tailored help again</button>' : ''}</div>`;
+  }
+
+  function clarifyMarkup(clarify, { inline = false } = {}) {
+    const heading = inline ? `<h3>${esc(clarify.question)}</h3>` : `<h2 id="mta-next-title">${esc(clarify.question)}</h2>`;
+    return `${inline ? '<div class="mta-ai-sharpen"><p class="mta-eyebrow">This would sharpen it</p>' : ''}${heading}${clarify.why ? `<p class="mta-why">${esc(clarify.why)}</p>` : ''}<div class="mta-chips" role="group" aria-label="Choose an answer">${clarify.choices.map(choice => `<button type="button" class="mta-chip" data-mta-ai-choice="${esc(choice.value)}">${esc(choice.label)}</button>`).join('')}</div>
+      <form class="mta-ai-answer" data-mta-ai-answer-form><label class="sr-only" for="mta-ai-answer">Or answer in your own words</label><input id="mta-ai-answer" type="text" maxlength="300" autocomplete="off" data-mta-ai-answer placeholder="Or answer in your own words"><button type="submit" class="mta-secondary-action">Continue</button></form>
+      ${inline ? '</div>' : '<button type="button" class="mta-link" data-mta-ai-guess>Not sure — suggest a safe first step</button>'}`;
+  }
+
+  function aiDetails(decision) {
+    const stored = decision.ai;
+    const a = stored.assistance;
+    const iv = a.intervention;
+    const known = a.interpretation.known.map(item => `<li>${esc(item)}</li>`).join('');
+    const inferred = a.interpretation.inferred.map(item => `<li>${esc(item)}</li>`).join('');
+    const unsure = a.uncertainties.map(item => `<li>${esc(item.about)}${item.impact === 'high' ? ' <em>(matters most)</em>' : ''}</li>`).join('');
+    const used = stored.communityUsed || [];
+    const retrieved = stored.provenance?.retrieved || { methods: 0, people: 0 };
+    const community = used.length
+      ? `<div class="mta-ai-community"><h3>Community knowledge used</h3>${used.map(item => item.kind === 'method'
+        ? `<div class="mta-row"><strong>${esc(item.title)}</strong><span class="mta-evidence">${esc(item.evidenceLabel)}</span><span>${esc(item.howItChanges)}</span></div>`
+        : `<div class="mta-row"><strong>${esc(item.name)}</strong><span>Listed skills: ${esc(item.matchedSkills.join(', '))}</span><span>${esc(item.howItChanges)}</span><small>${esc(item.caveat)}</small><button type="button" class="mta-link" data-mta-message="${esc(item.id)}" data-name="${esc(item.name)}">Copy the request &amp; message them</button></div>`).join('')}</div>`
+      : `<p class="mta-note">${retrieved.methods || retrieved.people ? 'Buildspace checked related shared methods and your connections; none changed this answer.' : 'No shared method or connection relates to this yet, so this is based on your task and project alone.'}</p>`;
+    return `${iv.immediateAction ? `<p class="mta-ai-now"><span>Do now:</span> ${esc(iv.immediateAction)}</p>` : ''}
+      ${iv.observeNext ? `<p class="mta-ai-observe"><span>You’ll know it worked when:</span> ${esc(iv.observeNext)}</p>` : ''}
+      ${community}
+      <details class="mta-ai-basis"><summary>What this is based on</summary>${known ? `<p>From your task and project:</p><ul>${known}</ul>` : ''}${inferred ? `<p>Assumed (check these):</p><ul>${inferred}</ul>` : ''}${unsure ? `<p>Still uncertain:</p><ul>${unsure}</ul>` : ''}<p class="mta-note">Drafted by Buildspace’s AI assistant from what you and your project team wrote${used.length ? ' and what members have shared' : ''}. It can be wrong — check it before you use it.</p></details>`;
+  }
+
   function decisionMarkup(session, decision) {
+    if (decision.aiLoading) {
+      return `<section class="mta-next mta-ai-loading" aria-labelledby="mta-next-title" aria-busy="true"><p class="mta-eyebrow">Preparing help</p><h2 id="mta-next-title">Reading this ${session.task ? 'task and its project' : 'objective'}…</h2><p class="mta-note" role="status">Buildspace is working out what you need and checking what members have shared. This usually takes a few seconds.</p><div class="mta-skeleton" aria-hidden="true"><span></span><span></span><span></span></div><button type="button" class="mta-link" data-mta-ai-skip>Use the general guide instead</button></section>`;
+    }
+    if (decision.aiClarify && !decision.intervention) {
+      return `<section class="mta-next" aria-labelledby="mta-next-title"><p class="mta-eyebrow">One question first</p>${clarifyMarkup(decision.aiClarify)}</section>`;
+    }
     if (decision.complete) {
       return `<section class="mta-next" aria-labelledby="mta-next-title"><p class="mta-eyebrow">Guide finished</p><h2 id="mta-next-title">You’ve worked through every step in this guide.</h2><p>If the task itself is done, mark it complete. If something is still open, say what’s in the way.</p>${obstacleChips(decision, session)}</section>`;
     }
     if (decision.clarify) {
-      return `<section class="mta-next" aria-labelledby="mta-next-title"><p class="mta-eyebrow">One question</p><h2 id="mta-next-title">${esc(decision.clarify.question)}</h2>${decision.clarify.note ? `<p class="mta-note">${esc(decision.clarify.note)}</p>` : ''}<div class="mta-chips" role="group" aria-label="What’s in the way">${decision.clarify.options.map(option => `<button type="button" class="mta-chip" data-mta-obstacle="${esc(option.key)}">${esc(option.label)}</button>`).join('')}</div></section>`;
+      return `${fallbackNotice(decision)}<section class="mta-next" aria-labelledby="mta-next-title"><p class="mta-eyebrow">One question</p><h2 id="mta-next-title">${esc(decision.clarify.question)}</h2>${decision.clarify.note ? `<p class="mta-note">${esc(decision.clarify.note)}</p>` : ''}<div class="mta-chips" role="group" aria-label="What’s in the way">${decision.clarify.options.map(option => `<button type="button" class="mta-chip" data-mta-obstacle="${esc(option.key)}">${esc(option.label)}</button>`).join('')}</div></section>`;
     }
     const blocks = decision.intervention.blocks.map(block => renderBlock(block, session.state.values)).join('');
-    return `<section class="mta-next" aria-labelledby="mta-next-title"><p class="mta-eyebrow">Next move${decision.step.inferred ? ' (suggested)' : ''}</p><h2 id="mta-next-title">${esc(decision.step.title)}</h2><p class="mta-why">${esc(decision.step.obstacle)}</p><div class="ai-work-product">${blocks}</div>${primaryMarkup(session)}<div class="mta-secondary-row"><button type="button" class="mta-link" data-mta-copy-brief>Copy all of this</button>${session.state.obstacle && decision.playbook ? '<button type="button" class="mta-link" data-mta-obstacle="">Back to the guide</button>' : ''}</div>${obstacleChips(decision, session)}</section>`;
+    const isAi = decision.intervention.kind === 'ai';
+    return `${fallbackNotice(decision)}<section class="mta-next" aria-labelledby="mta-next-title"><p class="mta-eyebrow">${isAi ? `Prepared for this ${session.task ? 'task' : 'objective'}${decision.ai.assistance.mode === 'provisional' ? ' · provisional' : ''}` : `Next move${decision.step.inferred ? ' (suggested)' : ''}`}</p><h2 id="mta-next-title">${esc(decision.step.title)}</h2><p class="mta-why">${esc(decision.step.obstacle)}</p>${isAi ? '<p class="mta-ai-label">AI-drafted · edit anything before you use it</p>' : ''}<div class="ai-work-product">${blocks}</div>${isAi ? aiDetails(decision) : ''}${decision.aiClarify ? clarifyMarkup(decision.aiClarify, { inline: true }) : ''}${primaryMarkup(session)}<div class="mta-secondary-row"><button type="button" class="mta-link" data-mta-copy-brief>Copy all of this</button>${session.state.obstacle && decision.playbook ? '<button type="button" class="mta-link" data-mta-obstacle="">Back to the guide</button>' : ''}${session.state.obstacle && !decision.playbook && session.state.ai?.result ? '<button type="button" class="mta-link" data-mta-obstacle="">Back to the help prepared for this task</button>' : ''}</div>${obstacleChips(decision, session)}</section>`;
   }
 
   function obstacleChips(decision, session) {
@@ -179,7 +277,7 @@
   function reportMarkup(session, decision) {
     if (!session.task) return '<section class="mta-report"><h2>Keep going later</h2><p class="mta-note">This isn’t saved anywhere yet except as a draft on this device. Save it to a project to track progress and pick up from any device.</p></section>';
     if (!session.canWork) return '';
-    const canAdvance = Boolean(decision.playbook && !decision.complete && !session.state.obstacle);
+    const canAdvance = Boolean((decision.playbook || decision.intervention?.kind === 'ai') && !decision.complete && !session.state.obstacle);
     return `<section class="mta-report" aria-labelledby="mta-report-title"><h2 id="mta-report-title">What happened?</h2>
       <div class="mta-chips" role="radiogroup" aria-label="What happened">${canAdvance || session.state.obstacle ? '<button type="button" class="mta-chip" role="radio" aria-checked="false" data-mta-kind="Took this step">I did this step</button>' : ''}<button type="button" class="mta-chip" role="radio" aria-checked="false" data-mta-kind="Got a result">Got a result</button><button type="button" class="mta-chip" role="radio" aria-checked="false" data-mta-kind="Blocked">I’m blocked</button></div>
       <label class="sr-only" for="mta-report-note">Details</label><textarea id="mta-report-note" rows="2" maxlength="400" data-mta-report-note placeholder="One line is enough, e.g. “Invited 2 of 3; Dana said yes.”"></textarea>
@@ -290,6 +388,9 @@
     rememberInterpretation(session);
     if (kind === 'Took this step') {
       if (session.state.obstacle) session.state.obstacle = null;
+      // Tailored help moves on by asking again with the reported progress
+      // (it is in the task notes the service reads); answers are kept.
+      else if (session.state.ai?.result) { session.state.ai = { ...session.state.ai, result: null }; session.aiStatus = null; }
       else session.state.step = (Number(session.state.step) || 0) + 1;
     }
     const decision = decisionFor(session);
@@ -355,7 +456,7 @@
     };
     session.state.values = session.state.values || {};
     current = session;
-    render(session, { focusTitle: true });
+    renderFirst(session);
     if (canWork && /From “.+” v\d+/.test(task.description || '') && window.CapabilityMemory?.findOpenAttemptForTask) {
       const attempt = await window.CapabilityMemory.findOpenAttemptForTask(task.id, memberId);
       if (attempt && current === session) {
@@ -383,7 +484,7 @@
     session.state.values = session.state.values || {};
     current = session;
     persistDraft(session);
-    if (document.contains(root)) render(session, { focusTitle: true });
+    if (document.contains(root)) renderFirst(session);
   }
 
   async function chooseProject(session, slot, onPick) {
@@ -494,6 +595,14 @@
       }
     });
     root.addEventListener('click', event => handleClick(event, root));
+    root.addEventListener('submit', event => {
+      const form = event.target.closest('[data-mta-ai-answer-form]');
+      if (!form) return;
+      event.preventDefault();
+      const session = current;
+      const answer = form.querySelector('[data-mta-ai-answer]')?.value.trim();
+      if (session && answer && session.decision?.aiClarify) answerClarification(session, session.decision.aiClarify.question, answer);
+    });
   }
 
   function updateMatrix(session, blockId, rowIndex, mutate) {
@@ -545,6 +654,12 @@
       const button = target.closest('[data-mta-copy-brief]');
       return copyText(engine().briefText(session.decision, values), button, 'Copied ✓');
     }
+    if (target.closest('[data-mta-ai-skip]')) { session.aiStatus = 'skipped'; render(session); return; }
+    if (target.closest('[data-mta-ai-retry]')) { session.aiStatus = null; requestIntelligence(session); return; }
+    if (target.closest('[data-mta-ai-reset]')) { session.state.ai = { gen: session.state.ai?.gen || 0, clarifications: [], result: null }; session.aiStatus = null; session.dirty = Boolean(session.task && session.canWork); persistDraft(session); requestIntelligence(session); return; }
+    const choice = target.closest('[data-mta-ai-choice]');
+    if (choice && session.decision?.aiClarify) { answerClarification(session, session.decision.aiClarify.question, choice.dataset.mtaAiChoice); return; }
+    if (target.closest('[data-mta-ai-guess]') && session.decision?.aiClarify) { answerClarification(session, session.decision.aiClarify.question, 'Not sure yet — suggest a safe, useful first step and say what is still uncertain.'); return; }
     if (target.closest('[data-mta-not-this]')) { session.state = { ...session.state, overridden: true, playbook: null, obstacle: null }; session.dirty = Boolean(session.task); persistDraft(session); render(session); return; }
     const obstacle = target.closest('[data-mta-obstacle]');
     if (obstacle) {
@@ -589,7 +704,8 @@
         }
         await saveReport(session, kindValue, text);
         session.reportKind = null;
-        render(session);
+        if (wantsIntelligence(session, decisionFor(session))) requestIntelligence(session);
+        else render(session);
         root.querySelector('[data-mta-decision]')?.scrollIntoView({ block: 'start' });
       } catch (error) { report.disabled = false; report.textContent = 'Couldn’t save — try again'; console.warn('[Assistance] report failed', error); }
       return;

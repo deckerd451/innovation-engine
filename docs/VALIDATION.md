@@ -9,7 +9,7 @@ today, and what still requires a human in a browser.
 
 ```
 npm test    # runs the offline regression suite (scripts/validate.js)
-npm run lint  # node --check syntax validation of every tracked .js file (scripts/lint.js)
+npm run lint  # node --check syntax validation of every tracked .js/.mjs file and the Edge Function entry (scripts/lint.js)
 ```
 
 Both are dependency-free (only Node built-ins) and require no network access,
@@ -56,6 +56,33 @@ Runs the repository's real RLS policies and triggers as the `authenticated`
 role: private packages, another team's tasks and the stats RPC stay hidden;
 new learning cannot be forged or claim evidence; shared learning is readable
 by a later member. All rows are rolled back.
+
+## Tailored help (buildspace-assist) — see docs/BUILDSPACE_ASSIST_SERVICE.md
+
+Run by `npm test`:
+
+- `test-assist-contract.js` — request bounds and every output gate (generic or
+  repeated questions, blank worksheets, platitudes, echoes, overclaims), plus
+  the retrieval layer's own permission filter when a query over-returns.
+- `test-assist-service.js` — the real handler/retrieval/prompt/validator and
+  Anthropic adapter against the fixture community, scenarios A, B, D–F, H, I.
+  The model is a scripted stand-in (`fixtures/assist-model-outputs.js`), so
+  these prove data flow, permissions and failure handling, **not** answer quality.
+- `test-assistance-intelligence.js` — browser module: flag, transport errors,
+  normalisation, routing (familiar objectives never call the service).
+
+The rendered journey also runs the real service code in the page (scenarios
+A–C, E–H, J for “Supply Agents”). Usage ledger against PostgreSQL:
+
+```
+psql -d ie_test -f scripts/tests/fixtures/supabase-minimal-bootstrap.sql
+psql -d ie_test -f supabase/sql/migrations/20261014_buildspace_assist_usage.sql
+psql -d ie_test -f scripts/tests/assist-usage-db.sql
+```
+
+Live quality (paid; needs an authorized key, never run in CI):
+`node scripts/eval/assist-eval.mjs --live` — writes a report with automated
+effort measures and a blank human rubric per case.
 
 ## Known gaps
 

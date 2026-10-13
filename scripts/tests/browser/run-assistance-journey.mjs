@@ -129,6 +129,33 @@ const surfaceReport = () => evaluate(`(() => {
 
 const fixtures = fs.readFileSync(path.join(root, 'scripts/tests/fixtures/assistance-fixtures.js'), 'utf8');
 const fake = fs.readFileSync(path.join(root, 'scripts/tests/fixtures/fake-supabase.js'), 'utf8');
+const modelOutputs = fs.readFileSync(path.join(root, 'scripts/tests/fixtures/assist-model-outputs.js'), 'utf8');
+
+// Tailored help runs the REAL service code (handler, retrieval, prompt,
+// validator) in the page against the fixture database; only the model is a
+// scripted stand-in, so this checks integration and rendering, not quality.
+const installAssistBackend = `(async () => {
+  const { createHandler } = await import('/supabase/functions/_shared/assist/handler.mjs');
+  window.__assistCalls = 0; window.__assistMode = 'ok'; window.__lastPrompt = '';
+  const provider = { id: 'anthropic', label: 'Scripted stand-in (test only)', model: 'scripted-stand-in', async call({ prompt }) {
+    window.__assistCalls += 1; window.__lastPrompt = prompt;
+    await new Promise(resolve => setTimeout(resolve, 600));
+    if (window.__assistMode === 'fail') throw new TypeError('network down');
+    return { output: window.AssistModelOutputs.respond(prompt), usage: { inputTokens: 1000, outputTokens: 500 }, model: 'scripted-stand-in' };
+  } };
+  const handler = createHandler({
+    env: { BUILDSPACE_AI_APPROVED_PROVIDERS: 'anthropic' },
+    createUserClient: () => window.createFakeSupabase(window.supabase.__db, { session: { user: { id: 'auth-me' } } }),
+    createLedgerClient: () => ({ rpc: async name => (name === 'claim_assistance_ai_request' ? { data: { allowed: true, id: 'claim' }, error: null } : { data: null, error: null }) }),
+    providers: { anthropic: provider },
+  });
+  window.supabase.functions = { invoke: async (name, { body }) => {
+    const res = await handler(new Request(location.origin + '/functions/v1/' + name, { method: 'POST', headers: { authorization: 'Bearer fixture', 'content-type': 'application/json' }, body: JSON.stringify(body) }));
+    return res.ok ? { data: await res.json(), error: null } : { data: null, error: { name: 'FunctionsHttpError', context: res } };
+  } };
+  localStorage.setItem('buildspace:intelligence', 'on');
+  return true;
+})()`;
 
 try {
   await send('Page.enable');
@@ -137,7 +164,7 @@ try {
   await send('Emulation.setDeviceMetricsOverride', VIEWPORT);
   await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
   await send('Emulation.setUserAgentOverride', { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1' });
-  await send('Page.addScriptToEvaluateOnNewDocument', { source: `${fixtures}\n${fake}\n(() => {
+  await send('Page.addScriptToEvaluateOnNewDocument', { source: `${fixtures}\n${fake}\n${modelOutputs}\n(() => {
     const seed = window.AssistanceFixtures.seed();
     const session = { access_token: 'fixture', user: { id: 'auth-me', email: 'member@example.test' } };
     window.supabase = window.createFakeSupabase(seed, { session });
@@ -298,6 +325,86 @@ try {
   await sleep(500);
   s = await surfaceReport();
   check(s.overlays === 0 && s.centreOwner === 'my-space' && await evaluate(`document.activeElement?.id === 'mgd-goal-input'`), 'Denied task offers a safe alternative: own-objective entry, focused', JSON.stringify(s));
+  // ---------------------------------------------------------------------
+  // Intelligence layer (tailored help) on the real production failure case.
+  await evaluate(installAssistBackend);
+  const AGENTS = '12121212-1212-4212-8212-121212121212';
+  const panelText = () => evaluate(`document.getElementById('mobile-task-assistance')?.textContent || ''`);
+  await tap('#mobile-you-content details.mobile-you-secondary > summary', 'Your other open tasks');
+  await tap(`#mobile-you-content [data-next-task="${AGENTS}"]`, 'Supply Agents');
+  await waitFor(`document.querySelector('#mobile-task-assistance .mta-ai-loading')`, 'tailored-help loading state', 5000);
+  check(true, 'Tailored help shows a loading state instead of flashing the generic guide');
+  await shot('15-ai-loading');
+  await waitFor(`document.querySelector('[data-mta-ai-choice]')`, 'clarification');
+  let text = await panelText();
+  const question = await evaluate(`document.querySelector('#mta-next-title').textContent`);
+  check(/Harborhack/.test(question) && /agents/i.test(question) && !/What’s in the way right now/.test(text) && !/It is done when/.test(text), 'Scenario A: “Supply Agents” asks one context-aware question, not the generic obstacle question', question);
+  check(await evaluate(`document.querySelectorAll('[data-mta-ai-choice]').length >= 2 && !!document.querySelector('[data-mta-ai-answer]')`), 'Clarification offers choices and a free-text answer');
+  check((await evaluate('window.__assistCalls')) === 1, 'One service call to reach the question');
+  await shot('16-ai-clarify');
+
+  await tap('[data-mta-ai-choice^="AI agents"]', 'AI agents (software)');
+  await waitFor(`document.querySelector('.mta-ai-label')`, 'tailored work product');
+  text = await panelText();
+  const matrixId = await evaluate(`document.querySelector('[data-ai-matrix-block]')?.dataset.aiMatrixBlock`);
+  const rows = await evaluate(`[...document.querySelectorAll('[data-ai-matrix="${matrixId}"][data-name]')].map(i => i.value)`);
+  check(rows.includes('Agent Heights') && /Offer request/.test(text) && /Supply plan/.test(text), 'Scenario B: the answer produces a specific, prefilled work product (options comparison, plan, message)', rows.join(', '));
+  check(/Understood as: Supply AI agent tooling/.test(text), 'The interpretation is shown and the answer can be changed');
+  check(/Community knowledge used/.test(text) && /Run an AI agents build track at a hackathon/.test(text) && /Results reported by members/.test(text) && /sponsor API credits/.test(text), 'Scenario E: an authorized method with its evidence level changes the plan');
+  check(/Sam \(fixture\)/.test(text) && /doesn’t mean they’re available/.test(text), 'Connection suggested by listed skill, with the availability caveat');
+  check(!/Confidential agent vendor|PRIVATE-RILEY|Keynote speaker shortlist/.test(text) && !/PRIVATE-RILEY|Riley/.test(await evaluate('window.__lastPrompt')), 'Scenario F: private community content reaches neither the model nor the member');
+  const emptyFields = await evaluate(`[...document.querySelectorAll('.ai-work-product textarea[data-ai-key]')].filter(t => !t.value.trim()).length`);
+  check(emptyFields === 0, 'No blank fields for the member to fill in', `empty=${emptyFields}`);
+  await shot('17-ai-work-product');
+
+  await select(`[data-ai-matrix="${matrixId}"][data-row="0"][data-criterion="free-for-teams"]`, '3');
+  await evaluate(`(() => { const t = document.querySelector('[data-ai-message]'); t.value = t.value + ' Thanks — Harborhack organizers'; t.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+  await tap('[data-mta-save]', 'Save to this task');
+  await waitFor(`document.querySelector('[data-mta-go-report]')`, 'saved');
+  const savedAgents = await evaluate(`window.supabase.__db.project_tasks.find(t => t.id === '${AGENTS}').description`);
+  check(/^Agent Heights\? What other Agents\?/.test(savedAgents) && /"ai":/.test(savedAgents) && /Thanks — Harborhack organizers/.test(savedAgents), 'Tailored work, answers and edits are saved to the task without losing its description');
+  const callsBeforeReturn = await evaluate('window.__assistCalls');
+  await tap('[data-mta-back]', 'Back to My Space');
+  await waitFor(`!document.getElementById('mobile-task-assistance')`, 'closed');
+  await tap('#mobile-you-content details.mobile-you-secondary > summary', 'Your other open tasks');
+  await tap(`#mobile-you-content [data-next-task="${AGENTS}"]`, 'Supply Agents again');
+  await waitFor(`document.querySelector('.mta-ai-label')`, 'restored tailored work');
+  const restored = await evaluate(`({ message: document.querySelector('[data-ai-message]').value, score: document.querySelector('[data-ai-matrix="${matrixId}"][data-row="0"][data-criterion="free-for-teams"]').value })`);
+  check(/Thanks — Harborhack organizers/.test(restored.message) && restored.score === '3' && (await evaluate('window.__assistCalls')) === callsBeforeReturn, 'Scenario G: saved edits survive navigation and return, with no new model call', JSON.stringify(restored));
+  const layout = await evaluate(`(() => { const p = document.querySelector('.mta-panel'); const b = document.querySelector('.mta-primary'); b.scrollIntoView({ block: 'end' }); const r = b.getBoundingClientRect(); const bar = document.getElementById('mobile-tab-bar').getBoundingClientRect(); return { overflow: p.scrollWidth - p.clientWidth, docOverflow: document.scrollingElement.scrollWidth - innerWidth, bottom: r.bottom, barTop: bar.top }; })()`);
+  check(layout.overflow <= 0 && layout.docOverflow <= 0 && layout.bottom <= layout.barTop, 'Scenario J: no horizontal overflow; primary action clear of the tab bar', JSON.stringify(layout));
+
+  await tap('[data-mta-go-report]', 'Report what happened');
+  await tap('[data-mta-kind="Took this step"]', 'I did this step');
+  await type('[data-mta-report-note]', 'Agent Heights offered 50 seats');
+  const callsBeforeReport = await evaluate('window.__assistCalls');
+  await tap('[data-mta-report]', 'Save update');
+  await waitFor(`window.__assistCalls > ${callsBeforeReport} && document.querySelector('.mta-ai-label')`, 'next tailored step', 8000);
+  const agentsRow = await evaluate(`window.supabase.__db.project_tasks.find(t => t.id === '${AGENTS}')`);
+  check(agentsRow.status === 'in_progress' && /Took this step \(member-reported\): Agent Heights offered 50 seats/.test(await evaluate('window.__lastPrompt')), 'Reported progress starts the task and informs the next tailored step', agentsRow.status);
+  check(/Thanks — Harborhack organizers/.test(await evaluate(`window.supabase.__db.project_tasks.find(t => t.id === '${AGENTS}').description`)), 'Work from the previous step stays in the task notes');
+  await shot('18-ai-next-step');
+  await tap('[data-mta-close]', 'Close');
+
+  // Scenario H in the UI: the service fails → labelled general guide.
+  await evaluate(`window.__assistMode = 'fail'`);
+  await evaluate(`document.getElementById('mgd-goal-input').value = ''`);
+  await type('#mgd-goal-input', 'Get the shuttle bus schedule settled');
+  await tap('.mgd-goal-form button', 'Get help');
+  await waitFor(`document.querySelector('.mta-fallback')`, 'fallback notice', 8000);
+  text = await panelText();
+  check(/Tailored help couldn’t be reached/.test(text) && /general guide instead — it isn’t specific to this objective/.test(text) && /What’s in the way right now/.test(text) && !(await evaluate(`!!document.querySelector('.mta-ai-label')`)), 'Scenario H: a failed request shows the general guide, clearly labelled as not tailored');
+  check(await evaluate(`!!document.querySelector('[data-mta-ai-retry]')`), 'A retryable failure offers to try again');
+  await shot('19-ai-fallback');
+  await tap('[data-mta-close]', 'Close');
+
+  // Scenario C: familiar objectives keep their guide — no question, no call.
+  const callsBeforeSpeakers = await evaluate('window.__assistCalls');
+  await tap('#mobile-you-content [data-next-task]', 'Get help with this (speakers)');
+  await waitFor(`/choosing speakers/.test(document.querySelector('.mta-interpretation')?.textContent || '')`, 'speaker guide');
+  check((await evaluate('window.__assistCalls')) === callsBeforeSpeakers && !(await evaluate(`!!document.querySelector('.mta-ai-loading, [data-mta-ai-choice]')`)), 'Scenario C: speaker selection gets its guide immediately with no question and no model call');
+  await tap('[data-mta-close]', 'Close');
+
   // Desktop regression smoke: the mobile surfaces stay out of the way and
   // the existing project-task path is still what a task link opens.
   await send('Emulation.setDeviceMetricsOverride', { width: 1366, height: 900, deviceScaleFactor: 1, mobile: false });

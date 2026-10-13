@@ -12,7 +12,9 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 
-const trackedJsFiles = execFileSync('git', ['ls-files', '*.js'], { cwd: root, encoding: 'utf8' })
+// .mjs and the Edge Function's .ts entry are included; Node strips the TS
+// types for a parse-only check (it does not type-check).
+const trackedJsFiles = execFileSync('git', ['ls-files', '*.js', '*.mjs', 'supabase/functions/*.ts'], { cwd: root, encoding: 'utf8' })
   .split('\n')
   .filter(Boolean)
   .sort();
