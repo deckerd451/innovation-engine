@@ -18,6 +18,17 @@
   .mobile-you-card p { color:#c7cfdd; line-height:1.5; }
   .mobile-you-section-heading { display:flex; justify-content:space-between; align-items:center; }
   .mobile-you-section-heading span { color:#00e0ff; font-weight:700; }
+  .mobile-you-inline-action { min-height:40px; padding:.45rem .65rem; border:0; border-radius:8px; background:rgba(0,224,255,.08); color:#9eefff; font:inherit; font-size:.78rem; font-weight:800; }
+  .mobile-you-next { border-color:rgba(0,224,255,.3); background:linear-gradient(145deg,rgba(0,224,255,.1),rgba(255,255,255,.035)); }
+  .mobile-you-primary { width:100%; min-height:46px; padding:.7rem .8rem; border:0; border-radius:9px; background:#00e0ff; color:#061018; font:inherit; font-weight:800; text-align:left; }
+  .mobile-you-supporting { margin:.45rem 0 0; color:#98a2b5; font-size:.78rem; }
+  .mobile-you-goal .mgd-goal-heading { margin-bottom:.55rem; }
+  .mobile-you-goal .mgd-goal-heading .mgd-eyebrow { display:none; }
+  .mobile-you-goal .mgd-goal-heading h3 { margin:0; font-size:.95rem; }
+  .mobile-you-goal .mgd-goal-heading p { margin:.3rem 0 0; font-size:.78rem; }
+  .mobile-you-goal .mgd-goal-form { display:grid; gap:.5rem; }
+  .mobile-you-goal .mgd-goal-form button { min-height:44px; }
+  .mobile-you-goal .mgd-results { max-height:none; }
   .mobile-you-project { width:100%; display:flex; justify-content:space-between; gap:.75rem; text-align:left; padding:.75rem 0; color:white; background:none; border:0; border-top:1px solid rgba(255,255,255,.08); cursor:pointer; }
   .mobile-you-project span, .mobile-you-muted { color:#98a2b5; font-size:.84rem; }
   .mobile-you-secondary, .mobile-you-logout, .mobile-you-retry { min-height:44px; padding:.65rem .85rem; border-radius:9px; cursor:pointer; font-weight:700; }

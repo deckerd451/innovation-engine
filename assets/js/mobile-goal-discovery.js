@@ -22,7 +22,8 @@
     slot.innerHTML = '<div class="mgd-choice-loading">Loading your projects…</div>';
     authorizedProjects(profile?.id).then(projects => {
       if (!projects.length) {
-        slot.innerHTML = '<div class="cm-empty"><strong>Join a project first.</strong><p>Capability steps become tasks inside a project you can work in.</p></div>';
+        slot.innerHTML = '<div class="cm-empty"><strong>This method is available to try.</strong><p>Choose a project when you are ready to turn its steps into work.</p><button type="button" class="mgd-browse-projects">See related projects</button></div>';
+        slot.querySelector('.mgd-browse-projects')?.addEventListener('click', () => document.querySelector('.mob-tab[data-tab="discover"]')?.click());
         return;
       }
       slot.innerHTML = `<div class="mgd-choice-card"><strong>Where should we do this work?</strong><p>Choose a project. We’ll add these steps to its existing task list.</p><div class="mgd-project-options">${projects.map(project => `<button type="button" data-project-id="${escape(project.id)}"><span>${escape(project.title)}</span><small>${escape(project.status || 'active')}</small></button>`).join('')}</div><button type="button" class="mgd-cancel-choice">Cancel</button></div>`;
@@ -62,6 +63,7 @@
       event.preventDefault();
       const goal = new FormData(event.target).get('goal')?.trim();
       if (!goal) return;
+      window.CapabilityJourney?.emit('goal_entered', { surface: 'my_space' });
       const submit = event.target.querySelector('button');
       submit.disabled = true;
       container.querySelector('.mgd-results').innerHTML = '<div class="cm-loading">Searching community work…</div>';

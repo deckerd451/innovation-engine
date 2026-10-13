@@ -33,7 +33,7 @@
 
   async function loadData(profile) {
     const client = window.supabase;
-    if (!client || !profile?.id) return { projects: [], tasks: 0, attempts: 0 };
+    if (!client || !profile?.id) return { projects: [], tasks: [], attempts: [] };
     const [projectsResult, membershipsResult] = await Promise.all([
       client.from('projects').select('id, title, status, creator_id, description, created_at').order('created_at', { ascending: false }).limit(50),
       client.from('project_members').select('project_id, role').eq('user_id', profile.id),
@@ -42,12 +42,31 @@
     const accepted = new Set((membershipsResult.data || []).filter(row => row.role !== 'pending').map(row => row.project_id));
     const projects = (projectsResult.data || []).filter(project => project.creator_id === profile.id || accepted.has(project.id));
     const ids = projects.map(project => project.id);
-    if (!ids.length) return { projects, tasks: 0, attempts: 0 };
+    if (!ids.length) return { projects, tasks: [], attempts: [] };
     const [tasksResult, attemptsResult] = await Promise.all([
-      client.from('project_tasks').select('id', { count: 'exact', head: true }).in('project_id', ids),
-      client.from('capability_attempts').select('id', { count: 'exact', head: true }).eq('member_id', profile.id),
+      client.from('project_tasks').select('id, project_id, title, status, priority, due_date, created_at').in('project_id', ids).in('status', ['open', 'in_progress']).order('created_at', { ascending: true }).limit(50),
+      client.from('capability_attempts').select('id, project_id, goal, outcome_status, verification_status, created_at').eq('member_id', profile.id).order('created_at', { ascending: false }).limit(20),
     ]);
-    return { projects, tasks: tasksResult.error ? 0 : (tasksResult.count || 0), attempts: attemptsResult.error ? 0 : (attemptsResult.count || 0) };
+    const projectMap = new Map(projects.map(project => [project.id, project]));
+    const tasks = tasksResult.error ? [] : (tasksResult.data || []).map(task => ({ ...task, project: projectMap.get(task.project_id) }));
+    const attempts = attemptsResult.error ? [] : (attemptsResult.data || []).map(attempt => ({ ...attempt, project: projectMap.get(attempt.project_id) }));
+    return { projects, tasks, attempts };
+  }
+
+  function nextTask(tasks) {
+    const chooser = window.MobileTodayContinuityTesting?.chooseNextTask;
+    return chooser ? chooser(tasks) : (tasks || [])[0] || null;
+  }
+
+  function mountGoalSearch() {
+    const target = document.getElementById('mobile-you-goal-discovery');
+    if (!target || target.dataset.goalMounted === 'true') return;
+    if (!window.MobileGoalDiscovery?.mount) {
+      window.setTimeout(mountGoalSearch, 250);
+      return;
+    }
+    target.dataset.goalMounted = 'true';
+    window.MobileGoalDiscovery.mount(target);
   }
 
   function renderView(profile, data) {
@@ -56,15 +75,27 @@
     const name = profile.name || profile.full_name || profile.username || 'Member';
     const focus = profile.bio || profile.intent || 'Add a current focus so the community can help you make progress.';
     const projects = data.projects.map(project => `<button type="button" class="mobile-you-project" data-project-id="${esc(project.id)}"><strong>${esc(project.title || 'Untitled project')}</strong><span>${esc(project.status || 'active')}</span></button>`).join('');
-    el.innerHTML = `<header class="mobile-you-header"><div class="mobile-you-avatar" aria-hidden="true">${esc(name.slice(0, 1).toUpperCase())}</div><div><p class="mobile-you-eyebrow">Your space</p><h1 id="mobile-you-title">${esc(name)}</h1><p>${esc(profile.email || 'Community member')}</p></div></header>
-      <section class="mobile-you-card mobile-you-focus"><h2>Current focus</h2><p>${esc(focus)}</p><div class="mobile-you-actions"><button type="button" class="mobile-you-secondary" data-profile-action="open">Edit profile</button><button type="button" class="mobile-you-secondary" data-profile-action="settings">Settings</button></div></section>
+    const task = nextTask(data.tasks);
+    const activeAttempt = data.attempts.find(item => ['planned', 'in_progress'].includes(item.outcome_status));
+    const completedAttempts = data.attempts.filter(item => ['succeeded', 'not_succeeded'].includes(item.outcome_status)).length;
+    const taskAction = task ? `<button type="button" class="mobile-you-primary" data-next-project="${esc(task.project_id)}" data-next-tab="tasks">${task.status === 'in_progress' ? 'Continue' : 'Start'}: ${esc(task.title)}</button><p class="mobile-you-supporting">${esc(task.project?.title || 'Project task')}</p>` : activeAttempt ? `<button type="button" class="mobile-you-primary" data-next-project="${esc(activeAttempt.project_id)}" data-next-tab="capabilities">Record what happened</button><p class="mobile-you-supporting">${esc(activeAttempt.goal || 'Active method attempt')}</p>` : '<p class="mobile-you-muted">No open work yet. Describe a goal below to find a useful path forward.</p>';
+    el.innerHTML = `<header class="mobile-you-header"><div class="mobile-you-avatar" aria-hidden="true">${esc(name.slice(0, 1).toUpperCase())}</div><div><p class="mobile-you-eyebrow">My Space</p><h1 id="mobile-you-title">${esc(name)}</h1><p>${esc(profile.email || 'Community member')}</p></div></header>
+      <section class="mobile-you-card mobile-you-focus"><div class="mobile-you-section-heading"><h2>Your focus</h2><button type="button" class="mobile-you-inline-action" data-profile-action="open">Change</button></div><p>${esc(focus)}</p></section>
+      <section class="mobile-you-card mobile-you-next"><h2>Your next step</h2>${taskAction}</section>
+      <section class="mobile-you-card mobile-you-goal"><div class="mobile-you-section-heading"><h2>What do you want to accomplish?</h2></div><div id="mobile-you-goal-discovery"></div></section>
+      <section class="mobile-you-card"><h2>Help from your community</h2><p class="mobile-you-muted">Use Explore for people, projects, methods, and opportunities related to your goal.</p><button type="button" class="mobile-you-secondary" data-go-to-discover>Explore community</button></section>
+      <section class="mobile-you-card"><div class="mobile-you-section-heading"><h2>Your progress</h2><span>${completedAttempts}</span></div><p class="mobile-you-muted">${completedAttempts ? `${completedAttempts} completed method${completedAttempts === 1 ? '' : 's'}` : 'Outcomes you record will appear here.'}${data.tasks.length ? ` · ${data.tasks.length} open task${data.tasks.length === 1 ? '' : 's'}` : ''}</p></section>
       <section class="mobile-you-card"><div class="mobile-you-section-heading"><h2>Your projects</h2><span>${data.projects.length}</span></div>${projects || '<p class="mobile-you-muted">Projects you join or create will appear here.</p>'}</section>
-      <section class="mobile-you-card"><div class="mobile-you-section-heading"><h2>Contributions</h2></div><p class="mobile-you-muted">${data.tasks ? `${data.tasks} task${data.tasks === 1 ? '' : 's'} across your projects` : 'No project tasks yet.'}${data.attempts ? ` · ${data.attempts} method${data.attempts === 1 ? '' : 's'} you tried` : ''}</p></section>
-      <button type="button" class="mobile-you-logout" data-profile-action="logout">Log out</button>`;
+      <div class="mobile-you-actions"><button type="button" class="mobile-you-secondary" data-profile-action="settings">Settings</button><button type="button" class="mobile-you-logout" data-profile-action="logout">Log out</button></div>`;
     el.querySelectorAll('[data-profile-action="open"]').forEach(btn => btn.addEventListener('click', () => window.openProfileModal?.()));
     el.querySelector('[data-profile-action="settings"]')?.addEventListener('click', () => window.SettingsModal?.open?.());
     el.querySelector('[data-profile-action="logout"]')?.addEventListener('click', () => window.doLogout?.());
+    el.querySelector('[data-go-to-discover]')?.addEventListener('click', () => document.querySelector('.mob-tab[data-tab="discover"]')?.click());
+    el.querySelector('[data-next-project]')?.addEventListener('click', (event) => {
+      window.viewProjectDetails?.(event.currentTarget.dataset.nextProject, event.currentTarget.dataset.nextTab);
+    });
     el.querySelectorAll('[data-project-id]').forEach(btn => btn.addEventListener('click', () => window.viewProjectDetails?.(btn.dataset.projectId)));
+    mountGoalSearch();
   }
 
   async function render() {

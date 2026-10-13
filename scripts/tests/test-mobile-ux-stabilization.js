@@ -40,8 +40,9 @@ assert.match(nav, /unread > 0/);
 
 // You remains a real destination and explains contribution counts in plain language.
 assert.match(you, /Your projects/);
-assert.match(you, /across your projects/);
-assert.match(you, /method\$\{data\.attempts/);
+assert.match(you, /Your progress/);
+assert.match(you, /mobile-you-goal-discovery/);
+assert.match(you, /data-next-project/);
 assert.match(youCss, /z-index: 700/);
 
 // The project overlay retains safe-area and dynamic viewport clearance.
@@ -53,8 +54,8 @@ assert.match(projectCss, /scroll-padding-bottom/);
 // production failure mode that allowed the pre-fix shell to remain visible.
 assert.match(index, /command-dashboard\.css\?v=mobile-shell-isolation-20261013/);
 assert.match(index, /mobile-nav\.js\?v=mobile-shell-isolation-20261013/);
-assert.match(index, /mobile-you\.css\?v=mobile-shell-isolation-20261013/);
-assert.match(index, /mobile-you\.js\?v=mobile-shell-isolation-20261013/);
+assert.match(index, /mobile-you\.css\?v=my-space-stage1-20261013/);
+assert.match(index, /mobile-you\.js\?v=my-space-stage1-20261013/);
 assert.match(sw, /v9-mobile-shell-isolation-20261013/);
 
 console.log('Mobile UX stabilization contracts passed');
