@@ -18,7 +18,8 @@
     overscroll-behavior: contain;
     touch-action: pan-y pinch-zoom;
     padding: max(12px, env(safe-area-inset-top, 0px)) 0
-      calc(20px + env(safe-area-inset-bottom, 0px)) !important;
+      calc(16px + var(--pd-bottom-nav-height, 0px) + var(--pd-safe-bottom, env(safe-area-inset-bottom, 0px))) !important;
+    scroll-padding-bottom: calc(16px + var(--pd-bottom-nav-height, 0px) + var(--pd-safe-bottom, env(safe-area-inset-bottom, 0px)));
   }
 
   #project-detail-overlay .project-detail-panel {

@@ -3183,6 +3183,32 @@ window.viewProjectDetails = async function(projectId) {
 
   document.body.appendChild(overlay);
 
+  // The fixed mobile tab bar includes its own safe-area padding. Measure its
+  // rendered height instead of adding a second hardcoded safe-area offset.
+  let stopOverlayViewportSync = () => {};
+  const syncOverlayBottomInset = () => {
+    const nav = document.getElementById('mobile-tab-bar');
+    const navStyle = nav ? window.getComputedStyle(nav) : null;
+    const navVisible = Boolean(nav && navStyle?.display !== 'none' && navStyle?.visibility !== 'hidden');
+    const viewportHeight = Number(window.visualViewport?.height || window.innerHeight || 0);
+    const navTop = navVisible ? nav.getBoundingClientRect().top : viewportHeight;
+    const renderedNavHeight = navVisible ? Math.max(0, Math.min(viewportHeight, viewportHeight - navTop)) : 0;
+    overlay.style.setProperty('--pd-bottom-nav-height', `${Math.ceil(renderedNavHeight)}px`);
+    overlay.style.setProperty('--pd-safe-bottom', navVisible ? '0px' : 'env(safe-area-inset-bottom, 0px)');
+  };
+  syncOverlayBottomInset();
+  const viewport = window.visualViewport;
+  window.addEventListener('resize', syncOverlayBottomInset, { passive: true });
+  viewport?.addEventListener('resize', syncOverlayBottomInset, { passive: true });
+  const navObserver = window.ResizeObserver && document.getElementById('mobile-tab-bar')
+    ? new ResizeObserver(syncOverlayBottomInset) : null;
+  navObserver?.observe(document.getElementById('mobile-tab-bar'));
+  stopOverlayViewportSync = () => {
+    window.removeEventListener('resize', syncOverlayBottomInset);
+    viewport?.removeEventListener('resize', syncOverlayBottomInset);
+    navObserver?.disconnect();
+  };
+
   // Keep focused fields visible while iOS/Android resizes the visual viewport
   // for the keyboard. The overlay remains the single mobile scroll surface.
   overlay.addEventListener('focusin', (event) => {
@@ -3273,6 +3299,7 @@ window.viewProjectDetails = async function(projectId) {
 
   // Close handlers
   const closeOverlay = () => {
+    stopOverlayViewportSync();
     overlay.remove();
     console.log('[Project Detail] closed');
   };
