@@ -18,6 +18,9 @@
     demoPkg: '99999999-0000-4000-8000-000000000001',
     danaPkg: '99999999-0000-4000-8000-000000000002',
     rileyPrivatePkg: '99999999-0000-4000-8000-000000000003',
+    agentsTask: '12121212-1212-4212-8212-121212121212',
+    agentTrackPkg: '99999999-0000-4000-8000-000000000004',
+    rileyAgentPkg: '99999999-0000-4000-8000-000000000005',
   };
 
   function seed() {
@@ -26,7 +29,7 @@
       community: [
         { id: ID.me, user_id: 'auth-me', name: 'Test Member', skills: ['Python'], interests: [] },
         { id: ID.dana, user_id: 'auth-dana', name: 'Dana (fixture)', skills: ['Public Speaking', 'Event Planning'], interests: [] },
-        { id: ID.sam, user_id: 'auth-sam', name: 'Sam (fixture)', skills: ['React'], interests: ['Gaming'] },
+        { id: ID.sam, user_id: 'auth-sam', name: 'Sam (fixture)', skills: ['React', 'AI agents'], interests: ['Gaming'] },
         { id: ID.riley, user_id: 'auth-riley', name: 'Riley (fixture)', skills: ['Public speaking'], interests: [] },
         { id: ID.jordan, user_id: 'auth-jordan', name: 'Jordan (fixture)', skills: ['Keynote'], interests: [] },
       ],
@@ -47,15 +50,20 @@
       project_tasks: [
         { id: ID.speakerTask, project_id: ID.harbor, title: 'select speaker(s)', description: null, status: 'open', priority: 'high', due_date: null, created_at: '2026-09-02T00:00:00Z' },
         { id: ID.venueTask, project_id: ID.harbor, title: 'Book the venue', description: null, status: 'open', priority: 'medium', due_date: null, created_at: '2026-09-03T00:00:00Z' },
+        // The real production failure: an ambiguous, unfamiliar task.
+        { id: ID.agentsTask, project_id: ID.harbor, title: 'Supply Agents', description: 'Agent Heights? What other Agents?', status: 'open', priority: 'medium', due_date: null, created_at: '2026-09-04T00:00:00Z' },
         { id: ID.stealthTask, project_id: ID.stealth, title: 'Choose keynote speakers for investor day', description: 'Private shortlist', status: 'open', priority: 'high', due_date: null, created_at: '2026-07-02T00:00:00Z' },
       ],
       capability_packages: [
         { id: ID.demoPkg, project_id: ID.lab, creator_id: ID.sam, title: 'Validate a business idea through customer interviews', goal: 'Determine whether potential customers have a real problem worth solving.', summary: 'DEMONSTRATION CONTENT — Use this example to test goal search and task import. It represents a reusable interview workflow; it is not evidence that the workflow has been completed.', steps: ['Identify five potential customers.', 'Prepare five open-ended interview questions.', 'Interview the customers.', 'Record recurring problems.', 'Decide whether to prototype the idea.'], tools: [], constraints: { demonstration: true }, permission_mode: 'community', evidence_status: 'untested', version: 1, updated_at: '2026-10-01T00:00:00Z' },
         { id: ID.danaPkg, project_id: ID.lab, creator_id: ID.dana, title: 'Recruit hackathon speakers through sponsors', goal: 'Get confirmed speakers for a student hackathon.', summary: 'Asked each sponsor for one engineer to speak.', steps: ['List sponsors', 'Ask each sponsor for one speaker', 'Confirm logistics'], tools: [], constraints: {}, permission_mode: 'community', evidence_status: 'tested', version: 1, updated_at: '2026-09-20T00:00:00Z' },
         { id: ID.rileyPrivatePkg, project_id: ID.stealth, creator_id: ID.riley, title: 'Keynote speaker shortlist for investor day', goal: 'Pick keynote speakers.', summary: 'Private.', steps: ['Private step'], tools: [], constraints: {}, permission_mode: 'private', evidence_status: 'untested', version: 1, updated_at: '2026-10-05T00:00:00Z' },
+        { id: ID.agentTrackPkg, project_id: ID.lab, creator_id: ID.dana, title: 'Run an AI agents build track at a hackathon', goal: 'Give hackathon teams working AI agent tooling on day one.', summary: 'Pre-provisioned API credits and one starter agent template per team; a mentor table for agent debugging.', steps: ['Pick one agent framework and one hosted model for every team', 'Arrange sponsor API credits before registration closes', 'Publish a starter agent template repo', 'Staff a mentor table for agent debugging'], tools: [], constraints: {}, permission_mode: 'community', evidence_status: 'tested', version: 1, updated_at: '2026-09-25T00:00:00Z' },
+        { id: ID.rileyAgentPkg, project_id: ID.stealth, creator_id: ID.riley, title: 'Confidential agent vendor shortlist', goal: 'Pick AI agent vendors for investor day.', summary: 'PRIVATE-RILEY-SECRET pricing notes.', steps: ['Private step'], tools: [], constraints: {}, permission_mode: 'private', evidence_status: 'untested', version: 1, updated_at: '2026-10-06T00:00:00Z' },
       ],
       capability_attempts: [
         { id: 'attempt-dana-1', capability_id: ID.danaPkg, member_id: ID.sam, outcome_status: 'succeeded', verification_status: 'self_reported', task_ids: [] },
+        { id: 'attempt-track-1', capability_id: ID.agentTrackPkg, member_id: ID.sam, outcome_status: 'succeeded', verification_status: 'self_reported', task_ids: [] },
       ],
     };
   }
