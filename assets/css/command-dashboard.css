@@ -377,6 +377,23 @@ body.reflection-resizing #network-reflection { transition:none; }
     visibility: hidden !important;
     pointer-events: none !important;
   }
+  html body.mobile-surface-discover #synapse-main-view,
+  html body.mobile-surface-community #synapse-main-view {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+  html body.mobile-surface-you #network-reflection,
+  html body.mobile-surface-discover #network-reflection,
+  html body.mobile-surface-community #network-reflection {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+  html body.mobile-surface-discover #command-dashboard,
+  html body.mobile-surface-community #command-dashboard {
+    background: var(--cd-bg) !important;
+  }
   body.mobile-surface-today #mobile-you-screen,
   body.mobile-surface-discover #mobile-you-screen,
   body.mobile-surface-community #mobile-you-screen {
@@ -384,14 +401,14 @@ body.reflection-resizing #network-reflection { transition:none; }
     visibility: hidden !important;
     pointer-events: none !important;
   }
-  body.mobile-surface-discover #command-dashboard.cd-mobile-panel #cd-focus,
-  body.mobile-surface-community #command-dashboard.cd-mobile-panel #cd-focus {
+  body.mobile-surface-discover #command-dashboard #cd-focus,
+  body.mobile-surface-community #command-dashboard #cd-focus {
     display: none !important;
     visibility: hidden !important;
     pointer-events: none !important;
   }
-  body.mobile-surface-discover #command-dashboard.cd-mobile-panel #cd-explore,
-  body.mobile-surface-community #command-dashboard.cd-mobile-panel #cd-explore {
+  body.mobile-surface-discover #command-dashboard #cd-explore,
+  body.mobile-surface-community #command-dashboard #cd-explore {
     display: block !important;
     visibility: visible !important;
     pointer-events: auto !important;
@@ -468,7 +485,7 @@ body.reflection-resizing #network-reflection { transition:none; }
     width: 100% !important;
     position: static !important;   /* no longer absolute inside main-content */
     height: auto !important;
-    background: transparent !important;
+    background: var(--cd-bg) !important;
     border-right: none !important;
     border-top: 1px solid rgba(0, 224, 255, 0.12);
     overflow: visible !important;  /* parent pane handles scroll */

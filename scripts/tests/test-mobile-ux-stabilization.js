@@ -20,7 +20,9 @@ assert.match(nav, /setMobileSurface\('you'\)/);
 assert.match(nav, /surface = mode === 'network' \? 'community' : 'discover'/);
 assert.match(nav, /community: \(\) => setDiscoverMode\('network', 'community'\)/);
 assert.match(nav, /\.inert = surface/);
-assert.match(dashboardCss, /body\.mobile-surface-discover #command-dashboard\.cd-mobile-panel #cd-focus/);
+assert.match(dashboardCss, /body\.mobile-surface-discover #command-dashboard #cd-focus/);
+assert.match(dashboardCss, /mobile-surface-community #synapse-main-view/);
+assert.match(dashboardCss, /mobile-surface-community #network-reflection/);
 assert.match(dashboardCss, /pointer-events: none !important/);
 assert.match(dashboardCss, /body\.mobile-surface-you #command-dashboard/);
 
@@ -43,6 +45,11 @@ assert.match(you, /Your projects/);
 assert.match(you, /Your progress/);
 assert.match(you, /mobile-you-goal-discovery/);
 assert.match(you, /data-next-project/);
+assert.match(you, /What are you working on\?/);
+assert.match(you, /What do you want to accomplish next\?/);
+assert.match(you, /profile\.intent/);
+assert.doesNotMatch(you, /const focus = profile\.bio/);
+assert.match(you, /target\.dataset\.compact = 'true'/);
 assert.match(youCss, /z-index: 700/);
 
 // The project overlay retains safe-area and dynamic viewport clearance.
@@ -52,14 +59,15 @@ assert.match(projectCss, /scroll-padding-bottom/);
 
 // The isolation fix must actually reach clients; stale asset URLs were the
 // production failure mode that allowed the pre-fix shell to remain visible.
-assert.match(index, /command-dashboard\.css\?v=mobile-nav-stage2-20261013/);
-assert.match(index, /mobile-nav\.js\?v=mobile-nav-stage2-20261013/);
-assert.match(index, /mobile-you\.css\?v=my-space-stage1-20261013/);
-assert.match(index, /mobile-you\.js\?v=my-space-stage2-20261013/);
+assert.match(index, /command-dashboard\.css\?v=adoption-shell-20261013/);
+assert.match(index, /mobile-nav\.js\?v=adoption-shell-20261013/);
+assert.match(index, /mobile-you\.css\?v=adoption-space-20261013/);
+assert.match(index, /mobile-you\.js\?v=adoption-space-20261013/);
+assert.match(index, /mobile-goal-discovery\.js\?v=adoption-goal-20261013/);
 assert.match(index, /My Space/);
 assert.match(index, /Explore/);
 assert.match(index, /data-surface="community"/);
 assert.match(index, /Community/);
-assert.match(sw, /v10-mobile-nav-stage2-20261013/);
+assert.match(sw, /v11-adoption-shell-20261013/);
 
 console.log('Mobile UX stabilization contracts passed');

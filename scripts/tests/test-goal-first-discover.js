@@ -4,10 +4,11 @@ const fs = require('node:fs');
 const read = (file) => fs.readFileSync(file, 'utf8');
 const html = read('index.html');
 const discover = read('assets/js/mobile-goal-discovery.js');
+const space = read('assets/js/mobile-you.js');
 const memory = read('assets/js/capability-memory.js');
 const css = read('assets/css/mobile-goal-discovery.css');
 
-assert.match(html, /id="mgd-goal-discovery"/);
+assert.match(space, /id="mobile-you-goal-discovery"/);
 assert.match(html, /Browse the community/);
 assert.match(html, /mobile-goal-discovery\.js/);
 assert.match(discover, /What are you trying to accomplish\?/);

@@ -65,6 +65,7 @@
       window.setTimeout(mountGoalSearch, 250);
       return;
     }
+    target.dataset.compact = 'true';
     target.dataset.goalMounted = 'true';
     window.MobileGoalDiscovery.mount(target);
   }
@@ -73,20 +74,22 @@
     const el = host();
     if (!el) return;
     const name = profile.name || profile.full_name || profile.username || 'Member';
-    const focus = profile.bio || profile.intent || 'Add a current focus so the community can help you make progress.';
     const projects = data.projects.map(project => `<button type="button" class="mobile-you-project" data-project-id="${esc(project.id)}"><strong>${esc(project.title || 'Untitled project')}</strong><span>${esc(project.status || 'active')}</span></button>`).join('');
     const task = nextTask(data.tasks);
     const activeAttempt = data.attempts.find(item => ['planned', 'in_progress'].includes(item.outcome_status));
+    const activeProject = task?.project || activeAttempt?.project || data.projects.find(project => ['active', 'in_progress', 'open'].includes(String(project.status || '').toLowerCase()));
+    const focus = activeProject?.title || profile.intent || '';
     const completedAttempts = data.attempts.filter(item => ['succeeded', 'not_succeeded'].includes(item.outcome_status)).length;
     const taskAction = task ? `<button type="button" class="mobile-you-primary" data-next-project="${esc(task.project_id)}" data-next-tab="tasks">${task.status === 'in_progress' ? 'Continue' : 'Start'}: ${esc(task.title)}</button><p class="mobile-you-supporting">${esc(task.project?.title || 'Project task')}</p>` : activeAttempt ? `<button type="button" class="mobile-you-primary" data-next-project="${esc(activeAttempt.project_id)}" data-next-tab="capabilities">Record what happened</button><p class="mobile-you-supporting">${esc(activeAttempt.goal || 'Active method attempt')}</p>` : '<p class="mobile-you-muted">No open work yet. Describe a goal below to find a useful path forward.</p>';
-    el.innerHTML = `<header class="mobile-you-header"><div class="mobile-you-avatar" aria-hidden="true">${esc(name.slice(0, 1).toUpperCase())}</div><div><p class="mobile-you-eyebrow">My Space</p><h1 id="mobile-you-title">${esc(name)}</h1><p>${esc(profile.email || 'Community member')}</p></div></header>
-      <section class="mobile-you-card mobile-you-focus"><div class="mobile-you-section-heading"><h2>Your focus</h2><button type="button" class="mobile-you-inline-action" data-profile-action="open">Change</button></div><p>${esc(focus)}</p></section>
+    const workSummary = focus ? `<p>${esc(focus)}</p>` : '<p class="mobile-you-muted">Nothing active yet.</p>';
+    el.innerHTML = `<header class="mobile-you-header"><div class="mobile-you-avatar" aria-hidden="true">${esc(name.slice(0, 1).toUpperCase())}</div><div><p class="mobile-you-eyebrow">My Space</p><h1 id="mobile-you-title">${esc(name)}</h1></div></header>
+      <section class="mobile-you-card mobile-you-focus"><div class="mobile-you-section-heading"><h2>What are you working on?</h2><button type="button" class="mobile-you-inline-action" data-profile-action="open">Change</button></div>${workSummary}</section>
       <section class="mobile-you-card mobile-you-next"><h2>Your next step</h2>${taskAction}</section>
-      <section class="mobile-you-card mobile-you-goal"><div class="mobile-you-section-heading"><h2>What do you want to accomplish?</h2></div><div id="mobile-you-goal-discovery"></div></section>
-      <section class="mobile-you-card"><h2>Help from your community</h2><p class="mobile-you-muted">Use Explore for people, projects, methods, and opportunities related to your goal.</p><button type="button" class="mobile-you-secondary" data-go-to-discover>Explore community</button></section>
-      <section class="mobile-you-card"><div class="mobile-you-section-heading"><h2>Your progress</h2><span>${completedAttempts}</span></div><p class="mobile-you-muted">${completedAttempts ? `${completedAttempts} completed method${completedAttempts === 1 ? '' : 's'}` : 'Outcomes you record will appear here.'}${data.tasks.length ? ` · ${data.tasks.length} open task${data.tasks.length === 1 ? '' : 's'}` : ''}</p></section>
-      <section class="mobile-you-card"><div class="mobile-you-section-heading"><h2>Your projects</h2><span>${data.projects.length}</span></div>${projects || '<p class="mobile-you-muted">Projects you join or create will appear here.</p>'}</section>
-      <div class="mobile-you-actions"><button type="button" class="mobile-you-secondary" data-profile-action="settings">Settings</button><button type="button" class="mobile-you-logout" data-profile-action="logout">Log out</button></div>`;
+      <section class="mobile-you-card mobile-you-goal"><div class="mobile-you-section-heading"><h2>What do you want to accomplish next?</h2></div><div id="mobile-you-goal-discovery"></div></section>
+      <details class="mobile-you-secondary"><summary>Community help</summary><div class="mobile-you-secondary-body"><p class="mobile-you-muted">Find people, projects, methods, and opportunities related to your goal.</p><button type="button" class="mobile-you-secondary" data-go-to-discover>Explore community</button></div></details>
+      <details class="mobile-you-secondary"><summary>Your progress</summary><div class="mobile-you-secondary-body"><p class="mobile-you-muted">${completedAttempts ? `${completedAttempts} completed method${completedAttempts === 1 ? '' : 's'}` : 'Outcomes you record will appear here.'}${data.tasks.length ? ` · ${data.tasks.length} open task${data.tasks.length === 1 ? '' : 's'}` : ''}</p></div></details>
+      <details class="mobile-you-secondary"><summary>Your projects (${data.projects.length})</summary><div class="mobile-you-secondary-body">${projects || '<p class="mobile-you-muted">Projects you join or create will appear here.</p>'}</div></details>
+      <details class="mobile-you-secondary"><summary>Account</summary><div class="mobile-you-secondary-body mobile-you-actions"><button type="button" class="mobile-you-secondary" data-profile-action="settings">Settings</button><button type="button" class="mobile-you-logout" data-profile-action="logout">Log out</button></div></details>`;
     el.querySelectorAll('[data-profile-action="open"]').forEach(btn => btn.addEventListener('click', () => window.openProfileModal?.()));
     el.querySelector('[data-profile-action="settings"]')?.addEventListener('click', () => window.SettingsModal?.open?.());
     el.querySelector('[data-profile-action="logout"]')?.addEventListener('click', () => window.doLogout?.());

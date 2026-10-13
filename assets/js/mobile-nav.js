@@ -233,6 +233,10 @@
     const focus = document.getElementById('cd-focus');
     const explore = document.getElementById('cd-explore');
     const you = document.getElementById('mobile-you-screen');
+    const graph = document.getElementById('synapse-main-view');
+    if (dashboard) dashboard.dataset.mobileSurface = surface;
+    if (graph) graph.dataset.mobileSurface = surface;
+    if (you) you.dataset.mobileSurface = surface;
     if (dashboard) dashboard.inert = surface === 'you';
     if (you) { you.inert = surface !== 'you'; you.setAttribute('aria-hidden', surface === 'you' ? 'false' : 'true'); }
     if (focus) focus.inert = surface === 'discover' || surface === 'community';
