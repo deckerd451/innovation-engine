@@ -2013,36 +2013,7 @@ async function searchUsers(query, container) {
       return;
     }
 
-    let html = '';
-    users.forEach(user => {
-      html += `
-        <div onclick="selectUserForMessage('${user.id}', '${(user.name || '').replace(/'/g, "\\'")}')" style="
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-          padding: 1rem;
-          border-radius: 8px;
-          cursor: pointer;
-          transition: background 0.2s;
-          border: 1px solid transparent;
-        " onmouseover="this.style.background='rgba(0, 224, 255, 0.1)'; this.style.borderColor='rgba(0, 224, 255, 0.3)'"
-           onmouseout="this.style.background='transparent'; this.style.borderColor='transparent'">
-          ${window.profilePhotoUrl?.(user)
-            ? `<img src="${window.profilePhotoUrl?.(user)}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">`
-            : `<div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #0080ff); display: flex; align-items: center; justify-content: center; font-weight: bold; color: white;">${user.name?.[0] || '?'}</div>`
-          }
-          <div style="flex: 1; min-width: 0;">
-            <h4 style="color: white; margin: 0 0 0.25rem 0; font-size: 1rem;">${escapeHtml(user.name || 'Unknown')}</h4>
-            <p style="color: rgba(255, 255, 255, 0.7); margin: 0; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-              ${escapeHtml(user.user_role || 'Community Member')}
-            </p>
-          </div>
-          <i class="fas fa-comment" style="color: rgba(0, 224, 255, 0.6);"></i>
-        </div>
-      `;
-    });
-
-    container.innerHTML = html;
+    container.replaceChildren(...users.map(renderMessageRecipient));
 
   } catch (error) {
     console.error('❌ Error searching users:', error);
@@ -2053,6 +2024,60 @@ async function searchUsers(query, container) {
       </div>
     `;
   }
+}
+
+// Names, roles and photo URLs are member-supplied: they are set as text and
+// properties, never parsed as HTML or inline handler source.
+function renderMessageRecipient(user) {
+  const row = document.createElement('div');
+  row.style.cssText = `
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+    border: 1px solid transparent;
+  `;
+  row.addEventListener('mouseover', () => {
+    row.style.background = 'rgba(0, 224, 255, 0.1)';
+    row.style.borderColor = 'rgba(0, 224, 255, 0.3)';
+  });
+  row.addEventListener('mouseout', () => {
+    row.style.background = 'transparent';
+    row.style.borderColor = 'transparent';
+  });
+  row.addEventListener('click', () => selectUserForMessage(user.id, user.name || ''));
+
+  const photoUrl = window.profilePhotoUrl?.(user);
+  let avatar;
+  if (photoUrl) {
+    avatar = document.createElement('img');
+    avatar.src = photoUrl;
+    avatar.style.cssText = 'width: 40px; height: 40px; border-radius: 50%; object-fit: cover;';
+  } else {
+    avatar = document.createElement('div');
+    avatar.style.cssText = 'width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #0080ff); display: flex; align-items: center; justify-content: center; font-weight: bold; color: white;';
+    avatar.textContent = user.name?.[0] || '?';
+  }
+
+  const details = document.createElement('div');
+  details.style.cssText = 'flex: 1; min-width: 0;';
+  const name = document.createElement('h4');
+  name.style.cssText = 'color: white; margin: 0 0 0.25rem 0; font-size: 1rem;';
+  name.textContent = user.name || 'Unknown';
+  const role = document.createElement('p');
+  role.style.cssText = 'color: rgba(255, 255, 255, 0.7); margin: 0; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;';
+  role.textContent = user.user_role || 'Community Member';
+  details.append(name, role);
+
+  const icon = document.createElement('i');
+  icon.className = 'fas fa-comment';
+  icon.style.color = 'rgba(0, 224, 255, 0.6)';
+
+  row.append(avatar, details, icon);
+  return row;
 }
 
 function selectUserForMessage(targetCommunityUserId, userName) {

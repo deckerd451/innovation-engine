@@ -27,8 +27,10 @@ function showToast(message, type = "info") {
         ? "exclamation-circle"
         : "info-circle"
     }"></i>
-    <span>${message}</span>
+    <span></span>
   `;
+  // Messages carry member names; show them as text.
+  toast.querySelector("span").textContent = message;
 
   toast.style.cssText = `
     position: fixed;

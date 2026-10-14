@@ -3625,7 +3625,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       }
 
       container.innerHTML = projects
-        .map((p) => {
+        .map((p, index) => {
           // Support both array (skills) and legacy string (skills_needed) column formats
           const rawSkills = p.skills || p.skills_needed || [];
           const skills = Array.isArray(rawSkills)
@@ -3661,7 +3661,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
                   ${
                     !isMember
                       ? `
-                    <button onclick="joinProject('${p.id}', '${escapeHtml(p.title || p.name || "").replace(/'/g, "\\'")}'); event.stopPropagation();"
+                    <button type="button" data-join-project="${index}"
                       style="background: linear-gradient(135deg, #00e0ff, #0080ff); border: none; color: white;
                       padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.85rem; white-space: nowrap;">
                       <i class="fas fa-plus-circle"></i> Join
@@ -3699,6 +3699,16 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
           `;
         })
         .join("");
+
+      // Titles are member-supplied, so the handler gets them from the row,
+      // never from attribute or handler source.
+      container.querySelectorAll("[data-join-project]").forEach((button) => {
+        const project = projects[Number(button.dataset.joinProject)];
+        button.addEventListener("click", (event) => {
+          event.stopPropagation();
+          window.joinProject(project.id, project.title || project.name || "");
+        });
+      });
     } catch (e) {
       console.error("loadProjects failed:", e);
       container.innerHTML = `<div style="text-align:center; color:#f66; padding:2rem;">
@@ -4236,6 +4246,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         .join("");
 
       const isProject = rec.type === "project";
+      const photoUrl = isProject ? null : window.profilePhotoUrl?.(rec?.node);
       const icon = isProject ? "💡" : "";
 
       const matchBadges = (rec.matchedSkills || [])
@@ -4250,7 +4261,8 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         )
         .join("");
 
-      list.innerHTML += `
+      const card = document.createElement("template");
+      card.innerHTML = `
         <div style="display:flex; align-items:center; gap:1rem; padding:1rem;
           background:${isProject ? "rgba(255,107,107,0.05)" : "rgba(0,224,255,0.05)"};
           border:2px solid ${isProject ? "rgba(255,107,107,0.3)" : "rgba(0,224,255,0.3)"};
@@ -4266,8 +4278,8 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
               ? `<div style="width:52px; height:52px; border-radius:8px;
                    background:linear-gradient(135deg,#ff6b6b,#ff4757); display:flex; align-items:center; justify-content:center;
                    font-size:1.8rem;">${icon}</div>`
-              : window.profilePhotoUrl?.(rec?.node)
-              ? `<img loading="lazy" src="${escapeHtml(window.profilePhotoUrl?.(rec?.node))}" style="width:52px; height:52px; border-radius:50%;
+              : photoUrl
+              ? `<img loading="lazy" data-role="photo" style="width:52px; height:52px; border-radius:50%;
                    object-fit:cover; border:2px solid #00e0ff;">`
               : `<div style="width:52px; height:52px; border-radius:50%;
                    background:linear-gradient(135deg,#00e0ff,#0080ff); display:flex; align-items:center; justify-content:center;
@@ -4285,26 +4297,32 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
             ${matchBadges ? `<div style="margin-top: 0.5rem;">${matchBadges}</div>` : ""}
           </div>
 
-          <button class="btn btn-primary" style="white-space:nowrap;"
-            onclick="${
-              isProject
-                ? `joinProject('${rec.userId}', '${escapeHtml(name).replace(/'/g, "\\'")}')`
-                : `sendConnectionRequest('${rec.userId}', '${escapeHtml(name).replace(/'/g, "\\'")}', 'recommendation')`
-            }">
+          <button type="button" class="btn btn-primary" data-role="action" style="white-space:nowrap;">
             <i class="fas fa-${isProject ? "lightbulb" : "user-plus"}"></i> ${isProject ? "Join" : "Connect"}
           </button>
         </div>
       `;
+      // Names and photo URLs are member-supplied: set as properties and
+      // passed to the handlers directly, never through attribute source.
+      const item = card.content.firstElementChild;
+      const photo = item.querySelector('[data-role="photo"]');
+      if (photo) photo.src = photoUrl;
+      item.querySelector('[data-role="action"]').addEventListener("click", () =>
+        isProject
+          ? window.joinProject(rec.userId, name)
+          : window.sendConnectionRequest(rec.userId, name, "recommendation")
+      );
+      list.appendChild(item);
     }
 
     if (!recommendations || recommendations.length === 0) {
-      list.innerHTML += `
+      list.insertAdjacentHTML("beforeend", `
         <div style="text-align:center; color:#aaa; padding:2rem;">
           <i class="fas fa-check-circle" style="font-size:3rem; opacity:0.3;"></i>
           <p style="margin-top:1rem;">You're well connected!</p>
           <p style="font-size:0.85rem; color:#666; margin-top:0.5rem;">No new recommendations at this time</p>
         </div>
-      `;
+      `);
     }
   }
 
