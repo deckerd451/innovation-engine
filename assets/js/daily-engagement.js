@@ -640,10 +640,12 @@ const DailyEngagement = (function () {
         <span style="font-size: 1.5rem;">⭐</span>
         <div>
           <div>+${amount} XP</div>
-          <div style="font-size: 0.85rem; opacity: 0.9;">${reason}</div>
+          <div data-role="reason" style="font-size: 0.85rem; opacity: 0.9;"></div>
         </div>
       </div>
     `;
+    // Reasons can include member-supplied text ("Endorsed <skill>").
+    notification.querySelector('[data-role="reason"]').textContent = reason;
 
     document.body.appendChild(notification);
     setTimeout(() => notification.remove(), 3000);

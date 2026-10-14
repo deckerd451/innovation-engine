@@ -12,7 +12,7 @@ secrets:
 
 | Check | Runs |
 |---|---|
-| `unit` | `npm test` and `npm run lint` |
+| `unit` | `npm test`, `npm run lint` and `npm run test:xss` |
 | `db-authz` | `npm run test:db` against a throwaway PostgreSQL cluster on the runner |
 | `migration-hygiene` | `npm run check:migrations`: each new migration is named `YYYYMMDD[letter]_snake_case.sql` and has `supabase/sql/rollback/<name>_rollback.sql` |
 
@@ -38,6 +38,21 @@ against this codebase's own source/SQL text directly, or exercises real
 modules inside a `node:vm` sandbox / fake-global stubs (fake `window`,
 `document`, `localStorage`, `supabase` client) -- never a real browser and
 never a live database or network call.
+
+## Member-content XSS regression (needs Google Chrome)
+
+```
+npm run test:xss   # CHROME_PATH=... to override; XSS_TEST_ROOT=<checkout> to test other code
+```
+
+Loads the real profile, messaging, Browse Projects, recommendation,
+connection-toast, XP-notification and legacy admin rendering code in headless
+Chrome against a stub client whose member names, skills, project titles and
+photo URLs try to break out of element text, quoted attributes and inline
+handler strings. Every element is hovered, focused and clicked. It fails if
+any injected script runs, if the text is not shown literally, or if a handler
+receives anything but the raw value. Run against the code before the fix, it
+fails on all seven reachable surfaces.
 
 ## Rendered mobile journey (needs Google Chrome)
 

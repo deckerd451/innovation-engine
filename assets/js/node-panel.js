@@ -2517,6 +2517,16 @@ window.openMessageForUser = async function(userId) {
   }
 };
 
+// A full-width choice button for the endorsement and invitation pickers.
+function pickerButton(background, hoverBackground, border, padding) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.style.cssText = `padding: ${padding}; background: ${background}; border: 1px solid ${border}; border-radius: 8px; color: white; text-align: left; cursor: pointer; transition: all 0.2s;`;
+  button.addEventListener('mouseover', () => { button.style.background = hoverBackground; });
+  button.addEventListener('mouseout', () => { button.style.background = background; });
+  return button;
+}
+
 window.endorseSkill = async function(userId) {
   // userId = target community.id (set via profile.id in renderPersonPanel)
   console.debug('[endorse] endorseSkill called with community.id:', userId);
@@ -2558,24 +2568,32 @@ window.endorseSkill = async function(userId) {
     modal.innerHTML = `
       <div style="background: linear-gradient(135deg, rgba(10, 14, 39, 0.98), rgba(26, 26, 46, 0.98)); border: 2px solid rgba(0, 224, 255, 0.5); border-radius: 16px; padding: 2rem; max-width: 500px; width: 90%;">
         <h2 style="color: #00e0ff; margin-bottom: 1rem;">
-          <i class="fas fa-star"></i> Endorse ${profile.name}
+          <i class="fas fa-star"></i> <span data-role="title"></span>
         </h2>
         <p style="color: #ddd; margin-bottom: 1.5rem;">Select a skill to endorse:</p>
 
-        <div id="skill-selection" style="display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem; max-height: 300px; overflow-y: auto;">
-          ${skills.map(skill => `
-            <button onclick="confirmEndorsement('${userId}', '${profile.user_id || ''}', '${skill.replace(/'/g, "\\'")}', '${profile.name.replace(/'/g, "\\'")}', this)" style="padding: 1rem; background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px; color: white; text-align: left; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(0,224,255,0.2)'" onmouseout="this.style.background='rgba(0,224,255,0.1)'">
-              <div style="font-weight: bold; font-size: 1rem; margin-bottom: 0.25rem;">${skill}</div>
-              <div style="color: #aaa; font-size: 0.85rem;">Click to endorse</div>
-            </button>
-          `).join('')}
-        </div>
+        <div id="skill-selection" style="display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem; max-height: 300px; overflow-y: auto;"></div>
 
         <button onclick="this.closest('[style*=\\'position: fixed\\']').remove()" style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">
           Cancel
         </button>
       </div>
     `;
+
+    // The name and skills are member-supplied: set them as text and pass
+    // them to the handler directly, never through HTML or handler source.
+    modal.querySelector('[data-role="title"]').textContent = `Endorse ${profile.name}`;
+    const skillList = modal.querySelector('#skill-selection');
+    skills.forEach(skill => {
+      const button = pickerButton('rgba(0,224,255,0.1)', 'rgba(0,224,255,0.2)', 'rgba(0,224,255,0.3)', '1rem');
+      button.innerHTML = `
+        <div style="font-weight: bold; font-size: 1rem; margin-bottom: 0.25rem;"></div>
+        <div style="color: #aaa; font-size: 0.85rem;">Click to endorse</div>
+      `;
+      button.firstElementChild.textContent = skill;
+      button.addEventListener('click', () => window.confirmEndorsement(userId, profile.user_id || '', skill, profile.name, button));
+      skillList.appendChild(button);
+    });
 
     document.body.appendChild(modal);
 
@@ -2781,27 +2799,42 @@ window.inviteToProject = async function(userId) {
     modal.innerHTML = `
       <div style="background: linear-gradient(135deg, rgba(10, 14, 39, 0.98), rgba(26, 26, 46, 0.98)); border: 2px solid rgba(255, 107, 107, 0.5); border-radius: 16px; padding: 2rem; max-width: 600px; width: 90%;">
         <h2 style="color: #ff6b6b; margin-bottom: 1rem;">
-          <i class="fas fa-plus-circle"></i> Invite ${targetProfile?.name || 'User'} to Project
+          <i class="fas fa-plus-circle"></i> <span data-role="title"></span>
         </h2>
         <p style="color: #ddd; margin-bottom: 1.5rem;">Select a project to invite them to:</p>
 
-        <div id="project-selection" style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem; max-height: 400px; overflow-y: auto;">
-          ${availableProjects.map(project => `
-            <button onclick="confirmProjectInvitation('${userId}', '${project.id}', '${project.title.replace(/'/g, "\\'")}', '${targetProfile?.name?.replace(/'/g, "\\'") || 'User'}', this)" style="padding: 1.25rem; background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3); border-radius: 8px; color: white; text-align: left; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,107,107,0.2)'" onmouseout="this.style.background='rgba(255,107,107,0.1)'">
-              <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
-                <div style="font-weight: bold; font-size: 1.1rem; color: #ff6b6b;">${project.title}</div>
-                <div style="background: rgba(255,107,107,0.2); padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; color: #ff6b6b;">${project.status}</div>
-              </div>
-              ${project.description ? `<div style="color: #aaa; font-size: 0.9rem; line-height: 1.4;">${project.description.substring(0, 100)}${project.description.length > 100 ? '...' : ''}</div>` : ''}
-            </button>
-          `).join('')}
-        </div>
+        <div id="project-selection" style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem; max-height: 400px; overflow-y: auto;"></div>
 
         <button onclick="this.closest('[style*=\\'position: fixed\\']').remove()" style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">
           Cancel
         </button>
       </div>
     `;
+
+    // Member names and project text are member-supplied: set them as text
+    // and pass them to the handler directly.
+    const targetName = targetProfile?.name || 'User';
+    modal.querySelector('[data-role="title"]').textContent = `Invite ${targetName} to Project`;
+    const projectList = modal.querySelector('#project-selection');
+    availableProjects.forEach(project => {
+      const button = pickerButton('rgba(255,107,107,0.1)', 'rgba(255,107,107,0.2)', 'rgba(255,107,107,0.3)', '1.25rem');
+      button.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+          <div data-role="project-title" style="font-weight: bold; font-size: 1.1rem; color: #ff6b6b;"></div>
+          <div data-role="project-status" style="background: rgba(255,107,107,0.2); padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; color: #ff6b6b;"></div>
+        </div>
+      `;
+      button.querySelector('[data-role="project-title"]').textContent = project.title;
+      button.querySelector('[data-role="project-status"]').textContent = project.status;
+      if (project.description) {
+        const description = document.createElement('div');
+        description.style.cssText = 'color: #aaa; font-size: 0.9rem; line-height: 1.4;';
+        description.textContent = project.description.substring(0, 100) + (project.description.length > 100 ? '...' : '');
+        button.appendChild(description);
+      }
+      button.addEventListener('click', () => window.confirmProjectInvitation(userId, project.id, project.title, targetName, button));
+      projectList.appendChild(button);
+    });
 
     document.body.appendChild(modal);
 
@@ -2857,7 +2890,7 @@ window.confirmProjectInvitation = async function(userId, projectId, projectTitle
     alert('Failed to invite: ' + error.message);
     button.disabled = false;
     button.style.opacity = '1';
-    button.innerHTML = projectTitle;
+    button.textContent = projectTitle;
   }
 };
 
