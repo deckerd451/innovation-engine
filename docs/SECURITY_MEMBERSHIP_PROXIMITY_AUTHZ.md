@@ -64,6 +64,7 @@ The rules run in `BEFORE` triggers on every `anon`/`authenticated` write, howeve
 - `promote_edge_to_connection` can be executed by `authenticated` and `service_role` only.
 - The caller must be on the edge; otherwise it returns "Edge not found", the same answer as for an unknown edge.
 - The first tap creates a **pending** request to the other member.
+- Taps on the same pair are serialized with a transaction-level advisory lock on the two members (in either edge direction). If both members tap at once, the second tap waits for the first, finds its request and accepts it. Without the lock, both would send requests and neither would connect.
 - A tap by the other member, or accepting the request normally, accepts it. Both members have then agreed.
 - Dismissed (`ignored`/`blocked`) suggestions and declined or cancelled requests are never revived.
 - It writes only statuses the CHECK allows (`accepted`). It never creates an accepted connection from one member's tap.
@@ -142,8 +143,9 @@ The rules run in `BEFORE` triggers on every `anon`/`authenticated` write, howeve
    - **`membership-authz-db.sql` (projects):** creator, requester, team member, anonymous caller and the creator role.
    - **`membership-authz-db.sql` (proximity):** anonymous callers and unrelated members, first tap, second tap, dismissed suggestions, declined requests and the ingestion grants.
    - **`notification-authz-db.sql`** and **`connection-authz-db.sql`:** unchanged expectations, apart from the stricter membership rules.
-4. Undoing any single protection makes a test fail (11 of 11).
-5. Each rollback restores the catalog it started from, exactly.
+4. Undoing any single protection makes a test fail (13 of 13, including the two project join-request notification rules).
+5. Simultaneous Connect: two sessions tap at once on opposite edge directions while the first holds its transaction open. The result must be one accepted connection. With the pair lock removed, the same run leaves two pending requests, so the runner checks that too.
+6. Each rollback restores the catalog it started from, exactly.
 
 ## Remaining risks (not addressed)
 

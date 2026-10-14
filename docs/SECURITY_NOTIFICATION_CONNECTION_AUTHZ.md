@@ -123,7 +123,7 @@ Ordering: **database first, then browser.** Both orders are safe, but database-f
    - Manual journeys with two real accounts:
      - send a request, then accept, decline and cancel;
      - mark a notification read;
-     - project join request, then organization join request;
+     - project join request (Browse Projects and the project request form), then organization join request: the creator or owner is notified, and the requester gets no "Invited to join";
      - creator invites a teammate;
      - the Collaboration Concierge sequence: invite, accept, schedule, complete, outcome;
      - Proximity Connect, covered by the membership migration's checklist.
@@ -137,7 +137,7 @@ Ordering: **database first, then browser.** Both orders are safe, but database-f
 ## Compatibility notes
 
 - **Identity used by the trigger.** The trigger identifies members by `community.user_id = auth.uid()`; some older policies match by email (`get_community_id_from_auth`). In production, 62 of 83 profiles have no `user_id`, but only 2 of those match a sign-in account, and none is the recipient of a pending request. `auth.js` links such a profile by email at sign-in (`auth.js:462`) before connection features run.
-- **Self-join notification kept.** Members adding themselves to a project still get the existing "Invited to join" notification. The wording is odd, but the behaviour is unchanged.
+- **Join requests through `project_members`.** Browse Projects asks to join with a `pending` `project_members` row. `notify_project_invite` now sends the project creator a `project_request` notification for it (metadata `member_id`; `project_requests` rows carry `request_id`). A member's own row never produces an "Invited to join" notification: production used to send one to the person joining.
 - **Org and project requests not sent from `comprehensive-fixes.js`.** Requests filed by other code paths (`command-dashboard.js`, `dashboard-actions.js`, `organization-manager.js`) now also notify the owner, provided the row is `pending` and filed by the requester. Previously they sent nothing.
 - **Untrusted inserts with no signed-in member.** These no longer produce a project invite notification.
 

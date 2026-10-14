@@ -119,6 +119,13 @@ BEGIN
   END IF;
   v_other := CASE WHEN v_edge.from_user_id = v_me THEN v_edge.to_user_id ELSE v_edge.from_user_id END;
 
+  -- Serialize both members' taps on this pair (either edge direction) until
+  -- commit. Without it, simultaneous taps each find no connection and send
+  -- reciprocal requests, and neither tap reaches the acceptance below. The
+  -- next statement takes a fresh snapshot, so the second tap sees the first.
+  PERFORM pg_advisory_xact_lock(hashtextextended(
+    'connection-pair:' || LEAST(v_me, v_other)::text || ':' || GREATEST(v_me, v_other)::text, 0));
+
   SELECT * INTO v_conn FROM connections
   WHERE (from_user_id = v_me AND to_user_id = v_other) OR (from_user_id = v_other AND to_user_id = v_me)
   ORDER BY (status = 'accepted') DESC, (status = 'pending') DESC

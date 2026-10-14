@@ -115,9 +115,13 @@ SELECT t.allowed($$INSERT INTO public.project_requests (project_id, user_id, sta
 SELECT t.allowed($$INSERT INTO public.organization_members (organization_id, community_id, role, status) VALUES ('30000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-00000000000c', 'member', 'pending')$$, 'Carol asks to join Dana''s organization');
 SELECT t.allowed($$INSERT INTO public.project_members (project_id, user_id, role) VALUES ('20000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-00000000000c', 'pending')$$, 'Carol asks to join through project_members');
 RESET ROLE;
-SELECT t.eq(t.notes('10000000-0000-4000-8000-00000000000a', 'project_request'), 1, 'project join request reaches the project creator');
+SELECT t.eq((SELECT count(*) FROM public.notifications WHERE user_id = '10000000-0000-4000-8000-00000000000a' AND type = 'project_request' AND metadata ? 'request_id'), 1, 'project join request reaches the project creator');
 SELECT t.eq(t.notes('10000000-0000-4000-8000-00000000000d', 'org_join_request'), 1, 'organization join request reaches the organization owner');
-SELECT t.eq(t.notes('10000000-0000-4000-8000-00000000000c', 'project_invite'), 1, 'self-join notification behaviour unchanged');
+-- Browse Projects asks to join with a pending project_members row: the
+-- creator is told, and the requester is not sent a false invitation.
+SELECT t.eq(t.notes('10000000-0000-4000-8000-00000000000c', 'project_invite'), 0, 'requester is not sent an invitation for their own request');
+SELECT t.eq((SELECT count(*) FROM public.notifications WHERE user_id = '10000000-0000-4000-8000-00000000000a' AND type = 'project_request' AND metadata->>'project_id' = '20000000-0000-4000-8000-000000000001' AND metadata ? 'member_id'), 1, 'pending project_members request reaches the project creator');
+SELECT t.eq(t.notes('10000000-0000-4000-8000-00000000000c', 'project_request'), 0, 'requester is not notified of their own request');
 
 SELECT t.act(NULL, 'service_role');
 SET LOCAL ROLE service_role;

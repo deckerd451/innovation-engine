@@ -11,7 +11,9 @@
 #   2. Both migrations apply in order, and apply again (idempotent).
 #   3. Every test file PASSES after the migrations.
 #   4. Undoing any single protection makes a test fail.
-#   5. Each rollback restores the catalog it started from, exactly.
+#   5. Simultaneous Connect taps from both members end in one accepted
+#      connection (two concurrent sessions), and fail without the pair lock.
+#   6. Each rollback restores the catalog it started from, exactly.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -123,7 +125,63 @@ sabotage "ingest_nearify_interaction executable by members" membership-authz-db.
 sabotage "promote_edge_to_connection consent removed" membership-authz-db.sql \
   "$(sed -n '/^CREATE OR REPLACE FUNCTION public.promote_edge_to_connection/,/^\$function\$;/p' "$R2" | sed "s/SET status = 'promoted', updated_at = now()/SET status = 'accepted'/")"
 
-echo "5. Rollbacks restore the catalog they started from"
+sabotage "requester sent an invitation for their own join request" notification-authz-db.sql \
+  "$(sed -n '/^CREATE OR REPLACE FUNCTION public.notify_project_invite/,/^\$function\$;/p' "$R1")"
+sabotage "creator not told about a pending project_members request" notification-authz-db.sql \
+  "$(sed -n '/^CREATE OR REPLACE FUNCTION public.notify_project_invite/,/^\$\$;/p' "$M1" | sed "s/IF NEW.role = 'pending' THEN/IF false THEN/")"
+
+# Two members tap Connect at the same moment, each on their own direction of
+# the proximity edge. Session A holds its transaction open while B's tap runs.
+# Expect one connection, accepted: B's tap waits for A's and then accepts it.
+race() { # database; prints "<total> <accepted>" connections between A and B
+  "${PSQL[@]}" -d "$1" >/dev/null <<'SQL'
+INSERT INTO public.community (id, user_id, name, email) VALUES
+  ('10000000-0000-4000-8000-0000000000f1', 'a0000000-0000-4000-8000-0000000000f1', 'Fay', 'fay@example.test'),
+  ('10000000-0000-4000-8000-0000000000f2', 'a0000000-0000-4000-8000-0000000000f2', 'Gus', 'gus@example.test');
+INSERT INTO public.interaction_edges (id, from_user_id, to_user_id, status) VALUES
+  ('70000000-0000-4000-8000-0000000000f1', '10000000-0000-4000-8000-0000000000f1', '10000000-0000-4000-8000-0000000000f2', 'suggested'),
+  ('70000000-0000-4000-8000-0000000000f2', '10000000-0000-4000-8000-0000000000f2', '10000000-0000-4000-8000-0000000000f1', 'suggested');
+SQL
+  "${PSQL[@]}" -d "$1" >/dev/null 2>&1 <<'SQL' &
+BEGIN;
+SELECT t.act('a0000000-0000-4000-8000-0000000000f1');
+SET LOCAL ROLE authenticated;
+SELECT public.promote_edge_to_connection('70000000-0000-4000-8000-0000000000f1');
+SELECT pg_sleep(2);
+COMMIT;
+SQL
+  local first=$!
+  sleep 0.7
+  "${PSQL[@]}" -d "$1" >/dev/null 2>&1 <<'SQL' || true
+BEGIN;
+SELECT t.act('a0000000-0000-4000-8000-0000000000f2');
+SET LOCAL ROLE authenticated;
+SELECT public.promote_edge_to_connection('70000000-0000-4000-8000-0000000000f2');
+COMMIT;
+SQL
+  wait "$first" || true
+  "${PSQL[@]}" -d "$1" -At -c "SELECT count(*) || ' ' || count(*) FILTER (WHERE status = 'accepted') FROM public.connections WHERE '10000000-0000-4000-8000-0000000000f1' IN (from_user_id, to_user_id) AND '10000000-0000-4000-8000-0000000000f2' IN (from_user_id, to_user_id)"
+}
+
+echo "5. Simultaneous Connect taps are serialized"
+fresh_db authz_race "$M1" "$M2"
+result="$(race authz_race)"
+if [ "$result" = "1 1" ]; then
+  echo "   ok: one connection, accepted"
+else
+  echo "   FAILED: simultaneous taps left $result (total accepted) connections"; fail=1
+fi
+fresh_db authz_race_sabotage "$M1" "$M2"
+apply authz_race_sabotage <(sed -n '/^CREATE OR REPLACE FUNCTION public.promote_edge_to_connection/,/^\$\$;/p' "$M2" \
+  | sed '/PERFORM pg_advisory_xact_lock/,/, 0));/d')
+result="$(race authz_race_sabotage)"
+if [ "$result" = "1 1" ]; then
+  echo "   NOT CAUGHT: pair lock removed"; fail=1
+else
+  echo "   caught: pair lock removed -> $result (total accepted) connections"
+fi
+
+echo "6. Rollbacks restore the catalog they started from"
 fresh_db authz_rollback
 s0="$(snapshot authz_rollback)"
 apply authz_rollback "$M1"; s1="$(snapshot authz_rollback)"

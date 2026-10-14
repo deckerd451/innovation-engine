@@ -158,9 +158,13 @@ CREATE TRIGGER notify_organization_join_request
 -- project_members accepts inserts from anyone ("System can add project
 -- members" WITH CHECK (true)), so the existing invite trigger let any caller
 -- send a project_invite notification to any member. Keep legitimate cases --
--- the project creator or an existing team member adding someone, a member
--- joining themself, and trusted server code (no member JWT) -- and stay
--- silent otherwise. The membership policy itself is out of scope here.
+-- the project creator or an existing team member adding someone, and trusted
+-- server code (no member JWT) -- and stay silent otherwise. The membership
+-- policy itself is out of scope here.
+--
+-- A member's own row is never an invitation. A pending one is a join request
+-- (Browse Projects inserts role 'pending'), so the project creator is told,
+-- as for project_requests; the requester is not sent "Invited to join".
 CREATE OR REPLACE FUNCTION public.notify_project_invite()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -170,14 +174,33 @@ AS $$
 DECLARE
   project_name TEXT;
   inviter_name TEXT;
+  v_project RECORD;
 BEGIN
   IF TG_OP = 'INSERT' THEN
+    IF COALESCE(auth.role(), '') IN ('anon', 'authenticated') AND EXISTS (
+      SELECT 1 FROM community me WHERE me.user_id = auth.uid() AND me.id = NEW.user_id
+    ) THEN
+      IF NEW.role = 'pending' THEN
+        SELECT p.id, p.title, p.creator_id INTO v_project FROM projects p WHERE p.id = NEW.project_id;
+        IF v_project.creator_id IS NOT NULL AND v_project.creator_id <> NEW.user_id THEN
+          PERFORM create_notification(
+            v_project.creator_id,
+            'project_request',
+            'New Project Request',
+            'Someone wants to join your project: ' || COALESCE(v_project.title, 'your project'),
+            '?project=' || v_project.id::text,
+            jsonb_build_object('project_id', v_project.id, 'member_id', NEW.id)
+          );
+        END IF;
+      END IF;
+      RETURN NEW;
+    END IF;
+
     IF COALESCE(auth.role(), '') IN ('anon', 'authenticated') AND NOT EXISTS (
       SELECT 1 FROM community me
       WHERE me.user_id = auth.uid()
         AND (
-          me.id = NEW.user_id
-          OR EXISTS (SELECT 1 FROM projects p WHERE p.id = NEW.project_id AND p.creator_id = me.id)
+          EXISTS (SELECT 1 FROM projects p WHERE p.id = NEW.project_id AND p.creator_id = me.id)
           OR EXISTS (SELECT 1 FROM project_members pm WHERE pm.project_id = NEW.project_id AND pm.user_id = me.id AND pm.id <> NEW.id)
         )
     ) THEN
