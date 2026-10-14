@@ -117,7 +117,7 @@ Ordering: **database first, then browser.** Both orders are safe, but database-f
    - Its `createNotification` insert is refused, but that function swallows errors (only a console message appears), and the new triggers send the notification instead, with no duplicates.
    - Its connection writes are all valid transitions.
    - The recipient-cancel fallback only runs if DELETE fails, and DELETE is still allowed.
-4. **Ship the browser change** by merging the PR to `main` through the Governor Certification Gate. GitHub Pages then deploys it; the service worker is network-first and `comprehensive-fixes.js` has a new `?v=`.
+4. **Ship the browser change** by merging the PR to `main` once the required checks pass (`unit`, `db-authz`, which runs `scripts/tests/run-authz-db.sh`, `migration-hygiene` and CodeQL). GitHub Pages then deploys it; the service worker is network-first and `comprehensive-fixes.js` has a new `?v=`.
 5. **Verify after deployment:**
    - Read-only catalog checks: ACL, policies, trigger present.
    - Manual journeys with two real accounts:

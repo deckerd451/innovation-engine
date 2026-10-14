@@ -118,7 +118,7 @@ The rules run in `BEFORE` triggers on every `anon`/`authenticated` write, howeve
 
 1. **Pre-check (read-only):** confirm production still matches the baseline fixtures. Re-run the catalog queries for the policies, grants, function ACLs and bodies, and triggers on `organization_members`, `organizations`, `project_members`, `interaction_edges`, `connections` and `notifications`.
 2. **Apply `20261013_notification_connection_authz.sql`** (database first; see `docs/SECURITY_NOTIFICATION_CONNECTION_AUTHZ.md`).
-3. **Ship the browser change:** merge the PR through the Governor Certification Gate; GitHub Pages deploys it. The new browser works against the *old* membership rules, because a pending request is allowed today. The reverse isn't true: old browser code would show errors on its instant-join buttons. **So the browser must ship before step 4.**
+3. **Ship the browser change:** merge the PR once the required checks pass (`unit`, `db-authz`, `migration-hygiene` and CodeQL); GitHub Pages deploys it. The new browser works against the *old* membership rules, because a pending request is allowed today. The reverse isn't true: old browser code would show errors on its instant-join buttons. **So the browser must ship before step 4.**
 4. **Apply `20261013b_membership_and_proximity_authz.sql`** in one transaction (it has `BEGIN`/`COMMIT`).
 5. **Verify:**
    - Read-only catalog checks: triggers present; no `true` write policies on these tables; function ACLs.
