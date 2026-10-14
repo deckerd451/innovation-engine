@@ -1805,7 +1805,7 @@ async function adminAddPerson() {
       .maybeSingle();
     
     if (existing) {
-      statusEl.innerHTML = `<span style="color: #ffaa00;"><i class="fas fa-info-circle"></i> User already exists: ${existing.name || email}</span>`;
+      setAdminStatus(statusEl, '#ffaa00', 'fa-info-circle', `User already exists: ${existing.name || email}`);
       return;
     }
     
@@ -1824,7 +1824,7 @@ async function adminAddPerson() {
     
     if (error) throw error;
     
-    statusEl.innerHTML = `<span style="color: #00ff88;"><i class="fas fa-check-circle"></i> Successfully added ${email}! They can now log in and complete their profile.</span>`;
+    setAdminStatus(statusEl, '#00ff88', 'fa-check-circle', `Successfully added ${email}! They can now log in and complete their profile.`);
     emailInput.value = '';
     
     // Refresh synapse if available
@@ -1834,8 +1834,57 @@ async function adminAddPerson() {
     
   } catch (error) {
     console.error('Error adding person:', error);
-    statusEl.innerHTML = `<span style="color: #ff6b6b;"><i class="fas fa-exclamation-circle"></i> Error: ${error.message}</span>`;
+    setAdminStatus(statusEl, '#ff6b6b', 'fa-exclamation-circle', `Error: ${error.message}`);
   }
+}
+
+// Member names, emails and photo URLs are member-supplied: these helpers set
+// them as text and properties, never as HTML or inline handler source.
+function setAdminStatus(statusEl, color, icon, text) {
+  const span = document.createElement('span');
+  span.style.color = color;
+  const i = document.createElement('i');
+  i.className = `fas ${icon}`;
+  span.append(i, ` ${text}`);
+  statusEl.replaceChildren(span);
+}
+
+function renderAdminPersonRow(person) {
+  const initials = person.name ? person.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?';
+  const isRemoved = person.is_hidden || false;
+  const photoUrl = window.profilePhotoUrl?.(person);
+
+  const row = document.createElement('div');
+  row.style.cssText = `display: flex; align-items: center; gap: 1rem; padding: 1rem; background: ${isRemoved ? 'rgba(255,107,107,0.05)' : 'rgba(0,224,255,0.05)'};
+    border: 1px solid ${isRemoved ? 'rgba(255,107,107,0.2)' : 'rgba(0,224,255,0.2)'}; border-radius: 8px;`;
+  row.innerHTML = `
+    ${photoUrl
+      ? `<img data-role="photo" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; ${isRemoved ? 'opacity: 0.6;' : ''}">`
+      : `<div data-role="initials" style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #0080ff);
+          display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; ${isRemoved ? 'opacity: 0.6;' : ''}"></div>`
+    }
+    <div style="flex: 1; min-width: 0;">
+      <div data-role="name" style="color: white; font-weight: 600; font-size: 0.95rem; ${isRemoved ? 'opacity: 0.7;' : ''}"></div>
+      <div data-role="email" style="color: #aaa; font-size: 0.85rem; ${isRemoved ? 'opacity: 0.7;' : ''}"></div>
+      ${isRemoved ? '<div style="color: #ff6b6b; font-size: 0.8rem; margin-top: 0.25rem; font-weight: 600;"><i class="fas fa-ban"></i> REMOVED</div>' : ''}
+    </div>
+    <button type="button" data-role="toggle"
+      style="padding: 0.5rem 1rem; background: ${isRemoved ? 'rgba(0,255,136,0.2)' : 'rgba(255,107,107,0.2)'};
+      border: 1px solid ${isRemoved ? 'rgba(0,255,136,0.4)' : 'rgba(255,107,107,0.4)'};
+      border-radius: 6px; color: ${isRemoved ? '#00ff88' : '#ff6b6b'}; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all 0.2s;"
+      onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+      <i class="fas fa-${isRemoved ? 'undo' : 'user-times'}"></i> ${isRemoved ? 'Reinstate' : 'Remove'}
+    </button>
+  `;
+  const photo = row.querySelector('[data-role="photo"]');
+  if (photo) photo.src = photoUrl;
+  const initialsEl = row.querySelector('[data-role="initials"]');
+  if (initialsEl) initialsEl.textContent = initials;
+  row.querySelector('[data-role="name"]').textContent = person.name || 'Unnamed';
+  row.querySelector('[data-role="email"]').textContent = person.email || 'No email';
+  row.querySelector('[data-role="toggle"]').addEventListener('click', () =>
+    adminTogglePersonVisibility(person.id, !isRemoved, person.name || 'this member', isRemoved));
+  return row;
 }
 
 // Admin function to search for people
@@ -1872,47 +1921,22 @@ async function adminSearchPeople(query) {
       listEl.innerHTML = `
         <div style="text-align: center; color: rgba(255,255,255,0.5); padding: 2rem;">
           <i class="fas fa-user-slash" style="font-size: 2rem; opacity: 0.3; margin-bottom: 0.5rem;"></i>
-          <p>No people found matching "${query}"</p>
+          <p></p>
         </div>
       `;
+      listEl.querySelector('p').textContent = `No people found matching "${query}"`;
       return;
     }
     
-    let html = '<div style="display: grid; gap: 0.75rem;">';
-    people.forEach(person => {
-      const initials = person.name ? person.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?';
-      const isRemoved = person.is_hidden || false;
-      
-      html += `
-        <div style="display: flex; align-items: center; gap: 1rem; padding: 1rem; background: ${isRemoved ? 'rgba(255,107,107,0.05)' : 'rgba(0,224,255,0.05)'}; 
-          border: 1px solid ${isRemoved ? 'rgba(255,107,107,0.2)' : 'rgba(0,224,255,0.2)'}; border-radius: 8px;">
-          ${window.profilePhotoUrl?.(person) ?
-            `<img src="${window.profilePhotoUrl?.(person)}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; ${isRemoved ? 'opacity: 0.6;' : ''}">` :
-            `<div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #00e0ff, #0080ff); 
-              display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; ${isRemoved ? 'opacity: 0.6;' : ''}">${initials}</div>`
-          }
-          <div style="flex: 1; min-width: 0;">
-            <div style="color: white; font-weight: 600; font-size: 0.95rem; ${isRemoved ? 'opacity: 0.7;' : ''}">${person.name || 'Unnamed'}</div>
-            <div style="color: #aaa; font-size: 0.85rem; ${isRemoved ? 'opacity: 0.7;' : ''}">${person.email || 'No email'}</div>
-            ${isRemoved ? '<div style="color: #ff6b6b; font-size: 0.8rem; margin-top: 0.25rem; font-weight: 600;"><i class="fas fa-ban"></i> REMOVED</div>' : ''}
-          </div>
-          <button onclick="adminTogglePersonVisibility('${person.id}', ${!isRemoved}, '${(person.name || 'this member').replace(/'/g, "\\'")}', ${isRemoved})" 
-            style="padding: 0.5rem 1rem; background: ${isRemoved ? 'rgba(0,255,136,0.2)' : 'rgba(255,107,107,0.2)'}; 
-            border: 1px solid ${isRemoved ? 'rgba(0,255,136,0.4)' : 'rgba(255,107,107,0.4)'}; 
-            border-radius: 6px; color: ${isRemoved ? '#00ff88' : '#ff6b6b'}; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all 0.2s;"
-            onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
-            <i class="fas fa-${isRemoved ? 'undo' : 'user-times'}"></i> ${isRemoved ? 'Reinstate' : 'Remove'}
-          </button>
-        </div>
-      `;
-    });
-    html += '</div>';
-    
-    listEl.innerHTML = html;
+    const grid = document.createElement('div');
+    grid.style.cssText = 'display: grid; gap: 0.75rem;';
+    people.forEach(person => grid.appendChild(renderAdminPersonRow(person)));
+    listEl.replaceChildren(grid);
     
   } catch (error) {
     console.error('Error searching people:', error);
-    listEl.innerHTML = `<div style="color: #ff6b6b; padding: 1rem;"><i class="fas fa-exclamation-circle"></i> Error: ${error.message}</div>`;
+    listEl.innerHTML = '<div style="color: #ff6b6b; padding: 1rem;"><i class="fas fa-exclamation-circle"></i> <span></span></div>';
+    listEl.querySelector('span').textContent = `Error: ${error.message}`;
   }
 }
 
