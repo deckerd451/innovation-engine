@@ -342,14 +342,20 @@ DECLARE
   project_name TEXT;
   inviter_name TEXT;
 BEGIN
+  -- Only notify on new memberships (not updates)
   IF TG_OP = 'INSERT' THEN
+    -- Get project name
     SELECT title INTO project_name
     FROM projects
     WHERE id = NEW.project_id;
+    
+    -- Get inviter name (project creator)
     SELECT c.name INTO inviter_name
     FROM projects p
     JOIN community c ON c.user_id = p.creator_id
     WHERE p.id = NEW.project_id;
+    
+    -- Create notification
     PERFORM create_notification(
       NEW.user_id,
       'project_invite',
@@ -359,6 +365,7 @@ BEGIN
       jsonb_build_object('project_id', NEW.project_id, 'member_id', NEW.id)
     );
   END IF;
+  
   RETURN NEW;
 END;
 $function$;
