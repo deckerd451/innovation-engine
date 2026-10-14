@@ -17,7 +17,7 @@ export async function findMatchingUsers() {
     });
     renderUserCards(matchedUsers, DOMElements.cardContainer);
     if (matchedUsers.length > 0) {
-      showNotification(\`Found \${matchedUsers.length} matching user(s).\`, 'success');
+      showNotification(`Found ${matchedUsers.length} matching user(s).`, 'success');
     }
   } catch (error) {
     showNotification('Error fetching user data.', 'error');
@@ -29,12 +29,12 @@ export async function searchUserByName() {
   try {
     const { data } = await supabaseClient.from('skills').select('*');
     const matchedUsers = data.filter(user => {
-      const fullName = \`\${user.first_name} \${user.last_name}\`.toLowerCase();
+      const fullName = `${user.first_name} ${user.last_name}`.toLowerCase();
       return fullName.includes(nameInput);
     });
     renderUserCards(matchedUsers, DOMElements.cardContainer);
     if (matchedUsers.length > 0) {
-      showNotification(\`Found \${matchedUsers.length} user(s) matching "\${nameInput}".\`, 'success');
+      showNotification(`Found ${matchedUsers.length} user(s) matching "${nameInput}".`, 'success');
     }
   } catch (error) {
     showNotification('Error fetching user data.', 'error');

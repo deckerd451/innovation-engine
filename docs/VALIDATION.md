@@ -1,9 +1,24 @@
 # Validation
 
-This repo has no bundler and no CI-wired test runner. Validation has always
-lived in hand-written scripts under `scripts/tests/`, run manually and
-inconsistently. This documents what's deterministic and runnable locally
-today, and what still requires a human in a browser.
+This repo has no bundler. Validation lives in hand-written scripts under
+`scripts/tests/`. This documents what's deterministic and runnable locally,
+what CI runs, and what still requires a human in a browser.
+
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on GitHub-hosted runners for every pull
+request into `main` and every push to `main`, with a read-only token and no
+secrets:
+
+| Check | Runs |
+|---|---|
+| `unit` | `npm test` and `npm run lint` |
+| `db-authz` | `npm run test:db` against a throwaway PostgreSQL cluster on the runner |
+| `migration-hygiene` | `npm run check:migrations`: each new migration is named `YYYYMMDD[letter]_snake_case.sql` and has `supabase/sql/rollback/<name>_rollback.sql` |
+
+`.github/workflows/codeql.yml` runs CodeQL for JavaScript on the same events
+and weekly. Nothing in CI connects to Supabase or applies a migration;
+production migrations are applied by hand.
 
 ## Deterministic local checks
 
@@ -57,6 +72,10 @@ role: private packages, another team's tasks and the stats RPC stay hidden;
 new learning cannot be forged or claim evidence; shared learning is readable
 by a later member. All rows are rolled back.
 
+`npm run test:db` runs these steps on a throwaway cluster it creates and
+removes itself (needs `initdb`, `pg_ctl` and `psql` on `PATH`), followed by
+`scripts/tests/run-authz-db.sh` when that suite is present.
+
 ## Notification and connection authorization against PostgreSQL
 
 ```
@@ -74,6 +93,15 @@ baseline exactly. The same runner covers organization/project membership
 and proximity connections (membership-authz-db.sql). See
 docs/SECURITY_NOTIFICATION_CONNECTION_AUTHZ.md and
 docs/SECURITY_MEMBERSHIP_PROXIMITY_AUTHZ.md.
+CI runs it on every pull request as part of the `db-authz` check.
+
+## Nearify contract
+
+`test-nearify-live-presence-boundary.js` checks the iOS call shapes against a
+committed excerpt in `scripts/tests/fixtures/nearify-ios/`, because
+nearify-ios is a separate private repository. When it is available
+(`NEARIFY_IOS_ROOT`, or a `../nearify-ios` sibling checkout) the same
+assertions also run against the real app; CI checks the excerpt only.
 
 ## Known gaps
 
