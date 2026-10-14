@@ -5,6 +5,8 @@
   "scripts": {
     "test": "node scripts/validate.js",
     "lint": "node scripts/lint.js",
-    "test:browser": "node scripts/tests/browser/run-assistance-journey.mjs"
+    "test:browser": "node scripts/tests/browser/run-assistance-journey.mjs",
+    "test:db": "bash scripts/tests/run-db-tests.sh",
+    "check:migrations": "node scripts/check-migrations.js"
   }
 }
