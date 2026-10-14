@@ -1,0 +1,65 @@
+name: CI
+
+# GitHub-hosted checks for every pull request into main and every push to
+# main. Read-only token, no secrets, no deployment and no database
+# connection: database suites run against a throwaway local PostgreSQL
+# cluster. Production migrations are applied by hand, never from here.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    name: unit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - name: Offline regression suite
+        run: npm test
+      - name: Syntax check
+        run: npm run lint
+
+  db-authz:
+    name: db-authz
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Put the runner's PostgreSQL binaries on PATH
+        run: |
+          bindir="$(ls -d /usr/lib/postgresql/*/bin | sort -V | tail -1)"
+          echo "$bindir" >> "$GITHUB_PATH"
+          "$bindir/postgres" --version
+      - name: Database permission suites (throwaway local cluster)
+        run: bash scripts/tests/run-db-tests.sh
+
+  migration-hygiene:
+    name: migration-hygiene
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: New migrations are named and have rollbacks
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
+        run: node scripts/check-migrations.js "$BASE"
