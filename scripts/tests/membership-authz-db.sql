@@ -20,14 +20,14 @@ INSERT INTO public.community (id, user_id, name, email) VALUES
 -- ===========================================================================
 SELECT t.act('a0000000-0000-4000-8000-00000000000d');
 SET LOCAL ROLE authenticated;
-SELECT t.allowed($$INSERT INTO public.organizations (id, name, status) VALUES ('30000000-0000-4000-8000-000000000001', 'Harbor Builders', 'active')$$, 'Dana creates an organization');
+SELECT t.allowed($$INSERT INTO public.organizations (id, name, slug, status) VALUES ('30000000-0000-4000-8000-000000000001', 'Harbor Builders', 'harbor-builders', 'active')$$, 'Dana creates an organization');
 RESET ROLE;
 SELECT t.eq((SELECT count(*) FROM public.organization_members WHERE organization_id = '30000000-0000-4000-8000-000000000001' AND community_id = '10000000-0000-4000-8000-00000000000d' AND role = 'owner' AND status = 'active'), 1, 'creator becomes the owner automatically');
 SELECT t.eq((SELECT count(*) FROM public.organizations WHERE id = '30000000-0000-4000-8000-000000000001' AND created_by = '10000000-0000-4000-8000-00000000000d'), 1, 'created_by is the creator');
 
 SELECT t.act('a0000000-0000-4000-8000-00000000000c');
 SET LOCAL ROLE authenticated;
-SELECT t.denied($$INSERT INTO public.organizations (id, name, status, created_by) VALUES ('30000000-0000-4000-8000-000000000002', 'Bob''s org?', 'active', '10000000-0000-4000-8000-00000000000b')$$, 'member creates an organization in someone else''s name');
+SELECT t.denied($$INSERT INTO public.organizations (id, name, slug, status, created_by) VALUES ('30000000-0000-4000-8000-000000000002', 'Bob''s org?', 'bobs-org', 'active', '10000000-0000-4000-8000-00000000000b')$$, 'member creates an organization in someone else''s name');
 SELECT t.denied($$INSERT INTO public.organization_members (organization_id, community_id, role, status) VALUES ('30000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-00000000000c', 'owner', 'active')$$, 'member makes themself owner of an organization');
 SELECT t.denied($$INSERT INTO public.organization_members (organization_id, community_id, role, status) VALUES ('30000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-00000000000c', 'admin', 'active')$$, 'member makes themself admin');
 SELECT t.denied($$INSERT INTO public.organization_members (organization_id, community_id, role, status) VALUES ('30000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-00000000000c', 'member', 'active')$$, 'member grants themself active membership');
@@ -46,7 +46,7 @@ SET LOCAL ROLE anon;
 SELECT t.denied($$INSERT INTO public.organization_members (organization_id, community_id, role, status) VALUES ('30000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-00000000000f', 'owner', 'active')$$, 'anonymous caller adds an owner');
 SELECT t.denied($$UPDATE public.organization_members SET role = 'owner' WHERE organization_id = '30000000-0000-4000-8000-000000000001'$$, 'anonymous caller edits memberships');
 SELECT t.denied($$DELETE FROM public.organization_members WHERE organization_id = '30000000-0000-4000-8000-000000000001'$$, 'anonymous caller deletes memberships');
-SELECT t.denied($$INSERT INTO public.organizations (name, status) VALUES ('anon org', 'active')$$, 'anonymous caller creates an organization');
+SELECT t.denied($$INSERT INTO public.organizations (name, slug, status) VALUES ('anon org', 'anon-org', 'active')$$, 'anonymous caller creates an organization');
 RESET ROLE;
 
 -- Owner manages members
@@ -88,7 +88,7 @@ RESET ROLE;
 -- ===========================================================================
 SELECT t.act('a0000000-0000-4000-8000-00000000000a');
 SET LOCAL ROLE authenticated;
-SELECT t.allowed($$INSERT INTO public.projects (id, creator_id, title) VALUES ('20000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-00000000000a', 'Harborhack 2026 prep')$$, 'Alice creates a project');
+SELECT t.allowed($$INSERT INTO public.projects (id, creator_id, title, description) VALUES ('20000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-00000000000a', 'Harborhack 2026 prep', 'Event preparation')$$, 'Alice creates a project');
 -- enhanced-project-creation.js also inserts the creator row; de-duplicated.
 SELECT t.allowed($$INSERT INTO public.project_members (project_id, user_id, role) VALUES ('20000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-00000000000a', 'creator')$$, 'creator row inserted again by the client', 0);
 RESET ROLE;
@@ -160,7 +160,7 @@ SET LOCAL ROLE authenticated;
 SELECT t.denied($$SELECT public.ingest_nearify_interaction(gen_random_uuid(), NULL, NULL, '10000000-0000-4000-8000-00000000000a', '10000000-0000-4000-8000-00000000000b', 'qr_confirmed')$$, 'member ingests a QR-confirmed connection between others');
 SELECT t.eq((SELECT (public.promote_edge_to_connection('70000000-0000-4000-8000-0000000000ab')->>'success')::boolean::int), 0, 'unrelated member promotes someone else''s edge');
 RESET ROLE;
-SELECT t.eq((SELECT count(*) FROM public.connections), 0, 'no connection from an unrelated member''s promotion');
+SELECT t.eq((SELECT count(*) FROM public.connections WHERE from_user_id::text LIKE '10000000-0000-4000-8000-%' OR to_user_id::text LIKE '10000000-0000-4000-8000-%'), 0, 'no connection from an unrelated member''s promotion');
 
 
 -- Alice taps Connect: a request, not a connection

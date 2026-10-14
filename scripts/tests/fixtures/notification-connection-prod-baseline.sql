@@ -8,6 +8,10 @@
 -- triggers that only maintain counters (connection_count, XP, conversation
 -- previews, endorsement id mirroring, member de-duplication) are left out.
 --
+-- NOT NULL columns, the production-only constraints and the project_requests
+-- UPDATE policy were added after a read-only production fingerprint and a
+-- restore of production data (2026-10-14) showed the fixture had omitted them.
+--
 -- This is the state the migration
 -- supabase/sql/migrations/20261013_notification_connection_authz.sql is
 -- written against; scripts/tests/notification-connection-authz-db.sql must
@@ -33,7 +37,7 @@ GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA auth TO anon, authenticated, service_ro
 CREATE TABLE public.community (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid,
-  name text,
+  name text NOT NULL,
   email text,
   connection_count integer DEFAULT 0
 );
@@ -42,8 +46,8 @@ ALTER TABLE public.community ENABLE ROW LEVEL SECURITY;
 
 CREATE TABLE public.connections (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  from_user_id uuid REFERENCES public.community(id) ON DELETE CASCADE,
-  to_user_id uuid REFERENCES public.community(id) ON DELETE CASCADE,
+  from_user_id uuid NOT NULL REFERENCES public.community(id) ON DELETE CASCADE,
+  to_user_id uuid NOT NULL REFERENCES public.community(id) ON DELETE CASCADE,
   created_at timestamptz DEFAULT timezone('utc', now()),
   status text DEFAULT 'pending',
   type text DEFAULT 'generic',
@@ -58,6 +62,7 @@ CREATE TABLE public.connections (
   CONSTRAINT connections_context_status_check CHECK (context_status IS NULL OR context_status = ANY (ARRAY['pending', 'accepted', 'declined', 'completed'])),
   CONSTRAINT connections_context_type_check CHECK (context_type IS NULL OR context_type = 'collaboration_concierge'),
   CONSTRAINT connections_different_users CHECK (from_user_id <> to_user_id),
+  CONSTRAINT connections_no_self_connection CHECK ((from_user_id <> to_user_id)),
   CONSTRAINT connections_from_to_valid CHECK (from_user_id IS NOT NULL AND to_user_id IS NOT NULL AND from_user_id <> to_user_id),
   CONSTRAINT connections_status_check CHECK (status = ANY (ARRAY['pending', 'accepted', 'rejected', 'canceled'])),
   CONSTRAINT connections_type_check CHECK (type = ANY (ARRAY['generic', 'friend', 'mentor', 'collaborator', 'follower', 'ble_proximity'])),
@@ -67,8 +72,8 @@ CREATE TABLE public.connections (
 CREATE TABLE public.notifications (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid REFERENCES public.community(id) ON DELETE CASCADE,
-  type text,
-  title text,
+  type text NOT NULL,
+  title text NOT NULL,
   message text,
   link text,
   read boolean DEFAULT false,
@@ -78,8 +83,9 @@ CREATE TABLE public.notifications (
 
 CREATE TABLE public.projects (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  creator_id uuid REFERENCES public.community(id) ON DELETE CASCADE,
-  title text,
+  creator_id uuid NOT NULL REFERENCES public.community(id) ON DELETE CASCADE,
+  title text NOT NULL,
+  description text NOT NULL,
   status text DEFAULT 'open'
 );
 ALTER TABLE public.projects ENABLE ROW LEVEL SECURITY;
@@ -95,6 +101,9 @@ CREATE TABLE public.project_members (
   left_at timestamptz,
   CONSTRAINT project_members_project_id_user_id_key UNIQUE (project_id, user_id)
 );
+-- Production also has an identical second constraint (added later with ALTER
+-- TABLE; CREATE TABLE would merge the two).
+ALTER TABLE public.project_members ADD CONSTRAINT project_members_project_user_uniq UNIQUE (project_id, user_id);
 
 CREATE TABLE public.project_requests (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -108,9 +117,11 @@ CREATE TABLE public.project_requests (
 
 CREATE TABLE public.organizations (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  name text,
+  name text NOT NULL,
+  slug text NOT NULL,
   status text DEFAULT 'active',
-  created_by uuid REFERENCES public.community(id)
+  created_by uuid REFERENCES public.community(id),
+  CONSTRAINT organizations_slug_key UNIQUE (slug)
 );
 ALTER TABLE public.organizations ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Organizations are viewable by everyone" ON public.organizations FOR SELECT USING (status = 'active');
@@ -158,8 +169,8 @@ CREATE TABLE public.messages (
 -- no unique index matches ingest_nearify_interaction's ON CONFLICT target.
 CREATE TABLE public.interaction_edges (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  from_user_id uuid REFERENCES public.community(id) ON DELETE CASCADE,
-  to_user_id uuid REFERENCES public.community(id) ON DELETE CASCADE,
+  from_user_id uuid NOT NULL REFERENCES public.community(id) ON DELETE CASCADE,
+  to_user_id uuid NOT NULL REFERENCES public.community(id) ON DELETE CASCADE,
   created_at timestamptz DEFAULT now(),
   status text DEFAULT 'suggested',
   type text DEFAULT 'ble_proximity',
@@ -460,6 +471,10 @@ CREATE POLICY "Users can create project requests" ON public.project_requests FOR
   WITH CHECK (user_id = (SELECT community.id FROM community WHERE community.user_id = auth.uid()));
 CREATE POLICY "Users can view their own project requests" ON public.project_requests FOR SELECT TO authenticated
   USING (user_id = (SELECT community.id FROM community WHERE community.user_id = auth.uid()));
+CREATE POLICY "Users can update their own project requests" ON public.project_requests FOR UPDATE TO authenticated
+  USING (user_id = ( SELECT community.id
+   FROM community
+  WHERE (community.user_id = auth.uid())));
 
 ALTER TABLE public.organization_members ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can join organizations" ON public.organization_members FOR INSERT TO public

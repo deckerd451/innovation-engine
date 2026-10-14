@@ -16,11 +16,11 @@ INSERT INTO public.community (id, user_id, name, email) VALUES
   ('10000000-0000-4000-8000-00000000000c', 'a0000000-0000-4000-8000-00000000000c', 'Carol', 'carol@example.test'),
   ('10000000-0000-4000-8000-00000000000d', 'a0000000-0000-4000-8000-00000000000d', 'Dana', 'dana@example.test'),
   ('10000000-0000-4000-8000-00000000000e', 'a0000000-0000-4000-8000-00000000000e', 'Eli', 'eli@example.test');
-INSERT INTO public.projects (id, creator_id, title) VALUES
-  ('20000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-00000000000a', 'Harborhack 2026 prep'),
-  ('20000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-00000000000a', 'Quiet side project');
-INSERT INTO public.organizations (id, name, created_by) VALUES
-  ('30000000-0000-4000-8000-000000000001', 'Harbor Builders', '10000000-0000-4000-8000-00000000000d');
+INSERT INTO public.projects (id, creator_id, title, description) VALUES
+  ('20000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-00000000000a', 'Harborhack 2026 prep', 'Event preparation'),
+  ('20000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-00000000000a', 'Quiet side project', 'A side project');
+INSERT INTO public.organizations (id, name, slug, created_by) VALUES
+  ('30000000-0000-4000-8000-000000000001', 'Harbor Builders', 'harbor-builders', '10000000-0000-4000-8000-00000000000d');
 INSERT INTO public.conversations (id, participant_1_id, participant_2_id) VALUES
   ('40000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-00000000000a', '10000000-0000-4000-8000-00000000000b');
 INSERT INTO public.notifications (id, user_id, type, title) VALUES
