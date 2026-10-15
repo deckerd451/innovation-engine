@@ -701,11 +701,14 @@ function renderThemeProjectCard(project) {
   `;
 }
 
+// Safe in element text and in quoted attributes (src, href, value, data-*):
+// textContent/innerHTML alone leaves quotes as they are, which lets member
+// data close an attribute and add its own.
 function escapeHtml(text) {
   if (!text) return '';
   const div = document.createElement('div');
   div.textContent = text;
-  return div.innerHTML;
+  return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 // Safely normalize skills from any storage format (null, array, JSON string, comma-string)
@@ -1133,19 +1136,22 @@ async function renderOrganizationPanel(nodeData) {
     return;
   }
 
-  // Try to load members (may fail if table doesn't exist or has RLS issues)
+  // Try to load members (may fail if table doesn't exist or has RLS issues).
+  // Pending join requests are loaded too: requesters see their own request,
+  // and owners and admins approve or decline them here.
   let members = [];
   try {
     const { data: memberData, error: membersError } = await supabase
       .from('organization_members')
       .select(`
+        id,
         community_id,
         role,
         status,
         community:community_id(id, name, image_url, user_id, photo_visible, photo_consent_at)
       `)
       .eq('organization_id', orgId)
-      .eq('status', 'active');
+      .in('status', ['active', 'pending']);
 
     if (!membersError && memberData) {
       members = memberData;
@@ -1168,16 +1174,22 @@ async function renderOrganizationPanel(nodeData) {
   renderOrganizationContent(org, members, currentCommunityId);
 }
 
-function renderOrganizationContent(org, members, currentCommunityId) {
+function renderOrganizationContent(org, allMembers, currentCommunityId) {
   const initials = org.name ? org.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : 'ORG';
 
   // Derive membership state from the fetched rows — no extra DB call
+  const members = allMembers.filter(m => m.status === 'active');
+  const pendingMembers = allMembers.filter(m => m.status === 'pending');
   const myMember = currentCommunityId
     ? members.find(m => m.community_id === currentCommunityId)
+    : null;
+  const myPendingRequest = currentCommunityId
+    ? pendingMembers.find(m => m.community_id === currentCommunityId)
     : null;
   const isOwnerOrAdmin = !!(myMember && (myMember.role === 'owner' || myMember.role === 'admin'));
   const isOwner = !!(myMember && myMember.role === 'owner');
   const isAlreadyMember = !!myMember;
+  const isSoleOwner = isOwner && members.filter(m => m.role === 'owner').length === 1;
 
   console.log('[node-panel] renderOrganizationContent permission check', {
     currentCommunityId,
@@ -1273,6 +1285,8 @@ function renderOrganizationContent(org, members, currentCommunityId) {
           <p style="color: rgba(255,255,255,0.5); font-size: 0.9rem;">No members yet or membership data unavailable</p>
         </div>
       `}
+
+      ${isOwnerOrAdmin ? renderOrganizationMemberManagement(members, pendingMembers, currentCommunityId, isOwner) : ''}
     </div>
 
     <!-- Action Bar -->
@@ -1301,10 +1315,14 @@ function renderOrganizationContent(org, members, currentCommunityId) {
         </button>
       ` : ''}
 
-      ${!isAlreadyMember ? `
+      ${myPendingRequest ? `
+        <!-- Pending join request -->
+        <div data-org-request-status="pending" style="text-align:center; color:#ffa500; font-weight:bold; padding:0.75rem; background:rgba(255,165,0,0.1); border-radius:12px; border:1px solid rgba(255,165,0,0.3);">
+          <i class="fas fa-clock"></i> Join request pending approval
+        </div>
+      ` : !isAlreadyMember ? `
         <!-- Join button — hidden from existing members -->
-        <button
-          onclick="if(typeof joinOrganization==='function') joinOrganization('${escapeHtml(org.id)}'); else if(typeof window.joinOrganization==='function') window.joinOrganization('${escapeHtml(org.id)}'); else alert('Join feature unavailable');"
+        <button type="button" data-org-action="join"
           style="width:100%; padding:0.9rem; background:${isOwnerOrAdmin ? 'transparent' : 'linear-gradient(135deg,#a855f7,#8b5cf6)'};
                  border:${isOwnerOrAdmin ? '1px solid rgba(168,85,247,0.4)' : 'none'};
                  border-radius:12px; color:white; font-weight:bold; font-size:1rem;
@@ -1317,12 +1335,133 @@ function renderOrganizationContent(org, members, currentCommunityId) {
           <i class="fas fa-check-circle"></i>
           You are a member${myMember.role === 'owner' ? ' (Owner)' : myMember.role === 'admin' ? ' (Admin)' : ''}
         </div>
+        ${isSoleOwner ? `
+          <div style="text-align:center; color:rgba(255,255,255,0.55); font-size:0.8rem;">
+            You are the only owner. Make another member an owner before you can leave.
+          </div>
+        ` : `
+          <button type="button" data-org-action="leave"
+            style="width:100%; padding:0.75rem; background:transparent; border:1px solid rgba(255,107,107,0.4); border-radius:12px; color:#ff6b6b; font-weight:600; font-size:0.9rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:0.5rem;">
+            <i class="fas fa-sign-out-alt"></i> Leave Organization
+          </button>
+        `}
       `}
 
     </div>
   `;
 
   panelElement.innerHTML = html;
+  wireOrganizationMembershipControls(org);
+}
+
+// Owners and admins: pending join requests and active members. Owner rows
+// are managed by owners only, and nobody manages their own row here (they
+// use Leave). The database enforces the same rules (migration 2).
+function renderOrganizationMemberManagement(members, pendingMembers, currentCommunityId, viewerIsOwner) {
+  const memberName = m => escapeHtml(m.community?.name || 'Member');
+  const buttonStyle = (color) => `padding:0.4rem 0.7rem; background:transparent; border:1px solid ${color}; border-radius:8px; color:${color}; font-size:0.8rem; font-weight:600; cursor:pointer;`;
+  const rowStyle = 'display:flex; align-items:center; gap:0.5rem; padding:0.55rem 0.75rem; background:rgba(168,85,247,0.05); border:1px solid rgba(168,85,247,0.2); border-radius:8px;';
+
+  const requestRows = pendingMembers.map(m => `
+    <div data-org-request-row style="${rowStyle}">
+      <span style="flex:1; min-width:0; color:white; font-size:0.85rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${memberName(m)}</span>
+      <button type="button" data-org-action="approve" data-membership-id="${escapeHtml(m.id)}" data-member-name="${memberName(m)}" style="${buttonStyle('#00ff88')}">Approve</button>
+      <button type="button" data-org-action="decline" data-membership-id="${escapeHtml(m.id)}" data-member-name="${memberName(m)}" style="${buttonStyle('#ff6b6b')}">Decline</button>
+    </div>`).join('');
+
+  const roleOptions = viewerIsOwner ? ['member', 'admin', 'owner'] : ['member', 'admin'];
+  const memberRows = members
+    .filter(m => m.community_id !== currentCommunityId && (viewerIsOwner || m.role !== 'owner'))
+    .map(m => `
+    <div data-org-member-row style="${rowStyle}">
+      <span style="flex:1; min-width:0; color:white; font-size:0.85rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${memberName(m)}</span>
+      <select data-org-action="role" data-membership-id="${escapeHtml(m.id)}" data-community-id="${escapeHtml(m.community_id)}" data-member-name="${memberName(m)}" data-current-role="${escapeHtml(m.role)}"
+        aria-label="Role for ${memberName(m)}"
+        style="padding:0.35rem; background:#1a1a2e; color:white; border:1px solid rgba(168,85,247,0.4); border-radius:8px; font-size:0.8rem;">
+        ${(roleOptions.includes(m.role) ? roleOptions : [m.role, ...roleOptions]).map(r => `<option value="${escapeHtml(r)}"${r === m.role ? ' selected' : ''}>${escapeHtml(r.charAt(0).toUpperCase() + r.slice(1))}</option>`).join('')}
+      </select>
+      <button type="button" data-org-action="remove" data-membership-id="${escapeHtml(m.id)}" data-community-id="${escapeHtml(m.community_id)}" data-member-name="${memberName(m)}" style="${buttonStyle('#ff6b6b')}">Remove</button>
+    </div>`).join('');
+
+  const heading = (icon, text) => `<h3 style="color:#a855f7; font-size:1rem; margin-bottom:0.75rem; text-transform:uppercase;"><i class="fas ${icon}"></i> ${text}</h3>`;
+  return `
+    <div data-org-management style="margin-bottom:2rem;">
+      ${heading('fa-user-clock', `Join requests (${pendingMembers.length})`)}
+      <div style="display:flex; flex-direction:column; gap:0.5rem; margin-bottom:1.5rem;">
+        ${requestRows || '<p style="color:rgba(255,255,255,0.5); font-size:0.85rem;">No pending requests</p>'}
+      </div>
+      ${memberRows ? `
+        ${heading('fa-user-cog', 'Manage members')}
+        <div style="display:flex; flex-direction:column; gap:0.5rem;">${memberRows}</div>
+      ` : ''}
+    </div>`;
+}
+
+function wireOrganizationMembershipControls(org) {
+  const manager = () => {
+    if (window.OrganizationManager?.approveMemberRequest) return window.OrganizationManager;
+    showToastNotification('Organization tools are still loading. Try again in a moment.', 'error');
+    return null;
+  };
+  // The manager reports success or failure itself; on success the panel reloads.
+  const run = async (control, action) => {
+    control.disabled = true;
+    try {
+      await action();
+      if (typeof window.refreshSynapseConnections === 'function') window.refreshSynapseConnections();
+      if (currentNodeData) await loadNodeDetails(currentNodeData);
+    } catch (error) {
+      control.disabled = false;
+    }
+  };
+
+  panelElement.querySelectorAll('[data-org-action]').forEach(control => {
+    const { orgAction, membershipId, communityId, memberName } = control.dataset;
+    if (orgAction === 'role') {
+      control.addEventListener('change', () => {
+        const role = control.value;
+        const previous = control.dataset.currentRole;
+        const warning = role === 'owner' ? ' Owners have full control of the organization, including its other owners.' : '';
+        if (!window.confirm(`Change ${memberName}'s role to ${role}?${warning}`)) {
+          control.value = previous;
+          return;
+        }
+        const m = manager();
+        if (!m) { control.value = previous; return; }
+        run(control, () => m.updateMemberRole(org.id, communityId, role, {}, membershipId))
+          .then(() => { if (control.isConnected) control.value = control.dataset.currentRole; });
+      });
+      return;
+    }
+    control.addEventListener('click', () => {
+      if (orgAction === 'join') {
+        // joinOrganization (dashboard-actions.js) files the pending request and
+        // reports the outcome; reloading then shows "Join request pending".
+        if (typeof window.joinOrganization !== 'function') {
+          showToastNotification('Join feature unavailable', 'error');
+          return;
+        }
+        run(control, () => window.joinOrganization(org.id));
+        return;
+      }
+      const prompts = {
+        approve: null,
+        decline: `Decline ${memberName}'s request to join ${org.name}?`,
+        remove: `Remove ${memberName} from ${org.name}?`,
+        leave: `Leave ${org.name}?`,
+      };
+      if (prompts[orgAction] && !window.confirm(prompts[orgAction])) return;
+      const m = manager();
+      if (!m) return;
+      const actions = {
+        approve: () => m.approveMemberRequest(org.id, membershipId),
+        decline: () => m.declineMemberRequest(org.id, membershipId),
+        remove: () => m.removeMember(org.id, communityId, membershipId),
+        leave: () => m.leaveOrganization(org.id),
+      };
+      if (actions[orgAction]) run(control, actions[orgAction]);
+    });
+  });
 }
 
 // ── Presence helpers ──────────────────────────────────────────────────────────
@@ -1956,11 +2095,10 @@ async function renderProjectPanel(nodeData) {
         <button onclick="editProjectFromPanel('${project.id}')" style="width: 100%; padding: 0.75rem; background: linear-gradient(135deg, #ff6b6b, #ff8c8c); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 1rem; margin-bottom: 0.75rem;">
           <i class="fas fa-edit"></i> Edit Project
         </button>
-        ${pendingRequests.length > 0 ? `
-          <button onclick="manageProjectRequests('${project.id}')" style="width: 100%; padding: 0.75rem; background: linear-gradient(135deg, #ffa500, #ff8c00); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 1rem; margin-bottom: 0.75rem;">
-            <i class="fas fa-user-clock"></i> Manage Requests (${pendingRequests.length})
-          </button>
-        ` : ''}
+        <!-- Always shown to the creator: requests are managed here even when none are waiting -->
+        <button onclick="manageProjectRequests('${project.id}')" style="width: 100%; padding: 0.75rem; background: linear-gradient(135deg, #ffa500, #ff8c00); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 1rem; margin-bottom: 0.75rem;">
+          <i class="fas fa-user-clock"></i> Manage Requests (${pendingRequests.length})
+        </button>
         <button onclick="deleteProjectSoft('${project.id}', '${(project.title || '').replace(/'/g, "\\'")}')" style="width: 100%; padding: 0.75rem; background: rgba(255,60,60,0.1); border: 1px solid rgba(255,60,60,0.35); border-radius: 8px; color: #ff4444; font-weight: bold; cursor: pointer; font-size: 0.9rem; margin-bottom: 0.75rem; transition: all 0.2s;" onmouseenter="this.style.background='rgba(255,60,60,0.2)'" onmouseleave="this.style.background='rgba(255,60,60,0.1)'">
           <i class="fas fa-trash-alt"></i> Delete Project
         </button>
@@ -1969,6 +2107,9 @@ async function renderProjectPanel(nodeData) {
         <div style="text-align: center; color: #00ff88; font-weight: bold; margin-bottom: 0.75rem;">
           <i class="fas fa-check-circle"></i> You're a member of this project
         </div>
+        <button type="button" onclick="leaveProjectFromPanel('${project.id}')" style="width: 100%; padding: 0.75rem; background: transparent; border: 1px solid rgba(255,107,107,0.4); border-radius: 8px; color: #ff6b6b; font-weight: bold; cursor: pointer; margin-bottom: 0.75rem;">
+          <i class="fas fa-sign-out-alt"></i> Leave Project
+        </button>
       ` : hasPendingRequest ? `
         <!-- Pending Request Status -->
         <div style="text-align: center; color: #ffa500; font-weight: bold; margin-bottom: 0.75rem; padding: 0.75rem; background: rgba(255,165,0,0.1); border-radius: 8px; border: 1px solid rgba(255,165,0,0.3);">
@@ -3014,10 +3155,10 @@ window.viewProjectDetails = async function(projectId, initialTab = null) {
         style="flex:1; padding:0.75rem; background:linear-gradient(135deg,#ff6b6b,#ff8c8c); border:none; border-radius:8px; color:white; font-weight:bold; cursor:pointer; font-size:0.95rem;">
         <i class="fas fa-edit"></i> Edit Project
       </button>
-      ${pendingRequests.length > 0 ? `
+      ${rel.isCreator ? `
         <button onclick="this.closest('#project-detail-overlay').remove(); manageProjectRequests('${project.id}')"
           style="flex:1; padding:0.75rem; background:linear-gradient(135deg,#ffa500,#ff8c00); border:none; border-radius:8px; color:white; font-weight:bold; cursor:pointer; font-size:0.95rem;">
-          <i class="fas fa-user-clock"></i> Requests (${pendingRequests.length})
+          <i class="fas fa-user-clock"></i> Manage Requests (${pendingRequests.length})
         </button>
       ` : ''}
       <button onclick="this.closest('#project-detail-overlay').remove(); deleteProjectSoft('${project.id}', '${esc(project.title).replace(/'/g, "\\'")}')"
@@ -3028,7 +3169,11 @@ window.viewProjectDetails = async function(projectId, initialTab = null) {
     actionsHTML = `
       <div style="flex:1; text-align:center; color:#00ff88; font-weight:bold; padding:0.75rem; background:rgba(0,255,136,0.1); border-radius:8px; border:1px solid rgba(0,255,136,0.3);">
         <i class="fas fa-check-circle"></i> You're a member
-      </div>`;
+      </div>
+      <button onclick="this.closest('#project-detail-overlay').remove(); leaveProjectFromPanel('${project.id}')"
+        style="padding:0.75rem 1.25rem; background:transparent; border:1px solid rgba(255,107,107,0.4); border-radius:8px; color:#ff6b6b; font-weight:bold; cursor:pointer;">
+        <i class="fas fa-sign-out-alt"></i> Leave Project
+      </button>`;
   } else if (rel.hasPendingRequest) {
     actionsHTML = `
       <div style="flex:1; text-align:center; color:#ffa500; font-weight:bold; padding:0.75rem; background:rgba(255,165,0,0.1); border-radius:8px; border:1px solid rgba(255,165,0,0.3);">
@@ -3448,6 +3593,47 @@ window.removeProjectMember = async function(projectId, memberId, memberName = 't
   } catch (error) {
     console.error('[Projects] remove member error:', error);
     showToastNotification(error.message || 'Failed to remove project member.', 'error');
+  }
+};
+
+// A team member (not the creator) leaves a project. Deletes only the
+// caller's own non-creator, non-pending row; the database allows a member to
+// remove themself (project_members DELETE policy).
+window.leaveProjectFromPanel = async function(projectId) {
+  const myId = currentUserProfile?.id;
+  if (!projectId || !myId) return;
+  if (!window.confirm('Leave this project? You will lose access to its tasks.')) return;
+
+  try {
+    if (!supabase) supabase = window.supabase;
+    if (!supabase) throw new Error('Database connection not available');
+
+    const { data, error } = await supabase
+      .from('project_members')
+      .delete()
+      .eq('project_id', projectId)
+      .eq('user_id', myId)
+      .neq('role', 'creator')
+      .neq('role', 'pending')
+      .select('user_id');
+
+    if (error) throw error;
+    if (!data || data.length !== 1) {
+      throw new Error('You are not a member of this project.');
+    }
+
+    showToastNotification('You have left the project.', 'success');
+
+    if (typeof window.refreshSynapseConnections === 'function') {
+      await window.refreshSynapseConnections();
+    }
+    if (typeof window.refreshSynapseProjectCircles === 'function') {
+      await window.refreshSynapseProjectCircles();
+    }
+    if (currentNodeData?.id === projectId) await loadNodeDetails(currentNodeData);
+  } catch (error) {
+    console.error('[Projects] leave project error:', error);
+    showToastNotification(error.message || 'Failed to leave the project.', 'error');
   }
 };
 

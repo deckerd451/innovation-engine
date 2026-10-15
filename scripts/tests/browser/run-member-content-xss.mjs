@@ -52,6 +52,14 @@ const harness = `<!doctype html>
     community: [member],
     projects: [{ id: '20000000-0000-4000-8000-0000000000aa', title: H, name: H, description: H, status: 'active', creator_id: member.id, skills: [H], created_at: '2026-10-01T00:00:00Z' }],
     project_members: [],
+    // The viewer owns this organization, so the panel shows its join
+    // requests and member management controls for the hostile member.
+    organizations: [{ id: '30000000-0000-4000-8000-0000000000aa', name: H, description: H, status: 'active', created_by: '10000000-0000-4000-8000-0000000000ff' }],
+    organization_members: [
+      { id: '31000000-0000-4000-8000-0000000000ff', community_id: '10000000-0000-4000-8000-0000000000ff', role: 'owner', status: 'active', community: { id: '10000000-0000-4000-8000-0000000000ff', name: 'Viewer' } },
+      { id: '31000000-0000-4000-8000-0000000000aa', community_id: member.id, role: 'member', status: 'active', community: member },
+      { id: '31000000-0000-4000-8000-0000000000ab', community_id: '10000000-0000-4000-8000-0000000000ab', role: 'member', status: 'pending', community: { ...member, id: '10000000-0000-4000-8000-0000000000ab' } },
+    ],
   };
   // Any query resolves to the table's rows; single() to its first row.
   function query(table) {
@@ -199,6 +207,15 @@ try {
   await send('Page.navigate', { url: `${base}/__xss-harness.html` });
   await waitFor('window.__ready === true && !!window.__pathwaysOptions && typeof window.loadProjects === "function"', 'modules');
   await evaluate('window.__modules.initRealtimeCollaboration(); window.__modules.initNodePanel?.(); true');
+
+  // First: later surfaces remove every fixed-position element, the side panel
+  // included.
+  await surface('Organization panel (member names in join requests and member management)',
+    async () => {
+      await evaluate(`window.dispatchEvent(new CustomEvent('profile-loaded', { detail: { profile: window.currentUserProfile } })); window.openNodePanel({ id: '30000000-0000-4000-8000-0000000000aa', type: 'organization' }); true`);
+      await waitFor(`!!document.querySelector('[data-org-management] [data-org-action="approve"]')`, 'organization member management');
+    },
+    '#node-side-panel');
 
   await surface('Endorse modal (member name and skills)',
     () => evaluate(`window.endorseSkill('10000000-0000-4000-8000-0000000000aa')`),

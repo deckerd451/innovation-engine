@@ -21,8 +21,11 @@
 //  - followOrganization(organizationId)
 //  - unfollowOrganization(organizationId)
 //  - addMember(organizationId, communityId, role, permissions)
-//  - removeMember(organizationId, communityId)
-//  - updateMemberRole(organizationId, communityId, role, permissions)
+//  - removeMember(organizationId, communityId, membershipId)
+//  - updateMemberRole(organizationId, communityId, role, permissions, membershipId)
+//  - approveMemberRequest(organizationId, membershipId)
+//  - declineMemberRequest(organizationId, membershipId)
+//  - leaveOrganization(organizationId)
 //  - getOrganizationMembers(organizationId)
 //  - isUserMember(organizationId)
 //  - canUserEdit(organizationId)
@@ -699,13 +702,22 @@ export async function addMember(organizationId, communityId, role = "member", pe
   }
 }
 
+// Row-level security silently skips rows the caller may not change, so "no
+// error" alone does not mean anything happened. Membership changes must touch
+// exactly the one row they name.
+function requireOneRow(data, message) {
+  if (!Array.isArray(data) || data.length !== 1) throw new Error(message);
+  return data[0];
+}
+
 /**
  * Remove a member from an organization
  * @param {String} organizationId - Organization ID
  * @param {String} communityId - Community member ID
+ * @param {String} [membershipId] - organization_members.id, to remove exactly that row
  * @returns {Promise<Boolean>} Success status
  */
-export async function removeMember(organizationId, communityId) {
+export async function removeMember(organizationId, communityId, membershipId) {
   try {
     if (!currentUserId || !currentUserCommunityId) {
       throw new Error("User must be authenticated");
@@ -717,13 +729,16 @@ export async function removeMember(organizationId, communityId) {
       throw new Error("You don't have permission to manage members");
     }
 
-    const { error } = await supabase
+    let query = supabase
       .from("organization_members")
       .delete()
       .eq("organization_id", organizationId)
       .eq("community_id", communityId);
+    if (membershipId) query = query.eq("id", membershipId);
+    const { data, error } = await query.select("id");
 
     if (error) throw error;
+    requireOneRow(data, "That member could not be removed. Refresh and try again.");
 
     showToast("Member removed successfully!", "success");
     return true;
@@ -739,10 +754,12 @@ export async function removeMember(organizationId, communityId) {
  * @param {String} organizationId - Organization ID
  * @param {String} communityId - Community member ID
  * @param {String} role - New role
- * @param {Object} permissions - New permissions
+ * @param {Object} permissions - New permissions (omitted flags are left as they are,
+ *   except that a plain member keeps none)
+ * @param {String} [membershipId] - organization_members.id, to change exactly that row
  * @returns {Promise<Object>} Updated member record
  */
-export async function updateMemberRole(organizationId, communityId, role, permissions = {}) {
+export async function updateMemberRole(organizationId, communityId, role, permissions = {}, membershipId) {
   try {
     if (!currentUserId || !currentUserCommunityId) {
       throw new Error("User must be authenticated");
@@ -754,27 +771,124 @@ export async function updateMemberRole(organizationId, communityId, role, permis
       throw new Error("You don't have permission to manage members");
     }
 
-    const { data: member, error } = await supabase
+    const changes = { role, updated_at: new Date().toISOString() };
+    for (const flag of ["can_post_opportunities", "can_manage_members", "can_edit_profile"]) {
+      if (role === "member") changes[flag] = false;
+      else if (typeof permissions[flag] === "boolean") changes[flag] = permissions[flag];
+    }
+
+    let query = supabase
       .from("organization_members")
-      .update({
-        role,
-        can_post_opportunities: permissions.can_post_opportunities,
-        can_manage_members: permissions.can_manage_members,
-        can_edit_profile: permissions.can_edit_profile,
-        updated_at: new Date().toISOString(),
-      })
+      .update(changes)
       .eq("organization_id", organizationId)
       .eq("community_id", communityId)
-      .select()
-      .single();
+      .eq("status", "active");
+    if (membershipId) query = query.eq("id", membershipId);
+    const { data, error } = await query.select();
 
     if (error) throw error;
+    const member = requireOneRow(data, "That member's role could not be changed. Refresh and try again.");
 
     showToast("Member role updated successfully!", "success");
     return member;
   } catch (error) {
     console.error("Error updating member role:", error);
     showToast(error.message || "Failed to update member role", "error");
+    throw error;
+  }
+}
+
+/**
+ * Approve a pending join request. The requester becomes an active plain
+ * member with no extra permissions; roles are changed separately.
+ * @param {String} organizationId - Organization ID
+ * @param {String} membershipId - organization_members.id of the request
+ * @returns {Promise<Object>} Approved member record
+ */
+export async function approveMemberRequest(organizationId, membershipId) {
+  try {
+    const { data, error } = await supabase
+      .from("organization_members")
+      .update({
+        status: "active",
+        can_post_opportunities: false,
+        can_manage_members: false,
+        can_edit_profile: false,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", membershipId)
+      .eq("organization_id", organizationId)
+      .eq("role", "member")
+      .eq("status", "pending")
+      .select("id, role, status");
+
+    if (error) throw error;
+    const member = requireOneRow(data, "That request is no longer pending. Refresh and try again.");
+
+    showToast("Request approved. They are now a member.", "success");
+    return member;
+  } catch (error) {
+    console.error("Error approving join request:", error);
+    showToast(error.message || "Failed to approve request", "error");
+    throw error;
+  }
+}
+
+/**
+ * Decline a pending join request (deletes only that pending row).
+ * @param {String} organizationId - Organization ID
+ * @param {String} membershipId - organization_members.id of the request
+ * @returns {Promise<Boolean>} Success status
+ */
+export async function declineMemberRequest(organizationId, membershipId) {
+  try {
+    const { data, error } = await supabase
+      .from("organization_members")
+      .delete()
+      .eq("id", membershipId)
+      .eq("organization_id", organizationId)
+      .eq("status", "pending")
+      .select("id");
+
+    if (error) throw error;
+    requireOneRow(data, "That request is no longer pending. Refresh and try again.");
+
+    showToast("Request declined.", "info");
+    return true;
+  } catch (error) {
+    console.error("Error declining join request:", error);
+    showToast(error.message || "Failed to decline request", "error");
+    throw error;
+  }
+}
+
+/**
+ * Leave an organization (or withdraw your own join request). The database
+ * refuses to let the last active owner leave.
+ * @param {String} organizationId - Organization ID
+ * @returns {Promise<Boolean>} Success status
+ */
+export async function leaveOrganization(organizationId) {
+  try {
+    if (!currentUserId || !currentUserCommunityId) {
+      throw new Error("User must be authenticated");
+    }
+
+    const { data, error } = await supabase
+      .from("organization_members")
+      .delete()
+      .eq("organization_id", organizationId)
+      .eq("community_id", currentUserCommunityId)
+      .select("id");
+
+    if (error) throw error;
+    requireOneRow(data, "You are not a member of this organization.");
+
+    showToast("You have left the organization.", "success");
+    return true;
+  } catch (error) {
+    console.error("Error leaving organization:", error);
+    showToast(error.message || "Failed to leave organization", "error");
     throw error;
   }
 }
@@ -1141,6 +1255,9 @@ if (typeof window !== "undefined") {
     addMember,
     removeMember,
     updateMemberRole,
+    approveMemberRequest,
+    declineMemberRequest,
+    leaveOrganization,
     getOrganizationMembers,
     isUserMember,
     canUserEdit,
