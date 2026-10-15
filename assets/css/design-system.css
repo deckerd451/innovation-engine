@@ -171,6 +171,14 @@ textarea:focus-visible,
    Reusable confirmation modal (replaces native window.confirm) built on the
    existing .modal / .modal-content / active-class convention.
    -------------------------------------------------------------------------- */
+/* A confirmation must be the top layer. The generic .modal.active layer
+   (--z-modal: 200) sits below the mobile My Space screen (700), the profile
+   side panel (2000), the tab bar (10000) and the profile modal (200000), so
+   a "Log out?" opened from those surfaces was invisible and untappable. */
+#ds-confirm-modal.modal.active {
+  z-index: 200001 !important;
+}
+
 .ds-confirm-content {
   max-width: 440px;
   text-align: left;
