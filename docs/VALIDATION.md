@@ -91,6 +91,25 @@ by a later member. All rows are rolled back.
 removes itself (needs `initdb`, `pg_ctl` and `psql` on `PATH`), followed by
 `scripts/tests/run-authz-db.sh` when that suite is present.
 
+## Notification and connection authorization against PostgreSQL
+
+```
+scripts/tests/run-authz-db.sh
+```
+
+Creates a throwaway local cluster in a temporary directory (127.0.0.1 only,
+removed on exit), loads a copy of production's notification/connection
+policies, grants and functions, and checks that: the tests fail without the
+migration; the migration is idempotent; members, unrelated members and
+anonymous callers cannot forge notifications or connection state while every
+legitimate notification and the Collaboration Concierge journey still work;
+undoing any single protection is caught; and the rollback restores the
+baseline exactly. The same runner covers organization/project membership
+and proximity connections (membership-authz-db.sql). See
+docs/SECURITY_NOTIFICATION_CONNECTION_AUTHZ.md and
+docs/SECURITY_MEMBERSHIP_PROXIMITY_AUTHZ.md.
+CI runs it on every pull request as part of the `db-authz` check.
+
 ## Nearify contract
 
 `test-nearify-live-presence-boundary.js` checks the iOS call shapes against a

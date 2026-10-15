@@ -3761,17 +3761,19 @@ _toast('Organization membership feature is being set up. Please try again later 
 
     if (existing) {
       
-_toast('You are already a member of this organization');
+_toast('You already belong to or have asked to join this organization');
       return;
     }
 
-    // Add membership
+    // Ask to join. Organization owners and admins approve membership; the
+    // database refuses a member making themself active.
     const { error } = await supabase
       .from('organization_members')
       .insert([{
         organization_id: orgId,
         community_id: currentUser.id,
-        role: 'member'
+        role: 'member',
+        status: 'pending'
       }]);
 
     if (error) {
@@ -3786,7 +3788,7 @@ _toast('Organization membership feature is being set up. Please try again later 
     }
 
     
-_toast('You have joined the organization!');
+_toast('Join request sent. The organization will review it.');
 
     // Refresh the list
     loadOrgsTabContent('browse');

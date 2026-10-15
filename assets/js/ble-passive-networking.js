@@ -589,18 +589,20 @@
     if (!supabase) return false;
 
     try {
-      const { error } = await supabase.rpc('promote_edge_to_connection', {
+      const { data, error } = await supabase.rpc('promote_edge_to_connection', {
         p_edge_id: edgeId
       });
 
-      if (error) {
-        console.error('❌ [BLE] Failed to accept suggestion:', error);
-        notifyError('Failed to accept connection');
+      if (error || data?.success === false) {
+        console.error('❌ [BLE] Failed to accept suggestion:', error || data?.error);
+        notifyError(data?.error || 'Failed to accept connection');
         return false;
       }
 
-      console.log(`✅ [BLE] Accepted suggestion: ${edgeId}`);
-      notifySuccess('Connection accepted!');
+      // The other person has to agree too: the first tap sends a request,
+      // and the connection exists once both have tapped (or they accept it).
+      console.log(`✅ [BLE] Accepted suggestion: ${edgeId} (${data?.status || 'unknown'})`);
+      notifySuccess(data?.status === 'accepted' ? 'Connected!' : 'Connection request sent');
       return true;
 
     } catch (error) {

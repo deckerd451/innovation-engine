@@ -207,10 +207,13 @@ function _wireConnectButtons(panel, supabase) {
           return;
         }
 
-        // Replace button with "Connected" badge
+        // The other person has to agree too: until they do, this is a request.
+        const connected = result.status === 'accepted';
         const action = btn.closest('.ch-peer-action');
         if (action) {
-          action.innerHTML = `<span class="ch-peer-connected-badge"><i class="fas fa-check-circle"></i> Connected</span>`;
+          action.innerHTML = connected
+            ? `<span class="ch-peer-connected-badge"><i class="fas fa-check-circle"></i> Connected</span>`
+            : `<span class="ch-peer-connected-badge"><i class="fas fa-paper-plane"></i> Request sent</span>`;
         }
 
         // Fire event for Synapse graph to pick up new connection
@@ -218,7 +221,7 @@ function _wireConnectButtons(panel, supabase) {
           detail: { edgeId, peerName },
         }));
 
-        console.log(LOG, '✅ Connected with', peerName);
+        console.log(LOG, connected ? '✅ Connected with' : '✅ Request sent to', peerName);
 
       } catch (err) {
         console.warn(LOG, 'Exception during promote:', err);
