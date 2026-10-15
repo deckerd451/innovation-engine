@@ -132,21 +132,31 @@ async function waitFor(expression, label, timeout = 5000) {
   }
   return false;
 }
+// Runs fn in the page with args passed as CDP values, not spliced into source.
+async function callInPage(fn, ...args) {
+  const { result: global } = await send('Runtime.evaluate', { expression: 'globalThis' });
+  const result = await send('Runtime.callFunctionOn', { functionDeclaration: fn.toString(), objectId: global.objectId, arguments: args.map(value => ({ value })), awaitPromise: true, returnByValue: true });
+  if (result.exceptionDetails) throw new Error(result.exceptionDetails.exception?.description || result.exceptionDetails.text);
+  return result.result.value;
+}
 // A real mouse click at the centre of the element; whatever is on top there
 // receives it, exactly as for a person tapping the screen.
 async function clickAt(selector) {
-  const box = await evaluate(`(() => { const r = document.querySelector(${JSON.stringify(selector)})?.getBoundingClientRect(); return r && r.width && r.height ? { x: r.x + r.width / 2, y: r.y + r.height / 2 } : null; })()`);
+  const box = await callInPage(sel => {
+    const r = document.querySelector(sel)?.getBoundingClientRect();
+    return r && r.width && r.height ? { x: r.x + r.width / 2, y: r.y + r.height / 2 } : null;
+  }, selector);
   if (!box) return false;
   for (const type of ['mousePressed', 'mouseReleased']) await send('Input.dispatchMouseEvent', { type, x: box.x, y: box.y, button: 'left', clickCount: 1 });
   return true;
 }
-const topmost = selector => evaluate(`(() => {
-  const el = document.querySelector(${JSON.stringify(selector)});
+const topmost = selector => callInPage(sel => {
+  const el = document.querySelector(sel);
   const r = el?.getBoundingClientRect();
   if (!r || !r.width) return 'not rendered';
   const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
   return hit === el || el.contains(hit) ? 'ok' : (hit ? (hit.id ? '#' + hit.id : hit.className || hit.tagName) : 'nothing');
-})()`);
+}, selector);
 
 const failures = [];
 const check = (ok, label, detail = '') => { console.log(`${ok ? '  ok  ' : '  FAIL'} ${label}${!ok && detail ? ` (${detail})` : ''}`); if (!ok) failures.push(label); };
