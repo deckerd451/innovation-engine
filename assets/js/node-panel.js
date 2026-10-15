@@ -1403,16 +1403,20 @@ function wireOrganizationMembershipControls(org) {
     showToastNotification('Organization tools are still loading. Try again in a moment.', 'error');
     return null;
   };
-  // The manager reports success or failure itself; on success the panel reloads.
+  // The manager reports success or failure itself. Only a successful action
+  // reloads the panel; a failed one leaves it as it was and re-enables the
+  // control for another try. Returns whether the action succeeded.
   const run = async (control, action) => {
     control.disabled = true;
     try {
       await action();
-      if (typeof window.refreshSynapseConnections === 'function') window.refreshSynapseConnections();
-      if (currentNodeData) await loadNodeDetails(currentNodeData);
     } catch (error) {
       control.disabled = false;
+      return false;
     }
+    if (typeof window.refreshSynapseConnections === 'function') window.refreshSynapseConnections();
+    if (currentNodeData) await loadNodeDetails(currentNodeData);
+    return true;
   };
 
   panelElement.querySelectorAll('[data-org-action]').forEach(control => {
@@ -1428,22 +1432,13 @@ function wireOrganizationMembershipControls(org) {
         }
         const m = manager();
         if (!m) { control.value = previous; return; }
+        // Role only: permission flags stay as they are (see updateMemberRole).
         run(control, () => m.updateMemberRole(org.id, communityId, role, {}, membershipId))
-          .then(() => { if (control.isConnected) control.value = control.dataset.currentRole; });
+          .then((ok) => { if (!ok) control.value = previous; });
       });
       return;
     }
     control.addEventListener('click', () => {
-      if (orgAction === 'join') {
-        // joinOrganization (dashboard-actions.js) files the pending request and
-        // reports the outcome; reloading then shows "Join request pending".
-        if (typeof window.joinOrganization !== 'function') {
-          showToastNotification('Join feature unavailable', 'error');
-          return;
-        }
-        run(control, () => window.joinOrganization(org.id));
-        return;
-      }
       const prompts = {
         approve: null,
         decline: `Decline ${memberName}'s request to join ${org.name}?`,
@@ -1454,6 +1449,7 @@ function wireOrganizationMembershipControls(org) {
       const m = manager();
       if (!m) return;
       const actions = {
+        join: () => m.requestToJoin(org.id),
         approve: () => m.approveMemberRequest(org.id, membershipId),
         decline: () => m.declineMemberRequest(org.id, membershipId),
         remove: () => m.removeMember(org.id, communityId, membershipId),

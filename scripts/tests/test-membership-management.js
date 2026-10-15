@@ -108,9 +108,28 @@ async function main() {
     for (const [c, v] of [['id', 'm1'], ['organization_id', 'org1'], ['community_id', 'tester'], ['status', 'active']]) {
       assert.ok(has(call, 'eq', c, v), `role change filters on ${c}`);
     }
-    await M.updateMemberRole('org1', 'tester', 'admin', {}, 'm1');
+    // Promotion changes the role only. It never grants permission flags: an
+    // admin's member-management and profile powers come from the role (in the
+    // database and in the UI); posting opportunities still needs
+    // can_post_opportunities, which only an explicit grant sets.
+    const FLAGS = ['can_post_opportunities', 'can_manage_members', 'can_edit_profile'];
+    for (const role of ['admin', 'owner']) {
+      await M.updateMemberRole('org1', 'tester', role, {}, 'm1');
+      call = lastWrite();
+      assert.equal(call.payload.role, role);
+      for (const flag of FLAGS) assert.ok(!(flag in call.payload), `promotion to ${role} leaves ${flag} unchanged`);
+    }
+    await M.updateMemberRole('org1', 'tester', 'admin', { can_post_opportunities: true }, 'm1');
     call = lastWrite();
-    assert.ok(!('can_manage_members' in call.payload), 'promotion leaves permission flags unchanged unless given');
+    assert.equal(call.payload.can_post_opportunities, true, 'only an explicit grant sets a flag');
+    assert.ok(!('can_manage_members' in call.payload) && !('can_edit_profile' in call.payload));
+
+    // Join request: the caller's own plain, pending, permissionless row.
+    await M.requestToJoin('org1');
+    call = lastWrite();
+    assert.equal(call.op, 'insert');
+    assert.deepEqual(call.payload, { organization_id: 'org1', community_id: 'doug', role: 'member', status: 'pending' });
+    assert.ok(call.select, 'join request reads back the new row');
 
     // Remove: exact row.
     await M.removeMember('org1', 'tester', 'm1');
@@ -133,6 +152,7 @@ async function main() {
     await rejects(() => M.updateMemberRole('org1', 'tester', 'admin', {}, 'm1'), /could not be changed/);
     await rejects(() => M.removeMember('org1', 'tester', 'm1'), /could not be removed/);
     await rejects(() => M.leaveOrganization('org1'), /not a member/);
+    await rejects(() => M.requestToJoin('org1'), /could not be sent/);
     rowsFor = () => [{ id: 'a' }, { id: 'b' }];
     await rejects(() => M.removeMember('org1', 'tester'), /could not be removed/);
 
@@ -142,7 +162,7 @@ async function main() {
     await rejects(() => M.leaveOrganization('org1'), /at least one active owner/);
     failWith = null;
 
-    for (const name of ['approveMemberRequest', 'declineMemberRequest', 'leaveOrganization', 'removeMember', 'updateMemberRole']) {
+    for (const name of ['requestToJoin', 'approveMemberRequest', 'declineMemberRequest', 'leaveOrganization', 'removeMember', 'updateMemberRole']) {
       assert.equal(typeof window.OrganizationManager[name], 'function', `OrganizationManager.${name} is exposed`);
     }
   } finally {
@@ -198,6 +218,104 @@ async function main() {
   assert.doesNotMatch(asAdmin, /data-membership-id="m-doug"|data-membership-id="m-co"/, 'admins do not see controls for owners');
   assert.doesNotMatch(asAdmin, /<option value="owner"/, 'admins cannot grant ownership');
   assert.match(asAdmin, /data-org-action="remove" data-membership-id="m-tess"/);
+
+  // -------------------------------------------------------------------------
+  // Panel wiring: only success reloads; failure and cancel leave the panel
+  // as it was, re-enable the control and put the role menu back.
+  // -------------------------------------------------------------------------
+  const wiring = panel.match(/function wireOrganizationMembershipControls\(org\)[\s\S]*?\n}\n/)[0];
+  const flush = async () => { for (let i = 0; i < 5; i += 1) await new Promise((r) => setImmediate(r)); };
+  function mountPanel({ outcome = 'ok', confirmAnswer = true, withManager = true } = {}) {
+    const control = (dataset, value) => ({
+      dataset, value, disabled: false, handlers: {},
+      addEventListener(type, fn) { this.handlers[type] = fn; },
+    });
+    const controls = {
+      join: control({ orgAction: 'join' }),
+      approve: control({ orgAction: 'approve', membershipId: 'm-req', memberName: 'Req' }),
+      decline: control({ orgAction: 'decline', membershipId: 'm-req', memberName: 'Req' }),
+      remove: control({ orgAction: 'remove', membershipId: 'm-t', communityId: 't', memberName: 'Tess' }),
+      leave: control({ orgAction: 'leave' }),
+      role: control({ orgAction: 'role', membershipId: 'm-t', communityId: 't', memberName: 'Tess', currentRole: 'member' }, 'member'),
+    };
+    const log = { calls: [], reloads: 0, refreshes: 0, toasts: [], confirms: 0 };
+    const act = (name) => (...args) => {
+      log.calls.push([name, ...args]);
+      return outcome === 'ok' ? Promise.resolve({}) : Promise.reject(new Error('refused'));
+    };
+    const ctx = {
+      panelElement: { querySelectorAll: () => Object.values(controls) },
+      currentNodeData: { id: 'org1', type: 'organization' },
+      loadNodeDetails: async () => { log.reloads += 1; },
+      showToastNotification: (msg, type) => log.toasts.push([type, msg]),
+      window: {
+        confirm: () => { log.confirms += 1; return confirmAnswer; },
+        refreshSynapseConnections: () => { log.refreshes += 1; },
+        OrganizationManager: withManager ? {
+          requestToJoin: act('requestToJoin'), approveMemberRequest: act('approveMemberRequest'),
+          declineMemberRequest: act('declineMemberRequest'), removeMember: act('removeMember'),
+          leaveOrganization: act('leaveOrganization'), updateMemberRole: act('updateMemberRole'),
+        } : undefined,
+      },
+    };
+    vm.runInNewContext(`${wiring}; wireOrganizationMembershipControls({ id: 'org1', name: 'Nearify' });`, ctx);
+    return { controls, log };
+  }
+  const click = (c) => c.handlers.click();
+  const pickRole = (c, role) => { c.value = role; c.handlers.change(); };
+
+  for (const name of ['join', 'approve', 'decline', 'remove', 'leave']) {
+    let { controls, log } = mountPanel({ outcome: 'fail' });
+    click(controls[name]); await flush();
+    assert.equal(log.calls.length, 1, `${name}: the action ran`);
+    assert.equal(log.reloads + log.refreshes, 0, `${name}: a failed action does not refresh the panel or graph`);
+    assert.equal(controls[name].disabled, false, `${name}: the control is usable again after failure`);
+
+    ({ controls, log } = mountPanel());
+    click(controls[name]); await flush();
+    assert.equal(log.reloads, 1, `${name}: success reloads the panel`);
+  }
+  for (const name of ['decline', 'remove', 'leave']) {
+    const { controls, log } = mountPanel({ confirmAnswer: false });
+    click(controls[name]); await flush();
+    assert.equal(log.confirms, 1, `${name}: asks first`);
+    assert.equal(log.calls.length + log.reloads, 0, `${name}: cancelling does nothing`);
+    assert.equal(controls[name].disabled, false);
+  }
+  {
+    const { controls, log } = mountPanel();
+    click(controls.approve); click(controls.join); await flush();
+    assert.equal(log.confirms, 0, 'approve and join need no confirmation');
+  }
+
+  // Role menu.
+  {
+    let { controls, log } = mountPanel({ outcome: 'fail' });
+    pickRole(controls.role, 'admin'); await flush();
+    assert.equal(JSON.stringify(log.calls[0]), JSON.stringify(['updateMemberRole', 'org1', 't', 'admin', {}, 'm-t']), 'role change passes no permission flags');
+    assert.equal(controls.role.value, 'member', 'failed role change puts the menu back');
+    assert.equal(controls.role.disabled, false);
+    assert.equal(log.reloads, 0);
+    // A second failure after the first still returns to the stored role.
+    pickRole(controls.role, 'owner'); await flush();
+    assert.equal(controls.role.value, 'member');
+
+    ({ controls, log } = mountPanel({ confirmAnswer: false }));
+    pickRole(controls.role, 'admin'); await flush();
+    assert.equal(controls.role.value, 'member', 'cancelled role change puts the menu back');
+    assert.equal(log.calls.length + log.reloads, 0);
+
+    ({ controls, log } = mountPanel({ withManager: false }));
+    pickRole(controls.role, 'admin'); await flush();
+    assert.equal(controls.role.value, 'member', 'role menu goes back when organization tools are not loaded');
+    assert.equal(log.toasts[0][0], 'error');
+    click(controls.approve); await flush();
+    assert.equal(log.reloads, 0);
+
+    ({ controls, log } = mountPanel());
+    pickRole(controls.role, 'admin'); await flush();
+    assert.equal(log.reloads, 1, 'successful role change reloads the panel');
+  }
 
   // -------------------------------------------------------------------------
   // Projects (node-panel.js)

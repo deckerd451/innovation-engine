@@ -23,6 +23,7 @@
 //  - addMember(organizationId, communityId, role, permissions)
 //  - removeMember(organizationId, communityId, membershipId)
 //  - updateMemberRole(organizationId, communityId, role, permissions, membershipId)
+//  - requestToJoin(organizationId)
 //  - approveMemberRequest(organizationId, membershipId)
 //  - declineMemberRequest(organizationId, membershipId)
 //  - leaveOrganization(organizationId)
@@ -754,8 +755,9 @@ export async function removeMember(organizationId, communityId, membershipId) {
  * @param {String} organizationId - Organization ID
  * @param {String} communityId - Community member ID
  * @param {String} role - New role
- * @param {Object} permissions - New permissions (omitted flags are left as they are,
- *   except that a plain member keeps none)
+ * @param {Object} permissions - New permissions. Changing the role never grants
+ *   permission flags: omitted flags stay as they are (an owner's or admin's
+ *   powers come from the role itself), and a plain member keeps none.
  * @param {String} [membershipId] - organization_members.id, to change exactly that row
  * @returns {Promise<Object>} Updated member record
  */
@@ -794,6 +796,43 @@ export async function updateMemberRole(organizationId, communityId, role, permis
   } catch (error) {
     console.error("Error updating member role:", error);
     showToast(error.message || "Failed to update member role", "error");
+    throw error;
+  }
+}
+
+/**
+ * Ask to join an organization: a plain, pending, permissionless request that
+ * an owner or admin approves.
+ * @param {String} organizationId - Organization ID
+ * @returns {Promise<Object>} The pending request
+ */
+export async function requestToJoin(organizationId) {
+  try {
+    if (!currentUserId || !currentUserCommunityId) {
+      throw new Error("User must be authenticated");
+    }
+
+    const { data, error } = await supabase
+      .from("organization_members")
+      .insert({
+        organization_id: organizationId,
+        community_id: currentUserCommunityId,
+        role: "member",
+        status: "pending",
+      })
+      .select("id, status");
+
+    if (error) {
+      if (error.code === "23505") throw new Error("You already belong to or have asked to join this organization.");
+      throw error;
+    }
+    const request = requireOneRow(data, "Your join request could not be sent. Refresh and try again.");
+
+    showToast("Join request sent. The organization will review it.", "success");
+    return request;
+  } catch (error) {
+    console.error("Error requesting to join organization:", error);
+    showToast(error.message || "Failed to send join request", "error");
     throw error;
   }
 }
@@ -1255,6 +1294,7 @@ if (typeof window !== "undefined") {
     addMember,
     removeMember,
     updateMemberRole,
+    requestToJoin,
     approveMemberRequest,
     declineMemberRequest,
     leaveOrganization,
