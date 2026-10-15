@@ -64,17 +64,21 @@ BEGIN
   SELECT * INTO v_edge
   FROM interaction_edges
   WHERE id = p_edge_id;
+
   IF v_edge IS NULL THEN
     RETURN jsonb_build_object('success', false, 'error', 'Edge not found');
   END IF;
+
   IF v_edge.status = 'promoted' THEN
     RETURN jsonb_build_object('success', true, 'already_promoted', true);
   END IF;
+
   SELECT id INTO v_conn_id
   FROM connections
   WHERE (from_user_id = v_edge.from_user_id AND to_user_id = v_edge.to_user_id)
      OR (from_user_id = v_edge.to_user_id AND to_user_id = v_edge.from_user_id)
   LIMIT 1;
+
   IF v_conn_id IS NULL THEN
     INSERT INTO connections (from_user_id, to_user_id, status, type, created_at)
     VALUES (v_edge.from_user_id, v_edge.to_user_id, 'accepted', 'generic', now())
@@ -85,9 +89,11 @@ BEGIN
     UPDATE connections SET status = 'accepted'
     WHERE id = v_conn_id AND status != 'accepted';
   END IF;
+
   UPDATE interaction_edges
   SET status = 'promoted', updated_at = now()
   WHERE id = p_edge_id;
+
   RETURN jsonb_build_object(
     'success', true,
     'connection_id', v_conn_id,
