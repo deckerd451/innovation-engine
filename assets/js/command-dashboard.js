@@ -176,7 +176,9 @@ window.CommandDashboard = (() => {
     _wireSettingsBtn();
     _wireBellBtn();
     _wireLogoutBtn();
-    _wireWorkspaceView();
+    // The main navigation (app-nav.js) chooses Home or Network; until it has,
+    // the dashboard shows Home.
+    if (!window.AppNav?.current?.()) setWorkspaceView('today');
     _wireReflectionControls();
     _wireReflectionStepper();
 
@@ -214,12 +216,6 @@ window.CommandDashboard = (() => {
     const nextView = view === 'network' ? 'network' : 'today';
     document.body.classList.toggle('buildspace-view-today', nextView === 'today');
     document.body.classList.toggle('buildspace-view-network', nextView === 'network');
-    document.querySelectorAll('[data-workspace-view]').forEach(button => {
-      const active = button.dataset.workspaceView === nextView;
-      button.classList.toggle('is-active', active);
-      if (active) button.setAttribute('aria-current', 'page');
-      else button.removeAttribute('aria-current');
-    });
     try { sessionStorage.setItem('buildspace-view', nextView); } catch (_) {}
     window.dispatchEvent(new Event('resize'));
     if (nextView === 'network') {
@@ -229,20 +225,6 @@ window.CommandDashboard = (() => {
     }
   }
 
-  function _wireWorkspaceView() {
-    const buttons = document.querySelectorAll('[data-workspace-view]');
-    if (!buttons.length || document.body.dataset.workspaceViewWired === 'true') return;
-    document.body.dataset.workspaceViewWired = 'true';
-    let initial = 'today';
-    // Mobile always opens on the actionable Today surface. Network remains a
-    // deliberate destination during the session instead of a persisted trap
-    // that can make returning members land in the denser graph view.
-    if (window.innerWidth >= 1024) {
-      try { initial = sessionStorage.getItem('buildspace-view') || 'today'; } catch (_) {}
-    }
-    setWorkspaceView(initial);
-    buttons.forEach(button => button.addEventListener('click', () => setWorkspaceView(button.dataset.workspaceView)));
-  }
 
   /* ================================================================
      WIRING
@@ -508,11 +490,11 @@ window.CommandDashboard = (() => {
           _switchResourceTab('people');
           document.getElementById('cd-explore')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         } else if (action === 'messages') {
-          document.getElementById('cd-messages-btn')?.click();
+          window.AppNav?.go?.('inbox');
         } else if (action === 'profile') {
           document.getElementById('cd-avatar')?.click();
         } else if (action === 'explore') {
-          document.getElementById('mob-tab-explore')?.click();
+          window.AppNav?.go?.('explore');
         }
       });
     });
@@ -2126,20 +2108,8 @@ window.CommandDashboard = (() => {
     update();
   }
 
-  /** Wire messages button → open messaging */
+  /** Wire the Actions button. Messages is the Inbox destination (app-nav.js). */
   function _wireBellBtn() {
-    // Messages button → open messaging
-    const msgBtn = $id('cd-messages-btn');
-    if (msgBtn) {
-      msgBtn.addEventListener('click', () => {
-        if (typeof window.openMessagingInterface === 'function') {
-          window.openMessagingInterface();
-        } else if (typeof window.openMessagesModal === 'function') {
-          window.openMessagesModal();
-        }
-      });
-    }
-
     // Actions button → open unified panel (shows connection requests, bids, etc.)
     const actionsBtn = $id('cd-actions-btn');
     if (actionsBtn) {
@@ -2412,16 +2382,8 @@ window.CommandDashboard = (() => {
       _unreadMessages = Math.max(0, parseInt(n, 10) || 0);
       _renderMessages();
       _renderWelcomeGuide();
-      // Drive the messages badge in the identity header
-      const badge = $id('cd-messages-badge');
-      if (badge) {
-        if (_unreadMessages > 0) {
-          badge.textContent = _unreadMessages > 99 ? '99+' : _unreadMessages;
-          badge.style.display = '';
-        } else {
-          badge.style.display = 'none';
-        }
-      }
+      // Drive the Inbox badge in the main navigation
+      window.AppNav?.setUnread?.(_unreadMessages);
     },
     /** Called externally to push a fresh profile (e.g. after profile edit) */
     renderIdentity(profile) {

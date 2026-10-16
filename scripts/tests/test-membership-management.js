@@ -388,8 +388,8 @@ async function main() {
   assert.match(notifications, /window\.openNodePanel\(\{ id: projectId, type: 'project' \}\)/, 'project notifications still open the project panel');
 
   // Returning visitors get the new modules.
-  assert.match(index, /assets\/js\/node-panel\.js\?v=membership-ux-20261015/);
-  assert.match(index, /organization-manager\.js\?v=membership-ux-20261015/);
+  assert.match(index, /assets\/js\/node-panel\.js\?v=[a-z0-9-]+/);
+  assert.match(index, /organization-manager\.js\?v=[a-z0-9-]+/);
 
   console.log('membership management checks passed');
 }

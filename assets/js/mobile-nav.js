@@ -1,11 +1,13 @@
-// Mobile navigation. Event and Nearby use Nearify-owned context; legacy BLE
-// modules remain available to desktop/test surfaces but are not mobile paths.
+// Mobile surfaces for the shared navigation (app-nav.js routes; this file
+// only shows the Home, Explore and Network surfaces on phones and tablets).
+// Event and Nearby use Nearify-owned context; legacy BLE modules remain
+// available to desktop/test surfaces but are not mobile paths.
 (() => {
   'use strict';
   if (window.__CH_MOBILE_NAV_LOADED__) return;
   window.__CH_MOBILE_NAV_LOADED__ = true;
 
-  const tabs = {
+  const pages = {
     home: () => {
       setMobileSurface('you');
       window.MobileYou?.show();
@@ -13,20 +15,15 @@
       // Today entry as a cue to refresh continuity data.
       window.dispatchEvent(new CustomEvent('mobile-today-entered'));
     },
-    discover: () => setDiscoverMode('explore'),
-    community: () => setDiscoverMode('network', 'community'),
-    // Kept as an internal compatibility path for existing callers; Network
-    // is now a mode inside Discover rather than a separate destination.
+    explore: () => setDiscoverMode('explore'),
     network: () => setDiscoverMode('network', 'community'),
+    // Nearify-context surfaces and theme discovery, kept for their callers
+    // (MobileNav.show('event-mode') etc.); not part of the main navigation.
     'event-mode': () => window.NearifyMobileContext?.showEvent(),
     suggestions: () => window.NearifyMobileContext?.showNearby(),
     themes: () => typeof window.openThemeDiscoveryModal === 'function'
       ? window.openThemeDiscoveryModal()
       : alert('Themes are not available yet. Please refresh and try again.'),
-    messages: () => window.UnifiedNotifications?.showPanel
-      ? window.UnifiedNotifications.showPanel('actions')
-      : window.openMessagesModal?.(),
-    profile: showMobileProfileSheet,
   };
 
   function setDiscoverMode(mode, surface = mode === 'network' ? 'community' : 'discover') {
@@ -39,7 +36,6 @@
     const dashboard = document.getElementById('command-dashboard');
     dashboard?.classList.add('cd-mobile-panel');
     dashboard?.style.removeProperty('display');
-    ensureDiscoverModeControl();
     document.body.classList.toggle('mobile-network-list', isNetwork);
     setMobileMapButton(isNetwork);
     removeMobileRightNow();
@@ -57,35 +53,9 @@
       toggle.querySelector('span').textContent = isNetwork ? 'Network' : 'Explore';
       if (toggle.getAttribute('aria-expanded') === 'false') toggle.click();
     }
-    updateDiscoverModeControl(isNetwork ? 'network' : 'explore');
     // Start at the search box, which sits directly above the Explore list.
     (document.getElementById('centered-search-container') || document.getElementById('cd-explore'))
       ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-
-  function updateDiscoverModeControl(mode) {
-    const control = document.getElementById('cd-mobile-discover-mode');
-    if (!control) return;
-    control.querySelectorAll('button[data-discover-mode]').forEach((button) => {
-      const active = button.dataset.discoverMode === mode;
-      button.classList.toggle('active', active);
-      button.setAttribute('aria-selected', active ? 'true' : 'false');
-    });
-  }
-
-  function ensureDiscoverModeControl() {
-    const explore = document.getElementById('cd-explore');
-    const row = explore?.querySelector('.cd-section-toggle-row');
-    if (!row || document.getElementById('cd-mobile-discover-mode')) return;
-    const control = document.createElement('div');
-    control.id = 'cd-mobile-discover-mode';
-    control.className = 'cd-mobile-discover-mode';
-    control.setAttribute('role', 'tablist');
-    control.innerHTML = '<button type="button" role="tab" data-discover-mode="explore" aria-selected="true">Explore</button><button type="button" role="tab" data-discover-mode="network" aria-selected="false">Network</button>';
-    control.querySelectorAll('button[data-discover-mode]').forEach((button) => {
-      button.addEventListener('click', () => setDiscoverMode(button.dataset.discoverMode));
-    });
-    row.parentNode.insertBefore(control, row);
   }
 
   const escape = (value) => String(value ?? '')
@@ -158,7 +128,7 @@
       card.querySelectorAll('[data-mobile-today-action]').forEach((button) => button.addEventListener('click', (event) => {
         const nextAction = event.currentTarget.dataset.mobileTodayAction;
         if (nextAction === 'messages') {
-          tabs.messages();
+          window.AppNav?.go?.('inbox');
         } else if (nextAction === 'people') {
           setDiscoverMode('network', 'community');
           document.querySelector('[data-resource="people"]')?.click();
@@ -222,12 +192,6 @@
     button.hidden = !show;
   }
 
-  function showMobileProfileSheet() {
-    setMobileSurface('you');
-    if (window.MobileYou?.show) return window.MobileYou.show();
-    window.openProfileModal?.();
-  }
-
   function setMobileSurface(surface) {
     const surfaces = ['today', 'discover', 'community', 'you'];
     surfaces.forEach((name) => document.body.classList.toggle(`mobile-surface-${name}`, name === surface));
@@ -245,60 +209,20 @@
     if (explore) explore.inert = surface !== 'discover' && surface !== 'community';
   }
 
-  function wire() {
-    document.querySelectorAll('.mob-tab[data-tab]').forEach((button) => {
-      if (button.dataset.mobileNavWired === 'true') return;
-      button.dataset.mobileNavWired = 'true';
-      button.addEventListener('click', () => {
-        // Focused assistance is an overlay owned by whichever tab opened it;
-        // switching destinations must never leave it behind the new screen.
-        window.MobileTaskAssistance?.close?.();
-        document.querySelectorAll('.mob-tab[data-tab]').forEach((tab) => {
-          const active = tab === button;
-          tab.classList.toggle('active', active);
-          if (active) tab.setAttribute('aria-current', 'page');
-          else tab.removeAttribute('aria-current');
-        });
-        document.body.classList.forEach((className) => {
-          if (className.startsWith('mobile-tab-')) document.body.classList.remove(className);
-        });
-        const destination = button.dataset.surface || button.dataset.tab;
-        document.body.classList.add(`mobile-tab-${destination}`);
-        tabs[destination]?.();
-      });
-      button.addEventListener('keydown', (event) => {
-        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-        const all = [...document.querySelectorAll('.mob-tab[data-tab]')];
-        const next = all[(all.indexOf(button) + (event.key === 'ArrowRight' ? 1 : -1) + all.length) % all.length];
-        next?.focus();
-        event.preventDefault();
-      });
-    });
-  }
-  function syncViewport() {
-    const bar = document.getElementById('mobile-tab-bar');
-    if (bar) bar.style.display = window.innerWidth >= 1024 ? 'none' : '';
-    if (window.innerWidth < 1024) {
-      wire();
-      const activeButton = document.querySelector('.mob-tab[data-tab].active');
-      const activeTab = activeButton?.dataset.tab || 'home';
-      const destination = activeButton?.dataset.surface || (activeTab === 'home' ? 'you' : activeTab === 'profile' ? 'you' : 'discover');
-      document.body.classList.forEach((className) => {
-        if (className.startsWith('mobile-tab-')) document.body.classList.remove(className);
-      });
-      document.body.classList.add(`mobile-tab-${destination}`);
-      setMobileSurface(destination);
-      if (destination === 'you') window.MobileYou?.show();
-    }
-  }
-  window.addEventListener('resize', syncViewport, { passive: true });
-  window.addEventListener('orientationchange', syncViewport, { passive: true });
+  window.MobileNav = {
+    show(page) {
+      if (['home', 'explore', 'network'].includes(page)) {
+        // Leaving the Network map (opened with "View map") returns to the
+        // list surfaces; the map is the desktop Network view.
+        window.CommandDashboard?.setWorkspaceView?.('today');
+      }
+      pages[page]?.();
+    },
+  };
   window.addEventListener('profile-loaded', () => {
     if (document.body.classList.contains('mobile-surface-you')) window.MobileYou?.refresh?.();
   });
   window.addEventListener('total-unread-messages-updated', () => {
     if (document.body.classList.contains('mobile-surface-you')) window.MobileYou?.refresh?.();
   });
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire); else wire();
-  syncViewport();
 })();

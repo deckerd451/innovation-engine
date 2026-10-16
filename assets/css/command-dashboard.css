@@ -43,10 +43,6 @@
    SYNAPSE FINAL WORKSPACE — Explore / Synapse / Reflection
    ============================================================ */
 .cd-search { position:relative!important; inset:auto!important; left:auto!important; right:auto!important; bottom:auto!important; transform:none!important; width:auto!important; max-width:none!important; z-index:20!important; display:block!important; flex-shrink:0; padding:.6rem .75rem!important; border-bottom:1px solid var(--cd-border); box-sizing:border-box; }
-.buildspace-view-switcher { display:flex; gap:.25rem; padding:.45rem .75rem .15rem; background:rgba(5,7,15,.55); }
-.buildspace-view-btn { flex:1; min-height:30px; border:1px solid transparent; border-radius:6px; background:transparent; color:rgba(224,232,255,.5); font:inherit; font-size:.68rem; font-weight:700; cursor:pointer; }
-.buildspace-view-btn:hover,.buildspace-view-btn:focus-visible { color:#fff; border-color:rgba(0,224,255,.25); outline:none; }
-.buildspace-view-btn.is-active { color:#06151c; background:#00e0ff; border-color:#00e0ff; }
 .cd-search #search-container { position:relative!important; display:block!important; flex:none!important; width:100%!important; height:42px!important; min-height:42px!important; max-height:42px!important; margin:0!important; padding:0!important; background:rgba(10,14,39,.72); border:1px solid rgba(0,224,255,.28); border-radius:8px; box-sizing:border-box!important; overflow:visible; }
 .cd-search-icon { position:absolute; left:.75rem; top:50%; transform:translateY(-50%); color:rgba(0,224,255,.65); font-size:.78rem; pointer-events:none; }
 .cd-search #global-search { display:block!important; width:100%!important; height:40px!important; min-height:40px!important; max-height:40px!important; box-sizing:border-box!important; margin:0!important; padding:0 2.8rem 0 2.1rem!important; color:#fff; background:transparent!important; border:0!important; border-radius:8px!important; outline:0; font-family:inherit!important; font-size:14px!important; font-weight:400!important; line-height:40px!important; appearance:none; }
@@ -172,7 +168,6 @@ body.reflection-resizing #network-reflection { transition:none; }
   /* Mobile is a decision surface, not a compressed desktop canvas. */
   #command-dashboard .cd-identity { display:none!important; }
   body.buildspace-view-today #command-dashboard:not(.cd-mobile-panel) .cd-search,
-  body.buildspace-view-today #command-dashboard:not(.cd-mobile-panel) .buildspace-view-switcher,
   body.buildspace-view-today #command-dashboard:not(.cd-mobile-panel) #cd-explore { display:none!important; }
   body.buildspace-view-today #command-dashboard:not(.cd-mobile-panel) #cd-focus {
     min-height:calc(100dvh - 60px - env(safe-area-inset-bottom,0px));
@@ -199,9 +194,6 @@ body.reflection-resizing #network-reflection { transition:none; }
   .cd-mobile-secondary-links-body .cd-mobile-intent-list { margin-top:.1rem; }
   .cd-mobile-secondary-links-body button { justify-self:start; min-height:38px; padding:.45rem .65rem; border:1px solid rgba(0,224,255,.28); border-radius:8px; background:rgba(0,224,255,.08); color:#dffbff; font:inherit; font-weight:800; cursor:pointer; }
   .cd-mobile-network-history { margin-top:.8rem; }
-  .cd-mobile-discover-mode { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.35rem; margin:.6rem .75rem .15rem; padding:.25rem; border:1px solid rgba(255,255,255,.1); border-radius:10px; background:rgba(255,255,255,.035); }
-  .cd-mobile-discover-mode button { min-height:34px; border:0; border-radius:7px; background:transparent; color:rgba(224,232,255,.58); font:inherit; font-size:.72rem; font-weight:700; cursor:pointer; }
-  .cd-mobile-discover-mode button.active { background:rgba(0,224,255,.14); color:#fff; box-shadow:0 0 0 1px rgba(0,224,255,.3); }
   #profile-modal .ch-right-now-card, #profile-modal .ch-nearify-events-panel { display:none !important; }
   #profile-modal .ch-right-now-card.mobile-intent-editor-open { display:block !important; }
   /* Explore search is the same control as on desktop. 16px keeps iOS from
@@ -239,8 +231,8 @@ body.reflection-resizing #network-reflection { transition:none; }
   body.mobile-network-list #command-dashboard.cd-mobile-panel .udc-resource-tabs { display:block; padding-bottom:.35rem; }
   body.mobile-network-list #command-dashboard.cd-mobile-panel .udc-resource-tab[data-resource="people"] { display:flex; width:100%; }
 
-  /* One predictable top action rail: admin stays left, message/action
-     controls stay grouped right, all below the device safe area. */
+  /* One predictable top action rail, top right below the safe area:
+     Admin (admins only), then Actions. Messages is Inbox in #app-nav. */
   #mobile-header-actions {
     position: fixed !important;
     top: calc(env(safe-area-inset-top, 0px) + 12px) !important;
@@ -260,10 +252,6 @@ body.reflection-resizing #network-reflection { transition:none; }
     min-height: 44px !important;
   }
 
-  /* Mobile has one persistent message entry point in the global header.
-     Keep the dashboard's desktop identity controls from duplicating it when
-     Explore is opened. */
-  #command-dashboard .cd-messages-btn { display: none !important; }
   #command-dashboard .cd-admin-btn,
   #command-dashboard #cd-logout-btn { display: none !important; }
   #command-dashboard .cd-network-status,
@@ -293,10 +281,8 @@ body.reflection-resizing #network-reflection { transition:none; }
 #btn-admin-mobile { display:none!important; }
 @media (max-width:1023px) {
   #btn-admin-mobile {
-    position:fixed;
-    top:calc(12px + env(safe-area-inset-top,0px));
-    left:12px;
-    z-index:701;
+    /* Sits in the #mobile-header-actions row, before Actions. */
+    position:static;
     width:44px;
     height:44px;
     align-items:center;
@@ -367,6 +353,8 @@ body.reflection-resizing #network-reflection { transition:none; }
   body.buildspace-view-today #command-dashboard { width:calc(100% - var(--reflection-width))!important; border-right:0!important; }
   body.buildspace-view-today #command-dashboard .cd-scroll-area { width:min(760px,100%); margin:0 auto; }
   body.buildspace-view-today #cd-panel-tab { display:none!important; }
+  /* Explore (app-nav.js) is the Home view without the Home focus cards. */
+  body[data-destination="explore"] #command-dashboard #cd-focus { display:none!important; }
 
   /* ── Node side panel: slides from right of viewport ── */
   /* Panel already uses position:fixed; right:-450px → right:0 */
@@ -437,9 +425,8 @@ body.reflection-resizing #network-reflection { transition:none; }
     display: none !important;
   }
 
-  /* Keep the existing Today / Network switcher reachable while the graph is
-     active. The rest of the dashboard stays hidden so this does not cover the
-     network canvas or create a second navigation system. */
+  /* While the map is shown on mobile ("View map"), the dashboard stays out
+     of the way of the network canvas; #app-nav remains the navigation. */
   body.buildspace-view-network #command-dashboard {
     display: block !important;
     position: fixed !important;
@@ -455,28 +442,8 @@ body.reflection-resizing #network-reflection { transition:none; }
   body.buildspace-view-network #command-dashboard .cd-scroll-area {
     display: contents !important;
   }
-  body.buildspace-view-network #command-dashboard .cd-scroll-area > *:not(.buildspace-view-switcher) {
+  body.buildspace-view-network #command-dashboard .cd-scroll-area > * {
     display: none !important;
-  }
-  body.buildspace-view-network #command-dashboard .buildspace-view-switcher {
-    position: fixed !important;
-    top: calc(env(safe-area-inset-top, 0px) + 12px) !important;
-    left: 12px !important;
-    right: 12px !important;
-    z-index: 601 !important;
-    pointer-events: auto !important;
-    padding: .35rem !important;
-    border: 1px solid rgba(0,224,255,.22) !important;
-    border-radius: 10px !important;
-    background: rgba(5,7,15,.88) !important;
-    box-shadow: 0 6px 22px rgba(0,0,0,.35);
-    backdrop-filter: blur(10px);
-  }
-  /* The bottom navigation is the single mobile view switcher. */
-  body.buildspace-view-network #command-dashboard .buildspace-view-switcher { display:none!important; }
-  body.buildspace-view-network #command-dashboard .buildspace-view-btn {
-    min-height: 40px !important;
-    font-size: .78rem !important;
   }
 
   body.buildspace-view-today #synapse-main-view { display:none!important; }
@@ -1403,19 +1370,6 @@ body.reflection-resizing #network-reflection { transition:none; }
   border-color: rgba(255, 165, 0, 0.55);
 }
 
-/* Messages — cyan */
-.cd-messages-btn {
-  color: var(--cd-accent);
-  border-color: rgba(0, 224, 255, 0.3);
-  background: rgba(0, 224, 255, 0.06);
-  overflow: visible;
-  z-index: 1;
-}
-.cd-messages-btn:hover {
-  background: rgba(0, 224, 255, 0.15);
-  border-color: rgba(0, 224, 255, 0.5);
-}
-
 /* Actions — green */
 .cd-actions-btn {
   color: #00ff88;
@@ -2149,10 +2103,4 @@ body.reflection-resizing #network-reflection { transition:none; }
   #command-dashboard.cd-mobile-panel .udc-resource-meta { font-size:.78rem; }
 }
 
-/* Mobile Explore/Community navigate with the bottom tabs and the
-   Discover / My network control; the desktop Today/Network switcher is a
-   duplicate, mislabelled navigation layer there. */
-@media (max-width: 1023px), (pointer: coarse) {
-  body.mobile-surface-discover #command-dashboard .buildspace-view-switcher,
-  body.mobile-surface-community #command-dashboard .buildspace-view-switcher { display: none !important; }
 }

@@ -32,8 +32,9 @@ assert.match(mobileNav, /getElementById\('centered-search-container'\)[\s\S]{0,1
 // Choosing a person must open their panel even when the map is not ready.
 assert.match(coordinator, /try \{\s*window\.GraphController\?\.focusNode\?\.\(personId, \{ openPanel: false \}\);\s*\} catch/);
 
-// Messages: the header is outside #main-content (its own stacking context,
-// beneath the mobile Home screen) and shown on every mobile destination.
+// Messages is Inbox in the shared navigation (body level, above every mobile
+// surface). The mobile Actions button stays in a header outside #main-content
+// (its own stacking context, beneath the mobile Home screen).
 assert.doesNotMatch(commandCss, /body:not\(\.mobile-tab-home\) #mobile-header-actions #btn-messages-mobile/);
 assert.match(commandCss, /#mobile-header-actions \{[^}]*flex-direction: row !important;/, 'the header is one row, clear of the search box');
 assert.match(read('assets/css/mobile-you.css'), /\.mobile-you-header \{[^}]*padding:\.15rem 108px/, 'the Home header leaves room for the header buttons');
@@ -48,7 +49,11 @@ for (let m; (m = tags.exec(index));) {
 }
 const header = index.indexOf('id="mobile-header-actions"');
 assert.ok(mainEnd > mainStart && header > mainEnd, 'the Messages / Actions header sits outside #main-content');
-assert.ok(header < index.indexOf('wireKeyClick("btn-messages-mobile"'), 'the header exists before the script that wires it');
+assert.ok(header < index.indexOf('wireKeyClick("btn-actions-mobile"'), 'the header exists before the script that wires it');
+assert.doesNotMatch(index, /id="btn-messages-mobile"|id="cd-messages-btn"/, 'Inbox is the one Messages entry point');
+const appNavAt = index.indexOf('<nav id="app-nav"');
+assert.ok(appNavAt > mainEnd, 'the main navigation sits outside #main-content');
+assert.match(read('assets/js/app-nav.js'), /destination === 'inbox'[\s\S]{0,120}window\.openMessagesModal\(\)/);
 
 // Settings on desktop uses the existing settings modal (one implementation).
 assert.match(index, /<div class="cd-identity-actions">[\s\S]*?id="cd-settings-btn"[\s\S]*?id="cd-logout-btn"/);
@@ -58,15 +63,15 @@ assert.match(commandCss, /#command-dashboard \.cd-identity \{ display:none!impor
 
 // Labels: Home, Explore, Network.
 assert.match(mobileNav, /isNetwork \? 'Network' : 'Explore'/);
-assert.match(mobileNav, /data-discover-mode="explore" aria-selected="true">Explore<\/button>/);
-assert.doesNotMatch(mobileNav, />Discover<\/button>|>My network<\/button>/);
+// The shared navigation is the only Explore / Network switch.
+assert.doesNotMatch(mobileNav, /data-discover-mode|cd-mobile-discover-mode/);
 
 // Returning visitors get the changed files.
-const tag = 'responsive-parity-20261016';
+const tag = 'shared-nav-20261016';
 for (const asset of ['dashboard.css', 'assets/css/command-dashboard.css', 'assets/js/command-dashboard.js', 'assets/js/mobile-nav.js', 'assets/js/mobile-you.js', 'assets/js/unified-network-integration.js']) {
   assert.match(index, new RegExp(`${escapeRegExp(asset)}\\?v=${tag}`), `${asset} is cache-busted`);
 }
 assert.match(integration, new RegExp(`import './explorer-coordinator\\.js\\?v=${tag}';`));
-assert.match(sw, new RegExp(`const VERSION = "v14-${tag}";`));
+assert.match(sw, new RegExp(`const VERSION = "v15-${tag}";`));
 
 console.log('responsive parity contracts passed');

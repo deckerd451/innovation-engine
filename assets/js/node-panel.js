@@ -78,7 +78,7 @@ function createPanelElement() {
       }
 
       /* Anchor the open panel above the fixed mobile tab bar (same height
-         formula as #mobile-tab-bar in base.css) instead of the true viewport
+         formula as #app-nav in base.css) instead of the true viewport
          edge, so the tab bar (z-index:10000) doesn't sit on top of and
          obscure the panel's (z-index:2000) bottom content/action buttons. */
       #node-side-panel.open {
@@ -3381,15 +3381,19 @@ window.viewProjectDetails = async function(projectId, initialTab = null) {
 
   document.body.appendChild(overlay);
 
-  // The fixed mobile tab bar includes its own safe-area padding. Measure its
-  // rendered height instead of adding a second hardcoded safe-area offset.
+  // The fixed bottom navigation includes its own safe-area padding. Measure
+  // its rendered height instead of adding a second hardcoded safe-area
+  // offset. On desktop the same #app-nav is a side bar, which takes no
+  // height from the bottom.
   let stopOverlayViewportSync = () => {};
   const syncOverlayBottomInset = () => {
-    const nav = document.getElementById('mobile-tab-bar');
+    const nav = document.getElementById('app-nav');
     const navStyle = nav ? window.getComputedStyle(nav) : null;
-    const navVisible = Boolean(nav && navStyle?.display !== 'none' && navStyle?.visibility !== 'hidden');
+    const navRect = nav ? nav.getBoundingClientRect() : null;
+    const navVisible = Boolean(nav && navStyle?.display !== 'none' && navStyle?.visibility !== 'hidden'
+      && navRect.top > 0 && navRect.width >= window.innerWidth - 1);
     const viewportHeight = Number(window.visualViewport?.height || window.innerHeight || 0);
-    const navTop = navVisible ? nav.getBoundingClientRect().top : viewportHeight;
+    const navTop = navVisible ? navRect.top : viewportHeight;
     const renderedNavHeight = navVisible ? Math.max(0, Math.min(viewportHeight, viewportHeight - navTop)) : 0;
     overlay.style.setProperty('--pd-bottom-nav-height', `${Math.ceil(renderedNavHeight)}px`);
     overlay.style.setProperty('--pd-safe-bottom', navVisible ? '0px' : 'env(safe-area-inset-bottom, 0px)');
@@ -3398,9 +3402,9 @@ window.viewProjectDetails = async function(projectId, initialTab = null) {
   const viewport = window.visualViewport;
   window.addEventListener('resize', syncOverlayBottomInset, { passive: true });
   viewport?.addEventListener('resize', syncOverlayBottomInset, { passive: true });
-  const navObserver = window.ResizeObserver && document.getElementById('mobile-tab-bar')
+  const navObserver = window.ResizeObserver && document.getElementById('app-nav')
     ? new ResizeObserver(syncOverlayBottomInset) : null;
-  navObserver?.observe(document.getElementById('mobile-tab-bar'));
+  navObserver?.observe(document.getElementById('app-nav'));
   stopOverlayViewportSync = () => {
     window.removeEventListener('resize', syncOverlayBottomInset);
     viewport?.removeEventListener('resize', syncOverlayBottomInset);

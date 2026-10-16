@@ -2003,10 +2003,10 @@ button,
 @media (max-width: 768px) {
     #udc-resource-tabs { gap:.35rem; overflow-x:auto; scrollbar-width:none; }
     #udc-resource-tabs::-webkit-scrollbar { display:none; }
-    #mobile-tab-bar { padding-bottom: max(.5rem, env(safe-area-inset-bottom)); }
-    #mobile-tab-bar .mob-tab { min-width:0; flex:1; min-height:52px; }
-    #mobile-tab-bar .mob-tab span { font-size:.7rem; }
-    #mobile-tab-bar .mob-tab i { font-size:1rem; }
+    #app-nav { padding-bottom: max(.5rem, env(safe-area-inset-bottom)); }
+    #app-nav .app-nav-btn { min-width:0; flex:1; min-height:52px; }
+    #app-nav .app-nav-btn span { font-size:.7rem; }
+    #app-nav .app-nav-btn i { font-size:1rem; }
   .theme-admin-tabs {
     flex-direction: column;
   }

@@ -97,9 +97,9 @@ async function tap(selector, label = selector) {
     const r = el.getBoundingClientRect();
     const x = r.left + r.width / 2, y = r.top + r.height / 2;
     const hit = document.elementFromPoint(x, y);
-    const bar = document.getElementById('mobile-tab-bar');
+    const bar = document.getElementById('app-nav');
     const barTop = bar && getComputedStyle(bar).display !== 'none' ? bar.getBoundingClientRect().top : innerHeight;
-    return { x, y, owns: !!hit && (hit === el || el.contains(hit)), hit: hit ? (hit.id || hit.className || hit.tagName) : null, clear: el.closest('#mobile-tab-bar') ? true : r.bottom <= barTop + 1 };
+    return { x, y, owns: !!hit && (hit === el || el.contains(hit)), hit: hit ? (hit.id || hit.className || hit.tagName) : null, clear: el.closest('#app-nav') ? true : r.bottom <= barTop + 1 };
   })()`);
   if (info.missing) throw new Error(`Missing ${label}`);
   if (!info.owns || !info.clear) throw new Error(`${label} is obscured (hit: ${info.hit}, clear of tab bar: ${info.clear})`);
@@ -154,7 +154,7 @@ try {
     await evaluate(`(() => { window.currentUserProfile = window.__fixtureProfile; document.querySelectorAll('#login-section, .login-overlay, #auth-container').forEach(el => el.style.display = 'none'); window.dispatchEvent(new CustomEvent('profile-loaded', { detail: { user: { id: 'auth-me' }, profile: window.__fixtureProfile } })); })()`);
   }
   check(true, `Fixture member ${adopted ? 'signed in through the app’s own auth bootstrap' : 'injected after auth bootstrap (login screen bypassed for the test)'}`);
-  await evaluate(`document.querySelector('.mob-tab[data-tab="home"]')?.click()`);
+  await evaluate(`document.querySelector('#app-nav [data-destination="home"]')?.click()`);
   await waitFor(`document.querySelector('#mobile-you-content [data-next-task]')`, 'My Space next step', 15000);
   await sleep(400);
   await shot('01-my-space');
@@ -208,7 +208,7 @@ try {
   await shot('04-invite-step');
   await type('[data-ai-key="invite.date"]', 'Nov 14, Charleston Tech Center');
   check(/on Nov 14, Charleston Tech Center/.test(await evaluate(`document.querySelector('[data-ai-message="invitation"]').value`)), 'Typing into the brief updates the prepared invitation');
-  const primary = await evaluate(`(() => { const b = document.querySelector('.mta-primary'); b.scrollIntoView({ block: 'end' }); const r = b.getBoundingClientRect(); const bar = document.getElementById('mobile-tab-bar').getBoundingClientRect(); return { bottom: r.bottom, barTop: bar.top }; })()`);
+  const primary = await evaluate(`(() => { const b = document.querySelector('.mta-primary'); b.scrollIntoView({ block: 'end' }); const r = b.getBoundingClientRect(); const bar = document.getElementById('app-nav').getBoundingClientRect(); return { bottom: r.bottom, barTop: bar.top }; })()`);
   check(primary.bottom <= primary.barTop, 'Primary action is fully above the bottom navigation', JSON.stringify(primary));
   await shot('05-primary-above-tabbar');
 
@@ -223,27 +223,27 @@ try {
   check(true, 'Scenario D: returning resumes at the next unresolved step with no re-entry');
 
   // Tab switching while assistance is open must not leave a ghost surface.
-  await tap('#mob-tab-discover', 'Explore tab');
+  await tap('#app-nav [data-destination="explore"]', 'Explore');
   await sleep(700);
   s = await surfaceReport();
   check(s.overlays === 0 && !s.youVisible && s.centreOwner !== 'my-space' && s.centreOwner !== 'assistance', 'Explore owns the viewport after switching from open assistance', JSON.stringify(s));
-  check(await evaluate(`getComputedStyle(document.querySelector('.buildspace-view-switcher')).display === 'none'`), 'No duplicate desktop Today/Network switcher on mobile Explore');
+  check(await evaluate(`!document.querySelector('.buildspace-view-switcher, #cd-mobile-discover-mode, #mobile-tab-bar')`), 'No second navigation on mobile Explore');
   await shot('07-explore');
-  await tap('#mob-tab-profile', 'Community tab');
+  await tap('#app-nav [data-destination="network"]', 'Network');
   await sleep(700);
   s = await surfaceReport();
   check(s.overlays === 0 && !s.youVisible, 'Community owns the viewport', JSON.stringify(s));
   await shot('08-community');
   for (let round = 0; round < 2; round++) {
-    await tap('#mob-tab-home', 'My Space tab');
+    await tap('#app-nav [data-destination="home"]', 'Home');
     await waitFor(`document.querySelector('#mobile-you-content [data-next-task]')`, 'My Space');
     await tap('#mobile-you-content [data-next-task]', 'Get help with this');
     await waitFor(`document.querySelector('#mta-title')`, 'assistance');
     await evaluate(`document.querySelector('.mta-panel').scrollTop = 99999`);
-    await tap('#mob-tab-discover', 'Explore tab');
+    await tap('#app-nav [data-destination="explore"]', 'Explore');
     await sleep(400);
   }
-  await tap('#mob-tab-home', 'My Space tab');
+  await tap('#app-nav [data-destination="home"]', 'Home');
   await waitFor(`document.querySelector('#mobile-you-content [data-next-task]')`, 'My Space');
   s = await surfaceReport();
   check(s.overlays === 0 && s.goalForms === 1 && s.centreOwner === 'my-space', 'Repeated navigation leaves exactly one surface and one objective entry', JSON.stringify(s));
@@ -306,8 +306,8 @@ try {
   await send('Page.reload');
   await waitFor(`document.readyState === 'complete' && window.CapabilityMemory && window.AssistanceEngine`, 'desktop load', 20000);
   await sleep(2000);
-  const desktop = await evaluate(`({ you: getComputedStyle(document.getElementById('mobile-you-screen')).display, tabs: getComputedStyle(document.getElementById('mobile-tab-bar')).display })`);
-  check(desktop.you === 'none' && desktop.tabs === 'none', 'Desktop: mobile My Space and tab bar stay hidden', JSON.stringify(desktop));
+  const desktop = await evaluate(`(() => { const nav = document.getElementById('app-nav').getBoundingClientRect(); return { you: getComputedStyle(document.getElementById('mobile-you-screen')).display, navLeft: nav.left, navTall: nav.height >= innerHeight - 1 }; })()`);
+  check(desktop.you === 'none' && desktop.navLeft === 0 && desktop.navTall, 'Desktop: the mobile Home screen stays hidden and the navigation is the side bar', JSON.stringify(desktop));
   await evaluate(`window.viewProjectTask('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'dddddddd-dddd-4ddd-8ddd-dddddddddddd')`);
   await sleep(1500);
   check(await evaluate(`!document.getElementById('mobile-task-assistance')`), 'Desktop: task links keep using the existing project view');

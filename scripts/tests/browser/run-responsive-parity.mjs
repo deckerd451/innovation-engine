@@ -1,5 +1,5 @@
-// Responsive feature parity: the same functions work at phone, tablet and
-// desktop widths.
+// Responsive feature parity: one navigation and the same functions at phone,
+// tablet and desktop widths.
 //
 //   node scripts/tests/browser/run-responsive-parity.mjs [outDir]
 //
@@ -8,12 +8,17 @@
 // test-only fake client (scripts/tests/fixtures). At each width it drives the
 // app with real touch or mouse input at element coordinates, so a control
 // that is hidden, off-screen or covered by another surface fails the run:
-//   - navigation (Home / Explore / Network) and the labels it shows
-//   - Explore: Organizations and Opportunities tabs, opening an organization
+//   - the shared navigation (#app-nav): Home · Explore · Network · Inbox ·
+//     You, in that order, as a bottom bar or side bar; no other navigation
+//   - each destination, its active state, and history left untouched
+//   - Inbox (Messages) and You (profile) from every page
+//   - Actions, Settings and Admin entry points
+//   - Explore: Organizations and Opportunities, organization management,
+//     and notification links opening panels over any page
 //   - Explore search: keyboard-safe input, suggestions on screen, opening a
 //     result, and Enter for full results
-//   - Messages from every destination
-//   - Settings (the shared settings modal)
+//   - goal assistance on phones and tablets, closed by navigating away
+//   - resizing across the desktop breakpoint, signed-out boot
 //   - Log out (cancel keeps you signed in; confirm signs out)
 // Screenshots are written to outDir. Requires Google Chrome.
 import http from 'node:http';
@@ -124,10 +129,14 @@ const locate = (selector) => callInPage(function (sel) {
   const r = el.getBoundingClientRect();
   const x = r.left + r.width / 2, y = r.top + r.height / 2;
   const hit = document.elementFromPoint(x, y);
-  const bar = document.getElementById('mobile-tab-bar');
-  const barTop = bar && getComputedStyle(bar).display !== 'none' ? bar.getBoundingClientRect().top : innerHeight;
+  // The bottom navigation must not cover the element (the desktop side bar
+  // is checked by hit-testing like everything else).
+  const bar = document.getElementById('app-nav');
+  const barRect = bar && !bar.hidden ? bar.getBoundingClientRect() : null;
+  const bottomBar = barRect && barRect.top > 0 && barRect.width >= innerWidth - 1;
+  const barTop = bottomBar ? barRect.top : innerHeight;
   const onScreen = r.width > 0 && r.height > 0 && r.left >= -1 && r.right <= innerWidth + 1 && r.top >= -1 && r.bottom <= innerHeight + 1;
-  const clear = el.closest('#mobile-tab-bar') ? true : r.bottom <= barTop + 1;
+  const clear = el.closest('#app-nav') ? true : r.bottom <= barTop + 1;
   return { x, y, onScreen, clear, owns: !!hit && (hit === el || el.contains(hit)), hit: hit ? (hit.id || String(hit.className).slice(0, 40) || hit.tagName) : null };
 }, selector);
 async function usable(selector) {
@@ -176,6 +185,7 @@ async function closePanel() {
 const fixtures = fs.readFileSync(path.join(root, 'scripts/tests/fixtures/assistance-fixtures.js'), 'utf8');
 const fake = fs.readFileSync(path.join(root, 'scripts/tests/fixtures/fake-supabase.js'), 'utf8');
 const boot = `${fixtures}\n${fake}\n(() => {
+  const signedOut = (() => { try { return localStorage.getItem('__paritySignedOut') === '1'; } catch (_) { return false; } })();
   const seed = window.AssistanceFixtures.seed();
   const me = seed.community[0].id;
   seed.organizations = [{ id: '30000000-0000-4000-8000-0000000000a1', name: 'Harbor Builders', description: 'Fixture organization', status: 'active', created_by: me, created_at: '2026-09-01T00:00:00Z' }];
@@ -183,7 +193,7 @@ const boot = `${fixtures}\n${fake}\n(() => {
   seed.opportunities = [{ id: '40000000-0000-4000-8000-0000000000a1', title: 'Mentor first-time founders', description: 'Fixture opportunity', status: 'open', is_public: true, application_deadline: null, organization_id: '30000000-0000-4000-8000-0000000000a1', created_at: '2026-09-02T00:00:00Z' }];
   // The person panel reads this view.
   seed.community_with_last_seen = seed.community.map(row => ({ ...row }));
-  const session = { access_token: 'fixture', user: { id: 'auth-me', email: 'member@example.test' } };
+  const session = signedOut ? null : { access_token: 'fixture', user: { id: 'auth-me', email: 'member@example.test' } };
   window.supabase = window.createFakeSupabase(seed, { session });
   window.__fixtureProfile = seed.community[0];
 })();`;
@@ -237,10 +247,10 @@ async function searchChecks(prefix) {
       const overlap = await evaluate(`(() => {
         const box = document.getElementById('search-container').getBoundingClientRect();
         const hits = (r) => r.width && r.height && r.left < box.right && r.right > box.left && r.top < box.bottom && r.bottom > box.top;
-        return ['btn-messages-mobile', 'btn-actions-mobile'].filter(id => hits(document.getElementById(id).getBoundingClientRect()));
+        return ['btn-actions-mobile'].filter(id => hits(document.getElementById(id).getBoundingClientRect()));
       })()`);
-      check(overlap.length === 0 && await usable('#search-button') && await usable('#btn-actions-mobile') && await usable('#btn-messages-mobile'),
-        `${prefix}: with Messages and Actions both showing, the search field and button stay uncovered`, `overlapping: ${overlap.join(', ')}`);
+      check(overlap.length === 0 && await usable('#search-button') && await usable('#btn-actions-mobile'),
+        `${prefix}: with Actions showing, the search field and button stay uncovered`, `overlapping: ${overlap.join(', ')}`);
       await evaluate(`document.getElementById('btn-actions-mobile').dataset.empty = 'true'; document.getElementById('global-search').focus(); true`);
     }
     const hints = await evaluate(`(() => { const i = document.getElementById('global-search'); return [i.getAttribute('enterkeyhint'), i.getAttribute('autocapitalize'), i.getAttribute('autocomplete')].join(','); })()`);
@@ -312,83 +322,225 @@ async function logoutChecks(prefix, openButton) {
   });
 }
 
-async function mobileRun(w) {
+const NAV = (destination) => `#app-nav [data-destination="${destination}"]`;
+const destination = () => evaluate(`document.body.dataset.destination || ''`);
+const current_ = () => evaluate(`document.querySelector('#app-nav [aria-current="page"]')?.dataset.destination || ''`);
+
+async function waitForPage(page, timeout = 5000) {
+  const start = Date.now();
+  while (Date.now() - start < timeout) {
+    if (await callInPage(function (p) { return document.body.dataset.destination === p; }, page).catch(() => false)) return;
+    await sleep(100);
+  }
+  throw new Error(`Timed out waiting for ${page} destination`);
+}
+
+async function go(page) {
+  await press(NAV(page), page);
+  await waitForPage(page);
+  await sleep(300);
+}
+
+async function navChecks(P) {
+  const nav = await evaluate(`(() => {
+    const bar = document.getElementById('app-nav');
+    const r = bar.getBoundingClientRect();
+    return {
+      labels: [...bar.querySelectorAll('[data-destination]')].map(b => b.querySelector('span').textContent.trim()).join(' | '),
+      bottom: r.top > 0 && r.width >= innerWidth - 1, side: r.left === 0 && r.height >= innerHeight - 1 && r.width < 120,
+      old: [...document.querySelectorAll('#mobile-tab-bar, .buildspace-view-switcher, #cd-mobile-discover-mode, #btn-messages-mobile, #cd-messages-btn, [data-workspace-view]')].length,
+      navs: document.querySelectorAll('nav[aria-label="Main navigation"]').length,
+    };
+  })()`);
+  check(nav.labels === 'Home | Explore | Network | Inbox | You', `${P}: one navigation reads Home | Explore | Network | Inbox | You`, nav.labels);
+  check(current.mobile ? nav.bottom : nav.side, `${P}: the navigation is a ${current.mobile ? 'bottom bar' : 'side bar'}`, JSON.stringify(nav));
+  check(nav.old === 0 && nav.navs === 1, `${P}: no other navigation or Messages button remains`, JSON.stringify(nav));
+}
+
+async function pageChecks(P) {
+  const historyBefore = await evaluate(`history.length + ' ' + location.href`);
+  await step(`${P}: Home`, async () => {
+    await go('home');
+    const ok = current.mobile
+      ? await evaluate(`!document.getElementById('mobile-you-screen').hidden && document.body.classList.contains('mobile-surface-you')`)
+      : await evaluate(`document.body.classList.contains('buildspace-view-today') && getComputedStyle(document.getElementById('cd-focus')).display !== 'none'`);
+    check(ok && (await current_()) === 'home', `${P}: Home shows the Home content and is marked current`);
+    await shot(`${P}-home`);
+  });
+  await step(`${P}: Explore`, async () => {
+    await go('explore');
+    const ok = current.mobile
+      ? await evaluate(`document.body.classList.contains('mobile-surface-discover')`)
+      : await evaluate(`getComputedStyle(document.getElementById('cd-focus')).display === 'none' && getComputedStyle(document.getElementById('cd-explore')).display !== 'none'`);
+    check(ok && (await current_()) === 'explore' && await usable('#global-search'), `${P}: Explore shows search and the Explore list and is marked current`);
+    await shot(`${P}-explore`);
+  });
+  await step(`${P}: Network`, async () => {
+    await go('network');
+    const ok = current.mobile
+      ? await evaluate(`document.body.classList.contains('mobile-surface-community') && document.querySelector('#cd-explore-toggle span')?.textContent === 'Network'`)
+      : await evaluate(`document.body.classList.contains('buildspace-view-network') && getComputedStyle(document.getElementById('synapse-main-view')).display !== 'none'`);
+    check(ok && (await current_()) === 'network', `${P}: Network shows your network and is marked current`);
+    await shot(`${P}-network`);
+  });
+  check((await evaluate(`history.length + ' ' + location.href`)) === historyBefore, `${P}: navigating adds no history entries and keeps the URL (Back behaves as before)`);
+}
+
+async function inboxAndYou(P) {
+  for (const page of ['home', 'explore', 'network']) {
+    await step(`${P} ${page}: Inbox opens Messages`, async () => {
+      await go(page);
+      await press(NAV('inbox'), 'Inbox');
+      await waitFor(isOpen.messages, 'messages', 6000);
+      check((await destination()) === page, `${P} ${page}: Inbox opens Messages over the current page`);
+      // Messages is a modal over the page (full screen on phones): its own
+      // close button must work.
+      await press('#messages-modal .modal-close', 'close Messages');
+      await waitFor(`!${isOpen.messages}`, 'messages to close', 4000);
+    });
+  }
+  await step(`${P}: You opens the profile`, async () => {
+    await press(NAV('you'), 'You');
+    await waitFor(`(() => { const m = document.getElementById('profile-modal'); return m && getComputedStyle(m).display !== 'none' && m.getClientRects().length; })()`, 'profile', 6000);
+    check(true, `${P}: You opens the profile`);
+    await shot(`${P}-you`);
+    await evaluate(`window.closeProfileModal?.(); true`);
+    await sleep(300);
+  });
+  await step(`${P}: switching pages closes Messages left open`, async () => {
+    await evaluate(`window.openMessagesModal(); true`);
+    await waitFor(isOpen.messages, 'messages', 6000);
+    // Messages covers the navigation (it is a modal), so the switch comes from
+    // code paths such as the welcome guide or a keyboard user.
+    await callInPage(function (sel) { document.querySelector(sel).click(); return true; }, NAV('home'));
+    await waitFor(`!${isOpen.messages}`, 'messages to close', 4000);
+    check(true, `${P}: switching pages closes Messages left open`);
+  });
+  await step(`${P}: the Inbox badge shows unread messages`, async () => {
+    await evaluate(`window.dispatchEvent(new CustomEvent('total-unread-messages-updated', { detail: { count: 3 } })); true`);
+    const badge = await callInPage(function (sel) { const b = document.getElementById('app-nav-inbox-badge'); return [b.hidden, b.textContent, document.querySelector(sel).getAttribute('aria-label')].join('|'); }, NAV('inbox'));
+    check(badge === 'false|3|Inbox, 3 unread', `${P}: the Inbox badge shows unread messages`, badge);
+    await evaluate(`window.dispatchEvent(new CustomEvent('total-unread-messages-updated', { detail: { count: 0 } })); true`);
+  });
+}
+
+async function accessChecks(P) {
+  // Actions (notifications that need a response) keeps its own button until
+  // the Inbox screen exists. Make it show as it does with pending actions.
+  await step(`${P}: Actions opens the action panel`, async () => {
+    await go('home');
+    const id = current.mobile ? '#btn-actions-mobile' : '#cd-actions-btn';
+    await callInPage(function (sel) { window.__actions = 0; const n = window.UnifiedNotifications; const show = n.showPanel; n.showPanel = (...a) => { window.__actions += 1; return show.apply(n, a); }; const b = document.querySelector(sel); b.dataset.empty = 'false'; b.style.display = ''; return true; }, id);
+    await press(id, 'Actions');
+    check(await evaluate(`window.__actions === 1`), `${P}: Actions opens the action panel`);
+    await callInPage(function (sel) { document.getElementById('unified-notification-panel')?.remove(); document.querySelector(sel).dataset.empty = 'true'; return true; }, id);
+    await load(current); // leave no split view behind
+  });
+  await step(`${P}: Admin is reachable for admins`, async () => {
+    const id = current.mobile ? '#btn-admin-mobile' : '#cd-admin-btn';
+    await callInPage(function (sel) { window.__admin = 0; window.openAdminPanel = () => { window.__admin += 1; }; document.querySelector(sel).style.display = 'flex'; return true; }, id);
+    await press(id, 'Admin');
+    // Either the stub or dashboard-actions.js's own openAdminPanel runs.
+    await waitFor(`window.__admin === 1 || document.getElementById('admin-panel')`, 'admin panel', 4000);
+    check(true, `${P}: Admin is reachable for admins`);
+    await callInPage(function (sel) { document.getElementById('admin-panel')?.remove(); document.querySelector(sel).style.display = 'none'; return true; }, id);
+  });
+  await step(`${P}: a notification link opens the organization over the current page`, async () => {
+    await go('network');
+    await evaluate(`window.UnifiedNotifications.navigateNotification('?org=30000000-0000-4000-8000-0000000000a1', 'org_join_request', 'n1'); true`);
+    await waitFor(`${isOpen.panel} && /Harbor Builders/.test(document.getElementById('node-side-panel').innerText)`, 'organization panel', 6000);
+    check((await destination()) === 'network', `${P}: a notification link opens the organization over the current page`);
+    await closePanel();
+  });
+}
+
+async function assistanceChecks(P) {
+  if (!current.mobile) {
+    await step(`${P}: a task link still opens the project's tasks`, async () => {
+      await evaluate(`window.viewProjectTask('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'dddddddd-dddd-4ddd-8ddd-dddddddddddd'); true`);
+      await waitFor(`document.getElementById('project-detail-overlay')`, 'project details', 6000);
+      check(await evaluate(`!document.getElementById('mobile-task-assistance')`), `${P}: a task link still opens the project's tasks`);
+      await evaluate(`document.getElementById('project-detail-overlay')?.remove(); true`);
+    });
+    return;
+  }
+  await step(`${P}: goal assistance opens from Home and closes when navigating away`, async () => {
+    await go('home');
+    await waitFor(`document.querySelector('#mobile-you-content [data-next-task]')`, 'next task', 8000);
+    await press('#mobile-you-content [data-next-task]', 'Get help with this');
+    await waitFor(`document.querySelector('#mobile-task-assistance #mta-title')`, 'assistance', 8000);
+    check(await usable(NAV('explore')), `${P}: the navigation stays reachable during assistance`);
+    await press(NAV('explore'), 'Explore');
+    await waitFor(`!document.getElementById('mobile-task-assistance')`, 'assistance to close', 4000);
+    check((await destination()) === 'explore', `${P}: goal assistance opens from Home and closes when navigating away`);
+  });
+}
+
+async function run(w) {
   const P = w.name;
   await load(w);
   console.log(`\n${P} (${w.width}×${w.height})`);
-  const labels = await evaluate(`[...document.querySelectorAll('#mobile-tab-bar .mob-tab span')].map(s => s.textContent.trim()).join(' | ')`);
-  check(labels === 'Home | Explore | Network', `${P}: tab bar reads Home | Explore | Network`, labels);
-  check(await evaluate(`(() => { const b = document.getElementById('cd-settings-btn'); return !b || !b.getClientRects().length || getComputedStyle(b).display === 'none'; })()`), `${P}: no second Settings control (Settings lives in Home → Account)`);
+  await navChecks(P);
+  await pageChecks(P);
+  await inboxAndYou(P);
+  await accessChecks(P);
+  await assistanceChecks(P);
 
-  // Home
-  await step(`${P}: Home opens`, async () => {
-    await press('#mob-tab-home', 'Home tab');
-    await waitFor(`!document.getElementById('mobile-you-screen').hidden && /Home/.test(document.querySelector('#mobile-you-content .mobile-you-eyebrow')?.textContent || '')`, 'Home', 8000);
-    check(true, `${P}: Home opens`);
-    // A long name must not run under the Messages / Actions buttons.
-    await evaluate(`document.getElementById('btn-actions-mobile').dataset.empty = 'false'; document.querySelector('#mobile-you-content .mobile-you-header h1, #mobile-you-content .mobile-you-header h2, #mobile-you-content .mobile-you-header strong')?.append(' Longname-Hyphenated Member'); true`);
-    const clear = await evaluate(`(() => { const rail = document.getElementById('mobile-header-actions').getBoundingClientRect(); const text = document.querySelector('#mobile-you-content .mobile-you-header > div:last-child').getBoundingClientRect(); return text.right <= rail.left + 1 || text.top >= rail.bottom - 1; })()`);
-    check(clear, `${P}: the Home header stays clear of the Messages / Actions buttons`);
-    await evaluate(`document.getElementById('btn-actions-mobile').dataset.empty = 'true'; true`);
-    await shot(`${P}-home`);
-  });
-  await messagesCheck(`${P} Home`, '#btn-messages-mobile');
-
-  // Explore
-  await step(`${P}: Explore opens`, async () => {
-    await press('#mob-tab-discover', 'Explore tab');
-    await waitFor(`document.body.classList.contains('mobile-surface-discover')`, 'Explore', 5000);
-    const heading = await evaluate(`document.querySelector('#cd-explore-toggle span')?.textContent`);
-    const modes = await evaluate(`[...document.querySelectorAll('#cd-mobile-discover-mode button')].map(b => b.textContent).join(' | ')`);
-    check(heading === 'Explore' && modes === 'Explore | Network', `${P}: Explore opens with the same labels`, `${heading}; ${modes}`);
-    await shot(`${P}-explore`);
-  });
-  await messagesCheck(`${P} Explore`, '#btn-messages-mobile');
+  // Phase 1 regressions: Explore categories, organization management and
+  // search at this width.
+  await go('explore');
   await exploreChecks(P);
   await searchChecks(P);
 
-  // Network
-  await step(`${P}: Network opens the member list`, async () => {
-    await press('#mob-tab-profile', 'Network tab');
-    await waitFor(`document.body.classList.contains('mobile-surface-community')`, 'Network', 5000);
-    check(await evaluate(`document.querySelector('#cd-explore-toggle span')?.textContent === 'Network'`), `${P}: Network opens the member list`);
-    await shot(`${P}-network`);
-  });
-  await messagesCheck(`${P} Network`, '#btn-messages-mobile');
-
-  // Settings and Log out live in Home → Account.
+  // Settings and Log out: Home → Account on phones and tablets, the identity
+  // bar on desktop (both move to You in a later change).
   const openAccount = async () => {
-    if (!(await evaluate(`!document.getElementById('mobile-you-screen').hidden`))) await press('#mob-tab-home', 'Home tab');
+    await go('home');
     await waitFor(`document.querySelector('#mobile-you-content details.mobile-you-secondary:last-of-type summary')`, 'Account', 6000);
     if (!(await evaluate(`document.querySelector('#mobile-you-content details.mobile-you-secondary:last-of-type').open`))) {
       await press('#mobile-you-content details.mobile-you-secondary:last-of-type summary', 'Account');
     }
   };
-  await settingsCheck(P, async () => { await openAccount(); await press('[data-profile-action="settings"]', 'Settings'); });
-  await logoutChecks(P, async () => { await openAccount(); await press('[data-profile-action="logout"]', 'Log out'); });
+  if (current.mobile) {
+    await settingsCheck(P, async () => { await openAccount(); await press('[data-profile-action="settings"]', 'Settings'); });
+    await logoutChecks(P, async () => { await openAccount(); await press('[data-profile-action="logout"]', 'Log out'); });
+  } else {
+    await settingsCheck(P, async () => { await go('home'); await press('#cd-settings-btn', 'Settings'); });
+    await logoutChecks(P, async () => { await go('home'); await press('#cd-logout-btn', 'Log out'); });
+  }
 }
 
-async function desktopRun(w) {
-  const P = w.name;
-  await load(w);
-  console.log(`\n${P} (${w.width}×${w.height})`);
-  check(await evaluate(`getComputedStyle(document.getElementById('mobile-tab-bar')).display === 'none'`), `${P}: the mobile tab bar stays hidden`);
-  const views = await evaluate(`[...document.querySelectorAll('.buildspace-view-btn')].map(b => b.textContent.trim()).join(' | ')`);
-  check(views === 'Home | Network', `${P}: view switcher reads Home | Network`, views);
-  await step(`${P}: Network shows the map; Home returns`, async () => {
-    await press('.buildspace-view-btn[data-workspace-view="network"]', 'Network');
-    await waitFor(`getComputedStyle(document.getElementById('synapse-main-view')).display !== 'none' && document.body.classList.contains('buildspace-view-network')`, 'Network view', 4000);
-    await shot(`${P}-network`);
-    await press('.buildspace-view-btn[data-workspace-view="today"]', 'Home');
-    await waitFor(`document.body.classList.contains('buildspace-view-today')`, 'Home view', 4000);
-    check(true, `${P}: Network shows the map; Home returns`);
-    await shot(`${P}-home`);
+async function resizeChecks() {
+  await load(WIDTHS[2]);
+  await step('resize: the current page survives crossing the desktop breakpoint', async () => {
+    await go('network');
+    current = WIDTHS[0];
+    await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+    await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+    await waitFor(`document.body.classList.contains('mobile-surface-community')`, 'mobile Network', 5000);
+    const phone = await evaluate(`(() => { const r = document.getElementById('app-nav').getBoundingClientRect(); return r.top > 0 && r.width >= innerWidth - 1; })()`);
+    current = WIDTHS[2];
+    await send('Emulation.setDeviceMetricsOverride', { width: 1366, height: 900, deviceScaleFactor: 1, mobile: false });
+    await send('Emulation.setTouchEmulationEnabled', { enabled: false });
+    await waitFor(`document.body.classList.contains('buildspace-view-network')`, 'desktop Network', 5000);
+    check(phone && (await destination()) === 'network' && (await current_()) === 'network', 'resize: the current page survives crossing the desktop breakpoint');
   });
-  await messagesCheck(P, '#cd-messages-btn');
-  await settingsCheck(P, () => press('#cd-settings-btn', 'Settings'));
-  await exploreChecks(P);
-  await searchChecks(P);
-  await logoutChecks(P, () => press('#cd-logout-btn', 'Log out'));
+}
+
+async function signedOutChecks() {
+  for (const w of [WIDTHS[0], WIDTHS[2]]) {
+    await step(`${w.name}: signed out, only the sign-in screen shows`, async () => {
+      current = w;
+      await evaluate(`localStorage.setItem('__paritySignedOut', '1'); true`);
+      await send('Emulation.setDeviceMetricsOverride', { width: w.width, height: w.height, deviceScaleFactor: 1, mobile: w.mobile });
+      await send('Page.navigate', { url: `${base}/index.html` });
+      await waitFor(`document.readyState === 'complete'`, 'page load', 20000);
+      await sleep(3000);
+      const state = await evaluate(`({ nav: document.getElementById('app-nav').hidden, login: !document.getElementById('login-section')?.classList.contains('hidden') })`);
+      check(state.nav && state.login, `${w.name}: signed out, only the sign-in screen shows`, JSON.stringify(state));
+      await evaluate(`localStorage.removeItem('__paritySignedOut'); true`);
+    });
+  }
 }
 
 try {
@@ -396,9 +548,9 @@ try {
   await send('Runtime.enable');
   await send('Fetch.enable', { patterns: [{ urlPattern: '*' }] });
   await send('Page.addScriptToEvaluateOnNewDocument', { source: boot });
-  for (const w of WIDTHS) {
-    if (w.mobile) await mobileRun(w); else await desktopRun(w);
-  }
+  for (const w of WIDTHS) await run(w);
+  await resizeChecks();
+  await signedOutChecks();
   // The network map is never initialized against the fake client (it has no
   // graph data), so Network-view calls into UnifiedNetworkAPI report that.
   // Production initializes the map; that message is a harness limitation.
