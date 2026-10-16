@@ -26,7 +26,7 @@
 //  - requestToJoin(organizationId)
 //  - approveMemberRequest(organizationId, membershipId)
 //  - declineMemberRequest(organizationId, membershipId)
-//  - leaveOrganization(organizationId)
+//  - leaveOrganization(organizationId, { pendingOnly })
 //  - getOrganizationMembers(organizationId)
 //  - isUserMember(organizationId)
 //  - canUserEdit(organizationId)
@@ -902,28 +902,34 @@ export async function declineMemberRequest(organizationId, membershipId) {
 }
 
 /**
- * Leave an organization (or withdraw your own join request). The database
+ * Leave an organization, or withdraw your own join request. The database
  * refuses to let the last active owner leave.
  * @param {String} organizationId - Organization ID
+ * @param {Object} [options]
+ * @param {Boolean} [options.pendingOnly] - withdraw a pending request only;
+ *   never removes an active membership
  * @returns {Promise<Boolean>} Success status
  */
-export async function leaveOrganization(organizationId) {
+export async function leaveOrganization(organizationId, { pendingOnly = false } = {}) {
   try {
     if (!currentUserId || !currentUserCommunityId) {
       throw new Error("User must be authenticated");
     }
 
-    const { data, error } = await supabase
+    let query = supabase
       .from("organization_members")
       .delete()
       .eq("organization_id", organizationId)
-      .eq("community_id", currentUserCommunityId)
-      .select("id");
+      .eq("community_id", currentUserCommunityId);
+    if (pendingOnly) query = query.eq("status", "pending");
+    const { data, error } = await query.select("id");
 
     if (error) throw error;
-    requireOneRow(data, "You are not a member of this organization.");
+    requireOneRow(data, pendingOnly
+      ? "You have no pending request for this organization."
+      : "You are not a member of this organization.");
 
-    showToast("You have left the organization.", "success");
+    showToast(pendingOnly ? "Join request withdrawn." : "You have left the organization.", "success");
     return true;
   } catch (error) {
     console.error("Error leaving organization:", error);

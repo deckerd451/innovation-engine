@@ -144,6 +144,15 @@ async function main() {
     call = lastWrite();
     assert.equal(call.op, 'delete');
     assert.ok(has(call, 'eq', 'organization_id', 'org1') && has(call, 'eq', 'community_id', 'doug'), 'leave deletes only the caller\'s own row');
+    assert.ok(!has(call, 'eq', 'status', 'pending'), 'leaving covers an active membership');
+
+    // Withdraw: the caller's own pending request only, never an active membership.
+    await M.leaveOrganization('org1', { pendingOnly: true });
+    call = lastWrite();
+    assert.equal(call.op, 'delete');
+    for (const [c, v] of [['organization_id', 'org1'], ['community_id', 'doug'], ['status', 'pending']]) {
+      assert.ok(has(call, 'eq', c, v), `withdraw filters on ${c}`);
+    }
 
     // Nothing changed (row-level security skipped the row): report failure, never success.
     rowsFor = () => [];
@@ -152,6 +161,7 @@ async function main() {
     await rejects(() => M.updateMemberRole('org1', 'tester', 'admin', {}, 'm1'), /could not be changed/);
     await rejects(() => M.removeMember('org1', 'tester', 'm1'), /could not be removed/);
     await rejects(() => M.leaveOrganization('org1'), /not a member/);
+    await rejects(() => M.leaveOrganization('org1', { pendingOnly: true }), /no pending request/);
     await rejects(() => M.requestToJoin('org1'), /could not be sent/);
     rowsFor = () => [{ id: 'a' }, { id: 'b' }];
     await rejects(() => M.removeMember('org1', 'tester'), /could not be removed/);
@@ -236,6 +246,7 @@ async function main() {
       decline: control({ orgAction: 'decline', membershipId: 'm-req', memberName: 'Req' }),
       remove: control({ orgAction: 'remove', membershipId: 'm-t', communityId: 't', memberName: 'Tess' }),
       leave: control({ orgAction: 'leave' }),
+      withdraw: control({ orgAction: 'withdraw' }),
       role: control({ orgAction: 'role', membershipId: 'm-t', communityId: 't', memberName: 'Tess', currentRole: 'member' }, 'member'),
     };
     const log = { calls: [], reloads: 0, refreshes: 0, toasts: [], confirms: 0 };
@@ -264,7 +275,7 @@ async function main() {
   const click = (c) => c.handlers.click();
   const pickRole = (c, role) => { c.value = role; c.handlers.change(); };
 
-  for (const name of ['join', 'approve', 'decline', 'remove', 'leave']) {
+  for (const name of ['join', 'approve', 'decline', 'remove', 'leave', 'withdraw']) {
     let { controls, log } = mountPanel({ outcome: 'fail' });
     click(controls[name]); await flush();
     assert.equal(log.calls.length, 1, `${name}: the action ran`);
@@ -275,7 +286,7 @@ async function main() {
     click(controls[name]); await flush();
     assert.equal(log.reloads, 1, `${name}: success reloads the panel`);
   }
-  for (const name of ['decline', 'remove', 'leave']) {
+  for (const name of ['decline', 'remove', 'leave', 'withdraw']) {
     const { controls, log } = mountPanel({ confirmAnswer: false });
     click(controls[name]); await flush();
     assert.equal(log.confirms, 1, `${name}: asks first`);
@@ -287,6 +298,14 @@ async function main() {
     click(controls.approve); click(controls.join); await flush();
     assert.equal(log.confirms, 0, 'approve and join need no confirmation');
   }
+  {
+    const { controls, log } = mountPanel();
+    click(controls.withdraw); await flush();
+    assert.equal(JSON.stringify(log.calls[0]), JSON.stringify(['leaveOrganization', 'org1', { pendingOnly: true }]),
+      'Withdraw Request uses leaveOrganization limited to the pending request');
+  }
+  assert.match(panel, /Join request pending approval\s*<\/div>\s*<button type="button" data-org-action="withdraw"/,
+    'a requester can withdraw their pending request');
 
   // Role menu.
   {
@@ -325,6 +344,34 @@ async function main() {
   assert.match(leave, /\.delete\(\)\s*\.eq\('project_id', projectId\)\s*\.eq\('user_id', myId\)\s*\.neq\('role', 'creator'\)\s*\.neq\('role', 'pending'\)\s*\.select\('user_id'\)/,
     'leaving deletes only the caller\'s own team row');
   assert.match(leave, /data\.length !== 1/, 'leaving reports failure when nothing was deleted');
+  assert.doesNotMatch(panel, /\.remove\(\); leaveProjectFromPanel\(/, 'the details screen is not closed before the confirmation');
+
+  // The details screen closes only after a confirmed, successful leave.
+  async function leaveProject({ confirmAnswer = true, result = { data: [{ user_id: 'tess' }], error: null } } = {}) {
+    const log = { overlayRemoved: 0, deletes: 0, toasts: [], reloads: 0 };
+    const q = { delete() { log.deletes += 1; return q; }, eq: () => q, neq: () => q, select: () => Promise.resolve(result) };
+    const ctx = {
+      currentUserProfile: { id: 'tess' },
+      currentNodeData: { id: 'p1' },
+      supabase: { from: () => q },
+      loadNodeDetails: async () => { log.reloads += 1; },
+      showToastNotification: (msg, type) => log.toasts.push(type),
+      console: { error() {} },
+      document: { getElementById: (id) => (id === 'project-detail-overlay' ? { remove: () => { log.overlayRemoved += 1; } } : null) },
+      window: { confirm: () => confirmAnswer },
+    };
+    vm.runInNewContext(`${leave}; this.outcome = window.leaveProjectFromPanel('p1');`, ctx);
+    log.left = await ctx.outcome;
+    return log;
+  }
+  let outcome = await leaveProject({ confirmAnswer: false });
+  assert.deepEqual([outcome.left, outcome.deletes, outcome.overlayRemoved], [false, 0, 0], 'cancel keeps the details screen open and deletes nothing');
+  outcome = await leaveProject({ result: { data: null, error: { message: 'refused' } } });
+  assert.deepEqual([outcome.left, outcome.overlayRemoved, outcome.toasts[0]], [false, 0, 'error'], 'a refused leave keeps the details screen open');
+  outcome = await leaveProject({ result: { data: [], error: null } });
+  assert.deepEqual([outcome.left, outcome.overlayRemoved, outcome.toasts[0]], [false, 0, 'error'], 'a leave that changed nothing keeps the details screen open');
+  outcome = await leaveProject();
+  assert.deepEqual([outcome.left, outcome.overlayRemoved, outcome.toasts[0], outcome.reloads], [true, 1, 'success', 1], 'a successful leave closes the details screen');
   assert.match(panel, /isMember \? `[\s\S]{0,400}leaveProjectFromPanel\('\$\{project\.id\}'\)/, 'project panel offers Leave Project to members');
   assert.match(panel, /rel\.state === 'member'\) \{[\s\S]{0,700}leaveProjectFromPanel\('\$\{project\.id\}'\)/, 'project details offer Leave Project to members');
 

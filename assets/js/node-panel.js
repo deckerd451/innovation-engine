@@ -1320,6 +1320,10 @@ function renderOrganizationContent(org, allMembers, currentCommunityId) {
         <div data-org-request-status="pending" style="text-align:center; color:#ffa500; font-weight:bold; padding:0.75rem; background:rgba(255,165,0,0.1); border-radius:12px; border:1px solid rgba(255,165,0,0.3);">
           <i class="fas fa-clock"></i> Join request pending approval
         </div>
+        <button type="button" data-org-action="withdraw"
+          style="width:100%; padding:0.75rem; background:transparent; border:1px solid rgba(255,107,107,0.4); border-radius:12px; color:#ff6b6b; font-weight:600; font-size:0.9rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:0.5rem;">
+          <i class="fas fa-undo"></i> Withdraw Request
+        </button>
       ` : !isAlreadyMember ? `
         <!-- Join button — hidden from existing members -->
         <button type="button" data-org-action="join"
@@ -1444,6 +1448,7 @@ function wireOrganizationMembershipControls(org) {
         decline: `Decline ${memberName}'s request to join ${org.name}?`,
         remove: `Remove ${memberName} from ${org.name}?`,
         leave: `Leave ${org.name}?`,
+        withdraw: `Withdraw your request to join ${org.name}?`,
       };
       if (prompts[orgAction] && !window.confirm(prompts[orgAction])) return;
       const m = manager();
@@ -1454,6 +1459,7 @@ function wireOrganizationMembershipControls(org) {
         decline: () => m.declineMemberRequest(org.id, membershipId),
         remove: () => m.removeMember(org.id, communityId, membershipId),
         leave: () => m.leaveOrganization(org.id),
+        withdraw: () => m.leaveOrganization(org.id, { pendingOnly: true }),
       };
       if (actions[orgAction]) run(control, actions[orgAction]);
     });
@@ -3166,7 +3172,7 @@ window.viewProjectDetails = async function(projectId, initialTab = null) {
       <div style="flex:1; text-align:center; color:#00ff88; font-weight:bold; padding:0.75rem; background:rgba(0,255,136,0.1); border-radius:8px; border:1px solid rgba(0,255,136,0.3);">
         <i class="fas fa-check-circle"></i> You're a member
       </div>
-      <button onclick="this.closest('#project-detail-overlay').remove(); leaveProjectFromPanel('${project.id}')"
+      <button onclick="leaveProjectFromPanel('${project.id}')"
         style="padding:0.75rem 1.25rem; background:transparent; border:1px solid rgba(255,107,107,0.4); border-radius:8px; color:#ff6b6b; font-weight:bold; cursor:pointer;">
         <i class="fas fa-sign-out-alt"></i> Leave Project
       </button>`;
@@ -3594,11 +3600,13 @@ window.removeProjectMember = async function(projectId, memberId, memberName = 't
 
 // A team member (not the creator) leaves a project. Deletes only the
 // caller's own non-creator, non-pending row; the database allows a member to
-// remove themself (project_members DELETE policy).
+// remove themself (project_members DELETE policy). The project details
+// screen, if open, closes only after a successful leave. Returns whether the
+// member left.
 window.leaveProjectFromPanel = async function(projectId) {
   const myId = currentUserProfile?.id;
-  if (!projectId || !myId) return;
-  if (!window.confirm('Leave this project? You will lose access to its tasks.')) return;
+  if (!projectId || !myId) return false;
+  if (!window.confirm('Leave this project? You will lose access to its tasks.')) return false;
 
   try {
     if (!supabase) supabase = window.supabase;
@@ -3618,6 +3626,7 @@ window.leaveProjectFromPanel = async function(projectId) {
       throw new Error('You are not a member of this project.');
     }
 
+    document.getElementById('project-detail-overlay')?.remove();
     showToastNotification('You have left the project.', 'success');
 
     if (typeof window.refreshSynapseConnections === 'function') {
@@ -3627,9 +3636,11 @@ window.leaveProjectFromPanel = async function(projectId) {
       await window.refreshSynapseProjectCircles();
     }
     if (currentNodeData?.id === projectId) await loadNodeDetails(currentNodeData);
+    return true;
   } catch (error) {
     console.error('[Projects] leave project error:', error);
     showToastNotification(error.message || 'Failed to leave the project.', 'error');
+    return false;
   }
 };
 

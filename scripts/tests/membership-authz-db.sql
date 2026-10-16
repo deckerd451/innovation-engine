@@ -93,6 +93,8 @@ RESET ROLE;
 SELECT t.act('a0000000-0000-4000-8000-00000000000c');
 SET LOCAL ROLE authenticated;
 SELECT t.allowed($$INSERT INTO public.organization_members (id, organization_id, community_id, role, status) VALUES ('31000000-0000-4000-8000-0000000000c2', '30000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-00000000000c', 'member', 'pending')$$, 'Carol asks to join again');
+SELECT t.allowed($$DELETE FROM public.organization_members WHERE organization_id = '30000000-0000-4000-8000-000000000001' AND community_id = '10000000-0000-4000-8000-00000000000c' AND status = 'pending'$$, 'requester withdraws from the panel');
+SELECT t.allowed($$INSERT INTO public.organization_members (id, organization_id, community_id, role, status) VALUES ('31000000-0000-4000-8000-0000000000c2', '30000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-00000000000c', 'member', 'pending')$$, 'Carol asks to join once more');
 SELECT t.blocked($$UPDATE public.organization_members SET status = 'active', can_post_opportunities = false, can_manage_members = false, can_edit_profile = false WHERE id = '31000000-0000-4000-8000-00000000000f' AND organization_id = '30000000-0000-4000-8000-000000000001' AND role = 'member' AND status = 'pending'$$, 'non-admin uses the panel''s approve on someone else''s request');
 RESET ROLE;
 SELECT t.act('a0000000-0000-4000-8000-00000000000e');
