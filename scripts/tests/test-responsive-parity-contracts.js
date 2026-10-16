@@ -7,6 +7,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 
 const read = (file) => fs.readFileSync(file, 'utf8');
+const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const index = read('index.html');
 const dashboardCss = read('dashboard.css');
 const commandCss = read('assets/css/command-dashboard.css');
@@ -61,7 +62,7 @@ assert.doesNotMatch(mobileNav, />Discover<\/button>|>My network<\/button>/);
 // Returning visitors get the changed files.
 const tag = 'responsive-parity-20261016';
 for (const asset of ['dashboard.css', 'assets/css/command-dashboard.css', 'assets/js/command-dashboard.js', 'assets/js/mobile-nav.js', 'assets/js/mobile-you.js', 'assets/js/unified-network-integration.js']) {
-  assert.match(index, new RegExp(`${asset.replace(/[.]/g, '\\.')}\\?v=${tag}`), `${asset} is cache-busted`);
+  assert.match(index, new RegExp(`${escapeRegExp(asset)}\\?v=${tag}`), `${asset} is cache-busted`);
 }
 assert.match(integration, new RegExp(`import './explorer-coordinator\\.js\\?v=${tag}';`));
 assert.match(sw, new RegExp(`const VERSION = "v14-${tag}";`));

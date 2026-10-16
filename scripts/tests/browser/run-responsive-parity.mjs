@@ -110,8 +110,15 @@ async function shot(name) {
 let current = WIDTHS[0];
 // Where would a real finger or pointer land? The element must be visible,
 // on screen, clear of the tab bar (unless it is in it) and own that point.
-const locate = (selector) => evaluate(`(() => {
-  const el = document.querySelector(${JSON.stringify(selector)});
+// Selectors are passed as arguments, never spliced into evaluated code.
+async function callInPage(fn, ...args) {
+  const global = (await send('Runtime.evaluate', { expression: 'globalThis' })).result;
+  const result = await send('Runtime.callFunctionOn', { functionDeclaration: fn.toString(), objectId: global.objectId, arguments: args.map(value => ({ value })), awaitPromise: true, returnByValue: true });
+  if (result.exceptionDetails) throw new Error(result.exceptionDetails.exception?.description || result.exceptionDetails.text);
+  return result.result.value;
+}
+const locate = (selector) => callInPage(function (sel) {
+  const el = document.querySelector(sel);
   if (!el) return { missing: true };
   el.scrollIntoView({ block: 'center', inline: 'nearest' });
   const r = el.getBoundingClientRect();
@@ -122,7 +129,7 @@ const locate = (selector) => evaluate(`(() => {
   const onScreen = r.width > 0 && r.height > 0 && r.left >= -1 && r.right <= innerWidth + 1 && r.top >= -1 && r.bottom <= innerHeight + 1;
   const clear = el.closest('#mobile-tab-bar') ? true : r.bottom <= barTop + 1;
   return { x, y, onScreen, clear, owns: !!hit && (hit === el || el.contains(hit)), hit: hit ? (hit.id || String(hit.className).slice(0, 40) || hit.tagName) : null };
-})()`);
+}, selector);
 async function usable(selector) {
   const info = await locate(selector);
   return !info.missing && info.onScreen && info.clear && info.owns;
@@ -144,7 +151,10 @@ async function press(selector, label = selector) {
 async function step(label, fn) {
   try { await fn(); } catch (error) { check(false, label, error.message.split('\n')[0]); await shot(`${current.name}-failed-${results.length}`).catch(() => {}); }
 }
-const visibleText = (selector) => evaluate(`(() => { const el = document.querySelector(${JSON.stringify(selector)}); return el && el.getClientRects().length ? el.innerText : ''; })()`);
+const visibleText = (selector) => callInPage(function (sel) {
+  const el = document.querySelector(sel);
+  return el && el.getClientRects().length ? el.innerText : '';
+}, selector);
 const isOpen = {
   messages: `(() => { const m = document.getElementById('messages-modal'); return m && getComputedStyle(m).display !== 'none' && m.getBoundingClientRect().height > 0; })()`,
   settings: `!!document.getElementById('settings-modal-overlay')`,
