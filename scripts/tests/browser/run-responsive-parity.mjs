@@ -326,9 +326,18 @@ const NAV = (destination) => `#app-nav [data-destination="${destination}"]`;
 const destination = () => evaluate(`document.body.dataset.destination || ''`);
 const current_ = () => evaluate(`document.querySelector('#app-nav [aria-current="page"]')?.dataset.destination || ''`);
 
+async function waitForPage(page, timeout = 5000) {
+  const start = Date.now();
+  while (Date.now() - start < timeout) {
+    if (await callInPage(function (p) { return document.body.dataset.destination === p; }, page).catch(() => false)) return;
+    await sleep(100);
+  }
+  throw new Error(`Timed out waiting for ${page} destination`);
+}
+
 async function go(page) {
   await press(NAV(page), page);
-  await waitFor(`document.body.dataset.destination === ${JSON.stringify(page)}`, `${page} destination`, 5000);
+  await waitForPage(page);
   await sleep(300);
 }
 
@@ -403,13 +412,13 @@ async function inboxAndYou(P) {
     await waitFor(isOpen.messages, 'messages', 6000);
     // Messages covers the navigation (it is a modal), so the switch comes from
     // code paths such as the welcome guide or a keyboard user.
-    await evaluate(`document.querySelector(${JSON.stringify(NAV('home'))}).click(); true`);
+    await callInPage(function (sel) { document.querySelector(sel).click(); return true; }, NAV('home'));
     await waitFor(`!${isOpen.messages}`, 'messages to close', 4000);
     check(true, `${P}: switching pages closes Messages left open`);
   });
   await step(`${P}: the Inbox badge shows unread messages`, async () => {
     await evaluate(`window.dispatchEvent(new CustomEvent('total-unread-messages-updated', { detail: { count: 3 } })); true`);
-    const badge = await evaluate(`(() => { const b = document.getElementById('app-nav-inbox-badge'); return [b.hidden, b.textContent, document.querySelector(${JSON.stringify(NAV('inbox'))}).getAttribute('aria-label')].join('|'); })()`);
+    const badge = await callInPage(function (sel) { const b = document.getElementById('app-nav-inbox-badge'); return [b.hidden, b.textContent, document.querySelector(sel).getAttribute('aria-label')].join('|'); }, NAV('inbox'));
     check(badge === 'false|3|Inbox, 3 unread', `${P}: the Inbox badge shows unread messages`, badge);
     await evaluate(`window.dispatchEvent(new CustomEvent('total-unread-messages-updated', { detail: { count: 0 } })); true`);
   });
@@ -421,20 +430,20 @@ async function accessChecks(P) {
   await step(`${P}: Actions opens the action panel`, async () => {
     await go('home');
     const id = current.mobile ? '#btn-actions-mobile' : '#cd-actions-btn';
-    await evaluate(`(() => { window.__actions = 0; const n = window.UnifiedNotifications; const show = n.showPanel; n.showPanel = (...a) => { window.__actions += 1; return show.apply(n, a); }; const b = document.querySelector(${JSON.stringify(id)}); b.dataset.empty = 'false'; b.style.display = ''; return true; })()`);
+    await callInPage(function (sel) { window.__actions = 0; const n = window.UnifiedNotifications; const show = n.showPanel; n.showPanel = (...a) => { window.__actions += 1; return show.apply(n, a); }; const b = document.querySelector(sel); b.dataset.empty = 'false'; b.style.display = ''; return true; }, id);
     await press(id, 'Actions');
     check(await evaluate(`window.__actions === 1`), `${P}: Actions opens the action panel`);
-    await evaluate(`document.getElementById('unified-notification-panel')?.remove(); window.UnifiedNotifications?.closeMobileSplitView?.(); document.querySelector(${JSON.stringify(id)}).dataset.empty = 'true'; true`);
+    await callInPage(function (sel) { document.getElementById('unified-notification-panel')?.remove(); document.querySelector(sel).dataset.empty = 'true'; return true; }, id);
     await load(current); // leave no split view behind
   });
   await step(`${P}: Admin is reachable for admins`, async () => {
     const id = current.mobile ? '#btn-admin-mobile' : '#cd-admin-btn';
-    await evaluate(`(() => { window.__admin = 0; window.openAdminPanel = () => { window.__admin += 1; }; const b = document.querySelector(${JSON.stringify(id)}); b.style.display = 'flex'; return true; })()`);
+    await callInPage(function (sel) { window.__admin = 0; window.openAdminPanel = () => { window.__admin += 1; }; document.querySelector(sel).style.display = 'flex'; return true; }, id);
     await press(id, 'Admin');
     // Either the stub or dashboard-actions.js's own openAdminPanel runs.
     await waitFor(`window.__admin === 1 || document.getElementById('admin-panel')`, 'admin panel', 4000);
     check(true, `${P}: Admin is reachable for admins`);
-    await evaluate(`document.getElementById('admin-panel')?.remove(); document.querySelector(${JSON.stringify(id)}).style.display = 'none'; true`);
+    await callInPage(function (sel) { document.getElementById('admin-panel')?.remove(); document.querySelector(sel).style.display = 'none'; return true; }, id);
   });
   await step(`${P}: a notification link opens the organization over the current page`, async () => {
     await go('network');
