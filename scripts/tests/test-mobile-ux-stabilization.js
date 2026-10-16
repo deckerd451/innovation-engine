@@ -63,9 +63,12 @@ assert.ok(shellTag, 'service worker must declare a versioned shell');
 for (const asset of ['command-dashboard.css', 'mobile-nav.js', 'mobile-you.css', 'mobile-you.js', 'mobile-goal-discovery.js', 'mobile-task-assistance.js', 'mobile-task-assistance.css', 'assistance-interventions.js', 'assistance-interventions.css', 'capability-memory.js']) {
   assert.match(index, new RegExp(`${asset.replace('.', '\\.')}\\?v=${shellTag}`), `${asset} must be cache-busted with the current shell version`);
 }
-assert.match(index, /My Space/);
-assert.match(index, /Explore/);
-assert.match(index, /data-surface="community"/);
-assert.match(index, /Community/);
+// One vocabulary at every width: Home, Explore, Network.
+assert.match(index, /id="mob-tab-home"[^>]*aria-label="Home"[\s\S]{0,80}<span>Home<\/span>/);
+assert.match(index, /id="mob-tab-discover"[^>]*aria-label="Explore"[\s\S]{0,80}<span>Explore<\/span>/);
+assert.match(index, /data-surface="community" aria-label="Network">[\s\S]{0,80}<span>Network<\/span>/);
+assert.match(index, /data-workspace-view="today"[^>]*>Home<\/button>/);
+assert.match(index, /data-workspace-view="network"[^>]*>Network<\/button>/);
+assert.doesNotMatch(index, /<span>(My Space|Community)<\/span>/);
 
 console.log('Mobile UX stabilization contracts passed');

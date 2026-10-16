@@ -204,7 +204,18 @@ body.reflection-resizing #network-reflection { transition:none; }
   .cd-mobile-discover-mode button.active { background:rgba(0,224,255,.14); color:#fff; box-shadow:0 0 0 1px rgba(0,224,255,.3); }
   #profile-modal .ch-right-now-card, #profile-modal .ch-nearify-events-panel { display:none !important; }
   #profile-modal .ch-right-now-card.mobile-intent-editor-open { display:block !important; }
-  #command-dashboard.cd-mobile-panel .cd-search { display:none!important; }
+  /* Explore search is the same control as on desktop. 16px keeps iOS from
+     zooming on focus; suggestions open below the field (the old bottom-docked
+     search placed them above it, which is off-screen here). */
+  /* Keep the search box clear of the floating Messages / Actions buttons
+     (44px, 12px below the safe area) when Explore or Network opens. */
+  #command-dashboard.cd-mobile-panel .cd-scroll-area { padding-top:calc(env(safe-area-inset-top,0px) + 60px); }
+  #command-dashboard.cd-mobile-panel #centered-search-container { scroll-margin-top:calc(env(safe-area-inset-top,0px) + 60px); }
+  #command-dashboard.cd-mobile-panel .cd-search #global-search { font-size:16px!important; }
+  #command-dashboard.cd-mobile-panel .cd-search #search-suggestions {
+    top:calc(100% + .35rem)!important; bottom:auto!important;
+    max-height:min(360px,calc(100dvh - 220px))!important;
+  }
   #command-dashboard.cd-mobile-panel #cd-explore { margin:0; }
   #command-dashboard.cd-mobile-panel .cd-section-toggle-row { align-items:center; padding:.8rem .75rem .65rem; }
   #command-dashboard.cd-mobile-panel .cd-section-toggle { font-size:.9rem; letter-spacing:.02em; text-transform:none; }
@@ -244,7 +255,6 @@ body.reflection-resizing #network-reflection { transition:none; }
     min-width: 44px !important;
     min-height: 44px !important;
   }
-  body:not(.mobile-tab-home) #mobile-header-actions #btn-messages-mobile { display:none !important; }
 
   /* Mobile has one persistent message entry point in the global header.
      Keep the dashboard's desktop identity controls from duplicating it when

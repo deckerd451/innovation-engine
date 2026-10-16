@@ -2001,10 +2001,6 @@ button,
 
 /* Responsive adjustments for theme admin */
 @media (max-width: 768px) {
-    /* Keep the primary mobile flow focused; advanced resource types remain
-       available from the desktop Explore panel and direct actions. */
-    #udc-resource-tabs [data-resource="organizations"],
-    #udc-resource-tabs [data-resource="opportunities"] { display:none; }
     #udc-resource-tabs { gap:.35rem; overflow-x:auto; scrollbar-width:none; }
     #udc-resource-tabs::-webkit-scrollbar { display:none; }
     #mobile-tab-bar { padding-bottom: max(.5rem, env(safe-area-inset-bottom)); }

@@ -54,11 +54,13 @@
     const browse = document.querySelector('.cd-mobile-browse');
     if (browse) browse.open = true;
     if (toggle) {
-      toggle.querySelector('span').textContent = isNetwork ? 'My network' : 'Discover';
+      toggle.querySelector('span').textContent = isNetwork ? 'Network' : 'Explore';
       if (toggle.getAttribute('aria-expanded') === 'false') toggle.click();
     }
     updateDiscoverModeControl(isNetwork ? 'network' : 'explore');
-    document.getElementById('cd-explore')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Start at the search box, which sits directly above the Explore list.
+    (document.getElementById('centered-search-container') || document.getElementById('cd-explore'))
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   function updateDiscoverModeControl(mode) {
@@ -79,7 +81,7 @@
     control.id = 'cd-mobile-discover-mode';
     control.className = 'cd-mobile-discover-mode';
     control.setAttribute('role', 'tablist');
-    control.innerHTML = '<button type="button" role="tab" data-discover-mode="explore" aria-selected="true">Discover</button><button type="button" role="tab" data-discover-mode="network" aria-selected="false">My network</button>';
+    control.innerHTML = '<button type="button" role="tab" data-discover-mode="explore" aria-selected="true">Explore</button><button type="button" role="tab" data-discover-mode="network" aria-selected="false">Network</button>';
     control.querySelectorAll('button[data-discover-mode]').forEach((button) => {
       button.addEventListener('click', () => setDiscoverMode(button.dataset.discoverMode));
     });

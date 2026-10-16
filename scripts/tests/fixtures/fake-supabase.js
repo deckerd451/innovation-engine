@@ -32,6 +32,18 @@
       capability_attempts: row => row.member_id === me() && (db.capability_packages || []).some(p => p.id === row.capability_id && (p.permission_mode === 'community' || p.creator_id === row.member_id)),
     };
 
+    // PostgREST filter operators used by the app's queries (eq, is.null, gt,
+    // ilike with % wildcards, case-insensitive).
+    const ilike = (value, pattern) => new RegExp(`^${String(pattern).replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/%/g, '.*')}$`, 'i')
+      .test(Array.isArray(value) ? value.join(', ') : String(value ?? ''));
+    function matches(row, { column, op, value }) {
+      if (op === 'eq') return String(row[column]) === value;
+      if (op === 'is') return value === 'null' ? row[column] == null : String(row[column]) === value;
+      if (op === 'gt') return row[column] != null && String(row[column]) > value;
+      if (op === 'ilike') return ilike(row[column], value);
+      return false;
+    }
+
     function parseOr(expression) {
       return String(expression).split(',').map(part => {
         const [column, op, ...rest] = part.split('.');
@@ -52,7 +64,8 @@
         neq(column, value) { filters.push(row => row[column] !== value); return api; },
         in(column, values) { filters.push(row => values.includes(row[column])); return api; },
         contains(column, values) { filters.push(row => values.every(v => (row[column] || []).includes(v))); return api; },
-        or(expression) { const parts = parseOr(expression); filters.push(row => parts.some(p => p.op === 'eq' && String(row[p.column]) === p.value)); return api; },
+        or(expression) { const parts = parseOr(expression); filters.push(row => parts.some(p => matches(row, p))); return api; },
+        ilike(column, pattern) { filters.push(row => ilike(row[column], pattern)); return api; },
         order(column, opts = {}) { order = { column, asc: opts.ascending !== false }; return api; },
         limit(n) { limitN = n; return api; },
         maybeSingle() { single = 'maybe'; return api; },

@@ -15,7 +15,7 @@ import { initializeErrorHandling } from './unified-network/error-integration.js'
 import { installUnifiedTierProbe } from './unified-tier-probe.js';
 import { initSynapseFilterUI } from './synapse-filter-ui.js';
 import './synapse-context.js';
-import './explorer-coordinator.js';
+import './explorer-coordinator.js?v=responsive-parity-20261016';
 
 // ------------------------------------------------------------------
 // Feature flags (read dynamically so changes apply without redeploy)

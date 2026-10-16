@@ -173,6 +173,7 @@ window.CommandDashboard = (() => {
     _wireExploreToggle();
     _wireAvatarClick();
     _wireAdminBtn();
+    _wireSettingsBtn();
     _wireBellBtn();
     _wireLogoutBtn();
     _wireWorkspaceView();
@@ -1957,6 +1958,14 @@ window.CommandDashboard = (() => {
         window.openProfileModal();
       }
     });
+  }
+
+  /** Wire settings button → the shared settings modal (settings-modal.js),
+   *  the same one Home → Account opens on mobile. */
+  function _wireSettingsBtn() {
+    const btn = $id('cd-settings-btn');
+    if (!btn) return;
+    btn.addEventListener('click', () => window.SettingsModal?.open?.());
   }
 
   /** Wire admin button → open admin panel (hidden until admin role confirmed) */

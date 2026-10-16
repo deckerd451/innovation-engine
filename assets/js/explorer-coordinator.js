@@ -76,7 +76,13 @@ function selectPerson({ id, label, node = null } = {}, options = {}) {
   _emit('person-selected');
 
   if (options.focusGraph !== false) {
-    window.GraphController?.focusNode?.(personId, { openPanel: false });
+    // The map may not be ready (still loading, or hidden on mobile); the
+    // person's panel must open either way.
+    try {
+      window.GraphController?.focusNode?.(personId, { openPanel: false });
+    } catch (error) {
+      console.warn('[ExplorerCoordinator] graph focus unavailable:', error?.message || error);
+    }
   }
   if (options.openPanel !== false && typeof window.openNodePanel === 'function') {
     window.openNodePanel(node || { id: personId, type: 'person', name: label });
