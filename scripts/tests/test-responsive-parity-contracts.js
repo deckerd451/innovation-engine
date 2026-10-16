@@ -35,6 +35,8 @@ assert.match(coordinator, /try \{\s*window\.GraphController\?\.focusNode\?\.\(pe
 // Messages: the header is outside #main-content (its own stacking context,
 // beneath the mobile Home screen) and shown on every mobile destination.
 assert.doesNotMatch(commandCss, /body:not\(\.mobile-tab-home\) #mobile-header-actions #btn-messages-mobile/);
+assert.match(commandCss, /#mobile-header-actions \{[^}]*flex-direction: row !important;/, 'the header is one row, clear of the search box');
+assert.match(read('assets/css/mobile-you.css'), /\.mobile-you-header \{[^}]*padding:\.15rem 108px/, 'the Home header leaves room for the header buttons');
 const mainStart = index.indexOf('id="main-content"');
 let depth = 0;
 let mainEnd = -1;

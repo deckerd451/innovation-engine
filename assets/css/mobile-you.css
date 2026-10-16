@@ -9,7 +9,8 @@
   .mobile-you-scroll { height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: max(1.25rem, env(safe-area-inset-top, 0px)) 1rem calc(1.5rem + env(safe-area-inset-bottom, 0px)); }
   .mobile-you-content { max-width: 680px; margin: 0 auto; display: grid; gap: .6rem; }
   .mobile-you-screen { isolation: isolate; }
-  .mobile-you-header { display:flex; align-items:center; gap:.8rem; padding:.15rem 0 .35rem; }
+  /* Room for the Messages / Actions buttons (two 44px buttons at top right). */
+  .mobile-you-header { display:flex; align-items:center; gap:.8rem; padding:.15rem 108px .35rem 0; }
   .mobile-you-avatar { width:52px; height:52px; border-radius:16px; display:grid; place-items:center; background:linear-gradient(135deg,#ff6b6b,#ff8c8c); color:white; font-size:1.4rem; font-weight:800; }
   .mobile-you-eyebrow { margin:0; color:#00e0ff; font-size:.72rem; text-transform:uppercase; letter-spacing:.1em; }
   .mobile-you-header h1 { margin:.1rem 0; color:white; font-size:1.45rem; }

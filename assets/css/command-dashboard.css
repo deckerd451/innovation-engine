@@ -246,6 +246,10 @@ body.reflection-resizing #network-reflection { transition:none; }
     top: calc(env(safe-area-inset-top, 0px) + 12px) !important;
     right: 12px !important;
     left: auto !important;
+    /* One row (dashboard.css stacks it on phones), so it never reaches below
+       the 60px kept clear above the Explore search box. */
+    flex-direction: row !important;
+    align-items: center !important;
     gap: .5rem !important;
     z-index: 701 !important;
   }

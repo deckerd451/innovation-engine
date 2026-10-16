@@ -230,6 +230,19 @@ async function searchChecks(prefix) {
     check(await evaluate(`document.activeElement?.id === 'global-search'`), `${prefix}: search box is usable`);
     const size = await evaluate(`parseFloat(getComputedStyle(document.getElementById('global-search')).fontSize)`);
     if (current.mobile) check(size >= 16, `${prefix}: search text is at least 16px (no iOS zoom on focus)`, `${size}px`);
+    // With unread actions both header buttons show; neither may cover the
+    // search field or its submit button.
+    if (current.mobile) {
+      await evaluate(`document.getElementById('btn-actions-mobile').dataset.empty = 'false'; true`);
+      const overlap = await evaluate(`(() => {
+        const box = document.getElementById('search-container').getBoundingClientRect();
+        const hits = (r) => r.width && r.height && r.left < box.right && r.right > box.left && r.top < box.bottom && r.bottom > box.top;
+        return ['btn-messages-mobile', 'btn-actions-mobile'].filter(id => hits(document.getElementById(id).getBoundingClientRect()));
+      })()`);
+      check(overlap.length === 0 && await usable('#search-button') && await usable('#btn-actions-mobile') && await usable('#btn-messages-mobile'),
+        `${prefix}: with Messages and Actions both showing, the search field and button stay uncovered`, `overlapping: ${overlap.join(', ')}`);
+      await evaluate(`document.getElementById('btn-actions-mobile').dataset.empty = 'true'; document.getElementById('global-search').focus(); true`);
+    }
     const hints = await evaluate(`(() => { const i = document.getElementById('global-search'); return [i.getAttribute('enterkeyhint'), i.getAttribute('autocapitalize'), i.getAttribute('autocomplete')].join(','); })()`);
     check(hints === 'search,off,off', `${prefix}: keyboard shows Search and does not autocapitalize`, hints);
   });
@@ -312,6 +325,11 @@ async function mobileRun(w) {
     await press('#mob-tab-home', 'Home tab');
     await waitFor(`!document.getElementById('mobile-you-screen').hidden && /Home/.test(document.querySelector('#mobile-you-content .mobile-you-eyebrow')?.textContent || '')`, 'Home', 8000);
     check(true, `${P}: Home opens`);
+    // A long name must not run under the Messages / Actions buttons.
+    await evaluate(`document.getElementById('btn-actions-mobile').dataset.empty = 'false'; document.querySelector('#mobile-you-content .mobile-you-header h1, #mobile-you-content .mobile-you-header h2, #mobile-you-content .mobile-you-header strong')?.append(' Longname-Hyphenated Member'); true`);
+    const clear = await evaluate(`(() => { const rail = document.getElementById('mobile-header-actions').getBoundingClientRect(); const text = document.querySelector('#mobile-you-content .mobile-you-header > div:last-child').getBoundingClientRect(); return text.right <= rail.left + 1 || text.top >= rail.bottom - 1; })()`);
+    check(clear, `${P}: the Home header stays clear of the Messages / Actions buttons`);
+    await evaluate(`document.getElementById('btn-actions-mobile').dataset.empty = 'true'; true`);
     await shot(`${P}-home`);
   });
   await messagesCheck(`${P} Home`, '#btn-messages-mobile');
