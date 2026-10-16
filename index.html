@@ -832,7 +832,7 @@
   <link rel="stylesheet" href="assets/css/mobile-task-assistance.css?v=accomplishment-20261013">
   <link rel="stylesheet" href="assets/css/assistance-interventions.css?v=accomplishment-20261013">
   <script src="assets/js/mobile-you.js?v=accomplishment-20261013" defer></script>
-  <script type="module" src="assets/js/node-panel.js?v=member-content-xss-20261014"></script>
+  <script type="module" src="assets/js/node-panel.js?v=membership-ux-20261015"></script>
   <script src="assets/js/mobile-task-assistance.js?v=accomplishment-20261013" defer></script>
   <script src="assets/js/node-panel-fixes.js?v=fc09b39b-17701461543" defer></script>
   <script src="assets/js/dashboard-actions.js?v=membership-authz-xss-20261014" defer></script>
@@ -878,7 +878,7 @@
       { src: 'assets/js/connectionRequests.js?v=fc09b39b-1770146154f916933b2da', module: true },
       // Canonical organization mutations. Initialize it against the same
       // authenticated Supabase client before any Explorer create action runs.
-      { src: 'assets/js/organizations/organization-manager.js?v=explorer-org-create-20260822a', module: true,
+      { src: 'assets/js/organizations/organization-manager.js?v=membership-ux-20261015', module: true,
         initialize: function() {
           if (!window.OrganizationManager?.init || !window.supabase) {
             throw new Error('Organization manager dependencies unavailable');

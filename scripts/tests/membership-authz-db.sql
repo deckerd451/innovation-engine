@@ -83,6 +83,34 @@ SET LOCAL ROLE authenticated;
 SELECT t.allowed($$DELETE FROM public.organization_members WHERE id = '31000000-0000-4000-8000-00000000000c'$$, 'member leaves');
 RESET ROLE;
 
+-- The organization panel's own statements (organization-manager.js:
+-- approveMemberRequest, updateMemberRole, declineMemberRequest,
+-- leaveOrganization). Eli is now the only owner.
+SELECT t.act('a0000000-0000-4000-8000-00000000000f');
+SET LOCAL ROLE authenticated;
+SELECT t.allowed($$INSERT INTO public.organization_members (id, organization_id, community_id, role, status) VALUES ('31000000-0000-4000-8000-00000000000f', '30000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-00000000000f', 'member', 'pending')$$, 'Fay asks to join');
+RESET ROLE;
+SELECT t.act('a0000000-0000-4000-8000-00000000000c');
+SET LOCAL ROLE authenticated;
+SELECT t.allowed($$INSERT INTO public.organization_members (id, organization_id, community_id, role, status) VALUES ('31000000-0000-4000-8000-0000000000c2', '30000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-00000000000c', 'member', 'pending')$$, 'Carol asks to join again');
+SELECT t.allowed($$DELETE FROM public.organization_members WHERE organization_id = '30000000-0000-4000-8000-000000000001' AND community_id = '10000000-0000-4000-8000-00000000000c' AND status = 'pending'$$, 'requester withdraws from the panel');
+SELECT t.allowed($$INSERT INTO public.organization_members (id, organization_id, community_id, role, status) VALUES ('31000000-0000-4000-8000-0000000000c2', '30000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-00000000000c', 'member', 'pending')$$, 'Carol asks to join once more');
+SELECT t.blocked($$UPDATE public.organization_members SET status = 'active', can_post_opportunities = false, can_manage_members = false, can_edit_profile = false WHERE id = '31000000-0000-4000-8000-00000000000f' AND organization_id = '30000000-0000-4000-8000-000000000001' AND role = 'member' AND status = 'pending'$$, 'non-admin uses the panel''s approve on someone else''s request');
+RESET ROLE;
+SELECT t.act('a0000000-0000-4000-8000-00000000000e');
+SET LOCAL ROLE authenticated;
+SELECT t.allowed($$UPDATE public.organization_members SET status = 'active', can_post_opportunities = false, can_manage_members = false, can_edit_profile = false WHERE id = '31000000-0000-4000-8000-00000000000f' AND organization_id = '30000000-0000-4000-8000-000000000001' AND role = 'member' AND status = 'pending'$$, 'owner approves from the panel');
+SELECT t.eq((SELECT count(*) FROM public.organization_members WHERE id = '31000000-0000-4000-8000-00000000000f' AND role = 'member' AND status = 'active' AND NOT (can_post_opportunities OR can_manage_members OR can_edit_profile)), 1, 'approved requester is a plain member');
+SELECT t.allowed($$DELETE FROM public.organization_members WHERE id = '31000000-0000-4000-8000-0000000000c2' AND organization_id = '30000000-0000-4000-8000-000000000001' AND status = 'pending'$$, 'owner declines from the panel');
+SELECT t.allowed($$UPDATE public.organization_members SET role = 'admin' WHERE organization_id = '30000000-0000-4000-8000-000000000001' AND community_id = '10000000-0000-4000-8000-00000000000f' AND status = 'active' AND id = '31000000-0000-4000-8000-00000000000f'$$, 'owner changes a role from the panel');
+SELECT t.eq((SELECT count(*) FROM public.organization_members WHERE id = '31000000-0000-4000-8000-00000000000f' AND role = 'admin' AND NOT (can_post_opportunities OR can_manage_members OR can_edit_profile)), 1, 'promotion to admin grants no permission flags');
+SELECT t.denied($$DELETE FROM public.organization_members WHERE organization_id = '30000000-0000-4000-8000-000000000001' AND community_id = '10000000-0000-4000-8000-00000000000e'$$, 'sole owner leaves from the panel');
+RESET ROLE;
+SELECT t.act('a0000000-0000-4000-8000-00000000000f');
+SET LOCAL ROLE authenticated;
+SELECT t.allowed($$DELETE FROM public.organization_members WHERE organization_id = '30000000-0000-4000-8000-000000000001' AND community_id = '10000000-0000-4000-8000-00000000000f'$$, 'admin leaves from the panel');
+RESET ROLE;
+
 -- ===========================================================================
 -- Projects
 -- ===========================================================================
