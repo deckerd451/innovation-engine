@@ -18,7 +18,7 @@ assert.match(nav, /function setMobileSurface\(surface\)/);
 assert.match(nav, /`mobile-surface-\$\{name\}`/);
 assert.match(nav, /setMobileSurface\('you'\)/);
 assert.match(nav, /surface = mode === 'network' \? 'community' : 'discover'/);
-assert.match(nav, /community: \(\) => setDiscoverMode\('network', 'community'\)/);
+assert.match(nav, /network: \(\) => setDiscoverMode\('network', 'community'\)/);
 assert.match(nav, /\.inert = surface/);
 assert.match(dashboardCss, /body\.mobile-surface-discover #command-dashboard #cd-focus/);
 assert.match(dashboardCss, /mobile-surface-community #synapse-main-view/);
@@ -63,12 +63,9 @@ assert.ok(shellTag, 'service worker must declare a versioned shell');
 for (const asset of ['command-dashboard.css', 'mobile-nav.js', 'mobile-you.css', 'mobile-you.js', 'mobile-goal-discovery.js', 'mobile-task-assistance.js', 'mobile-task-assistance.css', 'assistance-interventions.js', 'assistance-interventions.css', 'capability-memory.js']) {
   assert.match(index, new RegExp(`${asset.replace('.', '\\.')}\\?v=${shellTag}`), `${asset} must be cache-busted with the current shell version`);
 }
-// One vocabulary at every width: Home, Explore, Network.
-assert.match(index, /id="mob-tab-home"[^>]*aria-label="Home"[\s\S]{0,80}<span>Home<\/span>/);
-assert.match(index, /id="mob-tab-discover"[^>]*aria-label="Explore"[\s\S]{0,80}<span>Explore<\/span>/);
-assert.match(index, /data-surface="community" aria-label="Network">[\s\S]{0,80}<span>Network<\/span>/);
-assert.match(index, /data-workspace-view="today"[^>]*>Home<\/button>/);
-assert.match(index, /data-workspace-view="network"[^>]*>Network<\/button>/);
-assert.doesNotMatch(index, /<span>(My Space|Community)<\/span>/);
+// One vocabulary at every width: Home, Explore, Network, Inbox, You.
+const labels = [...index.matchAll(/data-destination="([a-z]+)"[^>]*>\s*<i[^>]*><\/i><span>([^<]+)<\/span>/g)].map(m => `${m[1]}:${m[2]}`);
+assert.deepEqual(labels, ['home:Home', 'explore:Explore', 'network:Network', 'inbox:Inbox', 'you:You']);
+assert.doesNotMatch(index, /<span>(My Space|Community)<\/span>|data-workspace-view=/);
 
 console.log('Mobile UX stabilization contracts passed');

@@ -35,9 +35,10 @@ assert.match(js, /Buildspace doesn’t send this for you/);
 assert.match(js, /draft on this device/);
 assert.match(js, /if \(session\.task\.status === 'open'\) fields\.status = 'in_progress'/);
 
-// Mobile shell integrity: tab switches close the overlay; it clears the tab
-// bar and safe areas, scrolls in one container, and restores focus.
-assert.match(nav, /window\.MobileTaskAssistance\?\.close\?\.\(\)/);
+// Mobile shell integrity: switching destinations (app-nav.js) closes the
+// overlay; it clears the navigation and safe areas, scrolls in one
+// container, and restores focus.
+assert.match(fs.readFileSync('assets/js/app-nav.js', 'utf8'), /window\.MobileTaskAssistance\?\.close\?\.\(\)/);
 assert.match(css, /inset:0 0 var\(--mobile-tab-bar-height,68px\)/);
 assert.match(css, /\.mta-panel\{height:100%;[^}]*overflow-y:auto/);
 assert.match(css, /env\(safe-area-inset-bottom\)/);

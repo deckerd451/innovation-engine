@@ -54,7 +54,7 @@
 
   function render(tasks, attempts) {
     const focus = document.getElementById('cd-focus');
-    if (!focus || !document.querySelector('.mob-tab[data-tab="home"].active')) return;
+    if (!focus || document.body.dataset.destination !== 'home') return;
     let card = document.getElementById('cd-mobile-continuity');
     if (!card) { card = document.createElement('section'); card.id = 'cd-mobile-continuity'; card.className = 'cd-mobile-continuity'; focus.prepend(card); }
     else if (focus.firstElementChild !== card) focus.prepend(card);
@@ -69,7 +69,7 @@
     }));
   }
 
-  function refresh() { if (document.querySelector('.mob-tab[data-tab="home"].active')) load(window.currentUserProfile?.id); }
+  function refresh() { if (document.body.dataset.destination === 'home') load(window.currentUserProfile?.id); }
   window.MobileTodayContinuity = { load, refresh };
   window.MobileTodayContinuityTesting = { taskScore, chooseNextTask };
   window.addEventListener('profile-loaded', refresh);

@@ -24,7 +24,8 @@ assert.match(css, /#project-detail-overlay #pt-groups[\s\S]*?overflow:\s*visible
 assert.match(panel, /className = 'project-detail-overlay'/, 'project overlay should have a stable CSS hook');
 assert.match(panel, /class="project-detail-panel"/, 'project panel should have a stable CSS hook');
 assert.match(panel, /field\.scrollIntoView\(\{ block: 'center'/, 'focused mobile fields should be brought above the keyboard');
-assert.match(panel, /getElementById\('mobile-tab-bar'\)/, 'project overlay must measure the actual mobile navigation');
+assert.match(panel, /getElementById\('app-nav'\)/, 'project overlay must measure the actual mobile navigation');
+assert.match(panel, /navRect\.width >= window\.innerWidth - 1/, 'the desktop side bar takes no height from the bottom');
 assert.match(panel, /--pd-safe-bottom/, 'safe-area fallback must not be double-counted when navigation is visible');
 assert.match(swipe, /Math\.abs\(rawDy\) <= Math\.abs\(rawDx\)/, 'vertical page scrolling must not be captured as a dismiss drag');
 assert.match(swipe, /closest\?\.\('\.swipe-handle'\)/, 'dismiss gestures should start only from the explicit handle');

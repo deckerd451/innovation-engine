@@ -3,11 +3,15 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const index = fs.readFileSync('index.html', 'utf8');
 const nav = fs.readFileSync('assets/js/mobile-nav.js', 'utf8');
+const appNav = fs.readFileSync('assets/js/app-nav.js', 'utf8');
 const you = fs.readFileSync('assets/js/mobile-you.js', 'utf8');
 const css = fs.readFileSync('assets/css/mobile-you.css', 'utf8');
 
 assert.match(index, /id="mobile-you-screen"/);
-assert.match(index, /data-tab="profile"/);
+// Home (the shared navigation) shows this screen on phones and tablets.
+assert.match(index, /id="app-nav"[\s\S]*?data-destination="home"/);
+assert.match(appNav, /window\.MobileNav\?\.show\?\.\(page\)/);
+assert.match(nav, /home: \(\) => \{\s*setMobileSurface\('you'\);\s*window\.MobileYou\?\.show\(\);/);
 assert.match(nav, /window\.MobileYou\?\.show/);
 assert.match(nav, /window\.MobileYou\?\.hide/);
 for (const state of ['Loading your space', 'Sign in to see', 'could not be loaded']) assert.match(you, new RegExp(state));

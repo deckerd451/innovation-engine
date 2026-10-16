@@ -101,7 +101,7 @@ function runGesture(target) {
   const selectorMatch = src.match(/const PULL_REFRESH_EXCLUDE_SELECTOR =\s*\n?\s*'([^']+)'/);
   assert.ok(selectorMatch, 'PULL_REFRESH_EXCLUDE_SELECTOR must be defined');
   const selector = selectorMatch[1];
-  for (const required of ['svg', '.modal', '#node-side-panel', '#mobile-tab-bar', 'button', 'a', 'input', 'textarea']) {
+  for (const required of ['svg', '.modal', '#node-side-panel', '#app-nav', 'button', 'a', 'input', 'textarea']) {
     assert.ok(selector.includes(required), `PULL_REFRESH_EXCLUDE_SELECTOR must exclude ${required}`);
   }
 }

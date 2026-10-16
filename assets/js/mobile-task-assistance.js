@@ -515,13 +515,13 @@
     const target = event.target;
     if (target.closest('[data-mta-back]')) {
       close();
-      if (!document.body.classList.contains('mobile-surface-you')) document.querySelector('.mob-tab[data-tab="home"]')?.click();
+      if (!document.body.classList.contains('mobile-surface-you')) window.AppNav?.go?.('home');
       return;
     }
     if (target.closest('[data-mta-close]')) return close();
     if (target.closest('[data-mta-own-objective]')) {
       close();
-      if (!document.body.classList.contains('mobile-surface-you')) document.querySelector('.mob-tab[data-tab="home"]')?.click();
+      if (!document.body.classList.contains('mobile-surface-you')) window.AppNav?.go?.('home');
       window.setTimeout(() => document.getElementById('mgd-goal-input')?.focus(), 300);
       return;
     }

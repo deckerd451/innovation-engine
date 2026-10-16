@@ -12,12 +12,11 @@ const tasks = read('assets/js/project-tasks.js');
 const scroll = read('assets/css/mobile-project-scroll.css');
 const journey = read('assets/js/capability-journey.js');
 
-assert.match(index, /id="mobile-tab-bar"/);
-for (const tab of ['home', 'discover', 'profile']) {
-  assert.match(index, new RegExp(`data-tab="${tab}"`), `missing primary tab ${tab}`);
+assert.match(index, /<nav id="app-nav"/);
+for (const destination of ['home', 'explore', 'network', 'inbox', 'you']) {
+  assert.match(index, new RegExp(`data-destination="${destination}"`), `missing destination ${destination}`);
 }
-assert.match(nav, /discover: \(\) => setDiscoverMode\('explore'\)/);
-assert.match(nav, /profile: showMobileProfileSheet/);
+assert.match(nav, /explore: \(\) => setDiscoverMode\('explore'\)/);
 assert.match(panel, /overlay\.id\s*=\s*['"]project-detail-overlay['"]/);
 for (const tab of ['overview', 'tasks', 'capabilities', 'people', 'activity']) {
   assert.match(panel, new RegExp(`data-tab="${tab}"`), `missing project tab ${tab}`);

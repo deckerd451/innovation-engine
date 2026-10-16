@@ -27,7 +27,7 @@ function isMobile() {
 // without this check, pull-to-refresh armed on every touch anywhere
 // in the app and any accidental >80px downward drag reloaded the page.
 const PULL_REFRESH_EXCLUDE_SELECTOR =
-  'svg, .modal, #node-side-panel, #mobile-tab-bar, button, a, input, textarea, select, [role="button"], [contenteditable]';
+  'svg, .modal, #node-side-panel, #app-nav, button, a, input, textarea, select, [role="button"], [contenteditable]';
 
 // Pull-to-refresh is intentionally conservative because the app canvas is a
 // fixed full-screen surface: a normal downward swipe can start anywhere.
