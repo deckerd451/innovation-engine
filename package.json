@@ -9,6 +9,7 @@
     "test:db": "bash scripts/tests/run-db-tests.sh",
     "check:migrations": "node scripts/check-migrations.js",
     "test:xss": "node scripts/tests/browser/run-member-content-xss.mjs",
-    "test:logout": "node scripts/tests/browser/run-logout-confirm.mjs"
+    "test:logout": "node scripts/tests/browser/run-logout-confirm.mjs",
+    "test:responsive": "node scripts/tests/browser/run-responsive-parity.mjs"
   }
 }
