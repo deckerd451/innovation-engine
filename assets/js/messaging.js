@@ -919,8 +919,8 @@ const MessagingModule = (function () {
               💬 Messages
               ${state.unreadCount > 0 ? `<span class="unread-badge">${state.unreadCount}</span>` : ""}
             </h3>
-            <button class="new-message-btn" onclick="MessagingModule.showNewMessageModal()">
-              <i class="fas fa-plus"></i> New
+            <button class="new-message-btn" type="button" aria-label="New message" onclick="MessagingModule.showNewMessageModal()">
+              <i class="fas fa-plus" aria-hidden="true"></i> New
             </button>
           </div>
           <div class="conv-search-bar">

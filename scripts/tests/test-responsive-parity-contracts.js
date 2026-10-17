@@ -76,6 +76,19 @@ const micro = read('assets/js/micro-interactions.js');
 assert.match(micro, /if \(getComputedStyle\(btn\)\.position === 'static'\) btn\.style\.position = 'relative';/);
 assert.doesNotMatch(micro, /\n\s*btn\.style\.position = 'relative';/);
 
+// The Messages header: below the top safe area when full screen, with the
+// close X in the header row (the same 44px corner X as You); New and X are
+// labelled 44px targets at every width.
+const messagingCss = read('assets/css/messaging.css');
+assert.match(messagingCss, /#messages-container \.conversations-header \{\s*padding: calc\(0\.75rem \+ var\(--safe-top, 0px\)\) calc\(44px \+ 1rem\) 0\.75rem 1rem !important;/);
+assert.match(messagingCss, /#messages-modal \.modal-close \{\s*position: absolute !important;\s*top: calc\(0\.75rem \+ 1px \+ var\(--safe-top, 0px\)\) !important;/);
+assert.match(messagingCss, /\.conversations-header \.new-message-btn \{\s*min-height: 44px;/);
+assert.match(messagingCss, /#messages-modal \.modal-close \{\s*min-width: 44px;\s*min-height: 44px;/);
+assert.match(messagingCss, /\.conversations-header \{\s*flex-wrap: wrap;/);
+assert.doesNotMatch(messagingCss, /^\/\/\*/m, 'no stray slash that would drop the next rule');
+assert.match(index, /<button class="modal-close" type="button" aria-label="Close messages" onclick="closeMessagesModal\(\)">/);
+assert.match(read('assets/js/messaging.js'), /<button class="new-message-btn" type="button" aria-label="New message" onclick="MessagingModule\.showNewMessageModal\(\)">/);
+
 // Settings on desktop uses the existing settings modal (one implementation).
 assert.match(index, /<div class="cd-identity-actions">[\s\S]*?id="cd-settings-btn"[\s\S]*?id="cd-logout-btn"/);
 assert.match(commandJs, /\$id\('cd-settings-btn'\);[\s\S]{0,80}addEventListener\('click', \(\) => window\.SettingsModal\?\.open\?\.\(\)\)/);

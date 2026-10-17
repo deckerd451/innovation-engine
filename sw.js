@@ -4,7 +4,7 @@
    - Never caches Supabase traffic
 */
 
-const VERSION = "v18-profile-close-20261017";
+const VERSION = "v19-messages-header-20261017";
 const CACHE_NAME = `innovation-engine-shell-${VERSION}`;
 
 // Keep install cache minimal and stable.
