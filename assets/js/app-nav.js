@@ -69,8 +69,11 @@
     if (isDesktop()) {
       window.MobileNav?.reset?.();
       window.CommandDashboard?.setWorkspaceView?.(page === 'network' ? 'network' : 'today');
-      // Network lists people; the other resource tabs are Explore's.
+      // Network lists people; the other resource tabs are Explore's. The
+      // list's heading names the page (MobileNav does this on phones).
       if (page === 'network') window.CommandDashboard?.selectResourceTab?.('people');
+      const heading = document.querySelector('#cd-explore-toggle span');
+      if (heading) heading.textContent = page === 'network' ? 'Network' : 'Explore';
       const scroller = document.querySelector('#command-dashboard .cd-scroll-area');
       if (page === 'explore') {
         document.getElementById('centered-search-container')?.scrollIntoView({ block: 'start' });

@@ -19,15 +19,15 @@ const LOG = '[NearifyEventsPanel]';
 
 export function renderNearifyEventsPanel() {
   return `
-    <div class="ch-nearify-events-panel" id="nearify-events-panel">
+    <div class="ch-nearify-events-panel">
       <div class="ch-nearify-events-header">
         <span class="ch-nearify-events-title">
           <i class="fas fa-map-marker-alt" style="color:#f43f5e;margin-right:.4rem"></i>
           People you met
         </span>
-        <span class="ch-nearify-events-status" id="nearify-events-status">Loading…</span>
+        <span class="ch-nearify-events-status">Loading…</span>
       </div>
-      <div class="ch-nearify-events-body" id="nearify-events-body">
+      <div class="ch-nearify-events-body">
         <div class="ch-nearify-events-spinner"></div>
       </div>
     </div>
@@ -42,12 +42,14 @@ export async function initNearifyEventsPanel(container) {
   const supabase = window.supabase;
   const root = container || document;
   const panel = root.querySelector
-    ? root.querySelector('#nearify-events-panel')
-    : document.getElementById('nearify-events-panel');
+    ? root.querySelector('.ch-nearify-events-panel')
+    : document.querySelector('.ch-nearify-events-panel');
   if (!panel) return;
 
-  const body = panel.querySelector('#nearify-events-body');
-  const status = panel.querySelector('#nearify-events-status');
+  // Classes, not ids: the section can be on the page twice (Network and
+  // the profile in You), and each copy loads into its own container.
+  const body = panel.querySelector('.ch-nearify-events-body');
+  const status = panel.querySelector('.ch-nearify-events-status');
 
   if (!supabase) {
     if (body) body.innerHTML = '<p class="ch-nearify-events-empty">Not available</p>';

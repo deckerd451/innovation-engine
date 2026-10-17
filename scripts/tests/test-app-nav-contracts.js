@@ -98,6 +98,11 @@ assert.match(appNav, /window\.NearifyEventsPanel\?\.mount\?\.\(document\.getElem
 assert.match(appNav, /\n    syncNetworkHistory\(page\);\n  \}/, 'every layout runs it');
 const mounters = jsFiles.filter(file => !file.endsWith('nearify-events-panel.js') && /NearifyEventsPanel\??\.(render|init|mount)\b/.test(read(file)));
 assert.deepEqual(mounters.map(f => path.basename(f)), ['app-nav.js']);
+// The profile (You) keeps its existing copy; copies use classes, not ids.
+assert.match(read('profile.js'), /window\.NearifyEventsPanel\?\.render\?\.\(\)/);
+assert.doesNotMatch(events, /id="nearify-events/);
+// The desktop list heading names the page.
+assert.match(appNav, /heading\.textContent = page === 'network' \? 'Network' : 'Explore';/);
 // One module instance: the router's fallback import matches the page's.
 const eventsTag = (index.match(/nearify-events-panel\.js\?v=([a-z0-9-]+)/) || [])[1];
 assert.ok(eventsTag && appNav.includes(`import('./nearify-events-panel.js?v=${eventsTag}')`));

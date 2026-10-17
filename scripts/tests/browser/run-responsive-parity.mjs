@@ -386,6 +386,7 @@ const contentState = () => callInPage(function () {
     tabs: [...document.querySelectorAll('#udc-resource-tabs .udc-resource-tab')].filter(shown).map(t => t.dataset.resource),
     activeTab: $('#udc-resource-tabs .udc-resource-tab.active')?.dataset.resource || '',
     listLabel: $('#udc-resource-list .udc-resource-section-label')?.textContent || '',
+    heading: $('#cd-explore-toggle span')?.textContent || '',
     listText: shown($('#udc-resource-list')) ? $('#udc-resource-list').innerText : '',
     histories: document.querySelectorAll('#cd-network-history').length,
     history: shown(history),
@@ -421,10 +422,12 @@ async function expectPage(P, page, label = `${P}: ${page} shows only its own con
   } else if (page === 'explore') {
     want(c.search && c.explore, 'search and Explore list');
     want(c.tabs.join() === 'people,projects,themes,organizations,opportunities', `all five categories (${c.tabs})`);
+    want(c.heading === 'Explore', `headed Explore (${c.heading})`);
     want(!c.focus && !c.homeScreen, 'no Home content');
     want(!c.map, 'no map');
   } else {
     want(c.search && c.explore, 'people search and list');
+    want(c.heading === 'Network', `headed Network (${c.heading})`);
     want(c.tabs.join() === 'people' && c.activeTab === 'people' && /People/.test(c.listLabel), `only people (${c.tabs}; ${c.activeTab}; ${c.listLabel})`);
     want(/Dana \(fixture\)/.test(c.listText) && /Jordan \(fixture\)[\s\S]*Connection request/.test(c.listText), 'connections and requests');
     want(!c.focus && !c.homeScreen, 'no Home content');
@@ -461,6 +464,20 @@ async function contentChecks(P) {
     await go('network');
     await expectPage(P, 'network', `${P}: Network lists people after another Explore category`);
     await shot(`${P}-network-people-you-met`);
+  });
+  // You (the profile) has its own copy of People you met; with Network open
+  // both load into their own containers, with no repeated element ids.
+  await step(`${P}: People you met in Network and in You load separately`, async () => {
+    await press(NAV('you'), 'You');
+    await waitFor(`/Charleston Founders Meetup/.test(document.querySelector('#profile-modal .ch-nearify-events-panel')?.textContent || '')`, 'You copy', 8000);
+    const state = await evaluate(`({
+      network: /Charleston Founders Meetup/.test(document.getElementById('cd-network-history')?.innerText || ''),
+      copies: document.querySelectorAll('.ch-nearify-events-panel').length,
+      ids: document.querySelectorAll('[id^="nearify-events"]').length,
+    })`);
+    check(state.network && state.copies === 2 && state.ids === 0, `${P}: People you met in Network and in You load separately`, JSON.stringify(state));
+    await evaluate(`window.closeProfileModal?.(); true`);
+    await sleep(300);
   });
   await step(`${P}: People you met → Connect sends a request`, async () => {
     await press('#cd-network-history .ch-btn-peer-connect[data-edge-id="e1000000-0000-4000-8000-000000000001"]', 'Connect (Sam)');
