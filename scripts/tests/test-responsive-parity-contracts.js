@@ -55,6 +55,15 @@ const appNavAt = index.indexOf('<nav id="app-nav"');
 assert.ok(appNavAt > mainEnd, 'the main navigation sits outside #main-content');
 assert.match(read('assets/js/app-nav.js'), /destination === 'inbox'[\s\S]{0,120}window\.openMessagesModal\(\)/);
 
+// Scrolling on phones and tablets: the dashboard is a fixed-height column
+// ending at the bottom bar, so Explore and Network scroll inside it (the
+// scroll area must not size to its content), and full-screen surfaces end at
+// the bar's top edge, safe area included.
+assert.match(commandCss, /#command-dashboard\.cd-mobile-panel \.cd-scroll-area \{\s*flex: 1 1 auto;\s*min-height: 0;\s*overflow-y: auto;/);
+assert.doesNotMatch(commandCss, /cd-mobile-panel \.cd-scroll-area \{\s*flex: none/);
+assert.match(read('assets/css/base.css'), /:root \{ --mobile-tab-bar-height: calc\(60px \+ env\(safe-area-inset-bottom, 0px\)\); \}/);
+assert.match(commandCss, /inset:0 0 calc\(60px \+ env\(safe-area-inset-bottom,0px\)\) 0!important;/, 'the dashboard ends at the bottom bar');
+
 // Settings on desktop uses the existing settings modal (one implementation).
 assert.match(index, /<div class="cd-identity-actions">[\s\S]*?id="cd-settings-btn"[\s\S]*?id="cd-logout-btn"/);
 assert.match(commandJs, /\$id\('cd-settings-btn'\);[\s\S]{0,80}addEventListener\('click', \(\) => window\.SettingsModal\?\.open\?\.\(\)\)/);

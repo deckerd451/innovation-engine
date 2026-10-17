@@ -786,6 +786,9 @@ body.profile-modal-open .side-panel {
 .app-nav-badge[hidden] { display: none; }
 
 @media (max-width: 1023px) {
+  /* The bottom bar's height: full-screen surfaces (Home, goal assistance)
+     end at its top edge, including the safe area below it. */
+  :root { --mobile-tab-bar-height: calc(60px + env(safe-area-inset-bottom, 0px)); }
   /* Reserve space at bottom for the navigation */
   body.app-nav-visible {
     padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
