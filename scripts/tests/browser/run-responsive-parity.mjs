@@ -21,6 +21,10 @@
 //     (event names and dates, consented photos at card size, Connect)
 //   - search from Network: people stay in Network, anything else opens in
 //     Explore
+//   - scrolling: with a mouse wheel (and touch drags on touch screens) the
+//     last item of Home, Explore, Network, Inbox and You can be reached,
+//     clear of the navigation, at phone, tablet, short and desktop sizes,
+//     after switching pages, closing a panel and resizing
 //   - Explore search: keyboard-safe input, suggestions on screen, opening a
 //     result, and Enter for full results
 //   - goal assistance on phones and tablets, closed by navigating away
@@ -70,10 +74,12 @@ const server = http.createServer((req, res) => {
   fs.createReadStream(file).pipe(res);
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-const base = `http://127.0.0.1:${server.address().port}`;
+// Served as buildspace.test (mapped to this server): realtimeManager.js has a
+// dev-only guard on localhost/127.0.0.1 that stops Messages from loading.
+const base = `http://buildspace.test:${server.address().port}`;
 
 const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bs-parity-chrome-'));
-const chrome = spawn(CHROME, ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profileDir}`, '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--no-sandbox', 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
+const chrome = spawn(CHROME, ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profileDir}`, '--no-first-run', '--host-resolver-rules=MAP buildspace.test 127.0.0.1', '--no-default-browser-check', '--disable-gpu', '--no-sandbox', 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
 const wsUrl = await new Promise((resolve, reject) => {
   let buffer = '';
   chrome.stderr.on('data', chunk => { buffer += chunk; const m = buffer.match(/DevTools listening on (ws:\/\/\S+)/); if (m) resolve(m[1]); });
@@ -213,6 +219,18 @@ const boot = `${fixtures}\n${fake}\n(() => {
     ] },
   ] };
   // The person panel reads this view.
+  // Long lists for the scrolling checks: a member with many skills (Skills
+  // shows 15) and 20 conversations in Inbox.
+  seed.community.push({ id: '50000000-0000-4000-8000-0000000000a1', user_id: 'auth-morgan', name: 'Morgan (fixture)', interests: [],
+    skills: Array.from({ length: 40 }, (_, i) => 'Skill ' + String(i + 1).padStart(2, '0')) });
+  const meRow = seed.community[0];
+  seed.conversations = Array.from({ length: 20 }, (_, i) => {
+    const n = String(i + 1).padStart(2, '0');
+    const other = { id: '51000000-0000-4000-8000-0000000000' + n, user_id: 'auth-contact-' + n, name: 'Contact ' + n, email: '' };
+    return { id: '52000000-0000-4000-8000-0000000000' + n, participant_1_id: me, participant_2_id: other.id,
+      participant_1: { ...meRow }, participant_2: other, last_message_at: new Date(Date.UTC(2026, 9, 16, 12, 60 - i)).toISOString(),
+      last_message_preview: 'Message ' + n, created_at: '2026-10-01T00:00:00Z' };
+  });
   seed.community_with_last_seen = seed.community.map(row => ({ ...row }));
   const session = signedOut ? null : { access_token: 'fixture', user: { id: 'auth-me', email: 'member@example.test' } };
   window.supabase = window.createFakeSupabase(seed, { session });
@@ -225,6 +243,15 @@ const boot = `${fixtures}\n${fake}\n(() => {
     return rpc(name, args);
   };
   window.__fixtureProfile = seed.community[0];
+  // The map cannot load against the fake client, so the network module shows
+  // a "critical error" toast that would cover controls (such as the
+  // Messages close button); remove it. Production loads the map.
+  const toast = 'A critical error occurred. Please reload the page.';
+  new MutationObserver(() => {
+    document.querySelectorAll('body *').forEach(el => {
+      if ((el.textContent || '').trim() === toast && (el.parentElement?.textContent || '').trim() !== toast) el.remove();
+    });
+  }).observe(document, { childList: true, subtree: true });
 })();`;
 
 async function load(w) {
@@ -547,6 +574,199 @@ async function networkSearchChecks(P) {
   await evaluate(`(() => { const i = document.getElementById('global-search'); i.value = ''; i.blur(); document.getElementById('search-suggestions')?.replaceChildren(); return true; })()`);
 }
 
+// ── Scrolling ────────────────────────────────────────────────────────────
+// Where the element is now, without scrolling it into view (locate() does).
+const reach = (selector) => callInPage(function (sel) {
+  const el = document.querySelector(sel);
+  if (!el) return { missing: true };
+  const r = el.getBoundingClientRect();
+  const bar = document.getElementById('app-nav');
+  const br = bar && !bar.hidden ? bar.getBoundingClientRect() : null;
+  // The bottom bar limits what can be seen unless a full-screen window
+  // (Messages, the profile) is on top of it.
+  const barShown = br && br.top > 0 && br.width >= innerWidth - 1 && bar.contains(document.elementFromPoint(br.left + br.width / 2, br.top + br.height / 2));
+  const limit = barShown ? br.top : innerHeight;
+  const x = r.left + r.width / 2, y = r.top + Math.min(r.height / 2, 20);
+  const hit = y >= 0 && y < innerHeight ? document.elementFromPoint(x, y) : null;
+  return { top: Math.round(r.top), bottom: Math.round(r.bottom), limit: Math.round(limit), navTop: br ? Math.round(br.top) : null,
+    ok: r.height > 0 && r.top >= -1 && r.bottom <= limit + 1 && !!hit && (hit === el || el.contains(hit)),
+    hit: hit ? (hit.id || String(hit.className).slice(0, 30) || hit.tagName) : null };
+}, selector);
+
+// A point inside the element's scroll area (or the page, if none scrolls),
+// clear of the navigation, and every scroll area back at the top.
+const scrollPoint = (selector, reset) => callInPage(function (sel, resetAll) {
+  const el = document.querySelector(sel);
+  const scrollers = [];
+  for (let a = el?.parentElement; a; a = a.parentElement) {
+    if (/(auto|scroll)/.test(getComputedStyle(a).overflowY) && a.scrollHeight > a.clientHeight + 1) scrollers.push(a);
+  }
+  if (resetAll) scrollers.forEach(a => { a.scrollTop = 0; });
+  const bar = document.getElementById('app-nav');
+  const br = bar && !bar.hidden ? bar.getBoundingClientRect() : null;
+  const barShown = br && br.top > 0 && br.width >= innerWidth - 1 && bar.contains(document.elementFromPoint(br.left + br.width / 2, br.top + br.height / 2));
+  const limit = barShown ? br.top : innerHeight;
+  const box = scrollers[0]?.getBoundingClientRect() || { left: 0, right: innerWidth, top: 0, bottom: innerHeight };
+  const top = Math.max(box.top, 0), bottom = Math.min(box.bottom, limit);
+  const r = el.getBoundingClientRect();
+  return { x: Math.round((Math.max(box.left, 0) + Math.min(box.right, innerWidth)) / 2), y: Math.round(top + (bottom - top) / 2), down: r.top >= top, scrollers: scrollers.length };
+}, selector, reset);
+
+// Scroll as a person would until the element can be seen and pressed: mouse
+// wheel, or a touch drag. Fails if the content cannot be scrolled to it.
+async function scrollToReach(selector, mode) {
+  const start = await reach(selector);
+  if (start.missing) return { ok: false, why: 'missing' };
+  await scrollPoint(selector, true);
+  await sleep(150);
+  const first = await reach(selector);
+  let last = first;
+  let still = 0;
+  for (let i = 0; i < 40 && !last.ok; i++) {
+    const at = await scrollPoint(selector, false);
+    if (mode === 'touch') {
+      await send('Input.synthesizeScrollGesture', { x: at.x, y: at.y, yDistance: at.down ? -250 : 250, gestureSourceType: 'touch', speed: 1500, repeatCount: 0 });
+    } else {
+      await send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: at.x, y: at.y, deltaX: 0, deltaY: at.down ? 250 : -250 });
+    }
+    await sleep(120);
+    const now = await reach(selector);
+    still = now.top === last.top ? still + 1 : 0;
+    last = now;
+    if (still >= 4) break;
+  }
+  return { ok: last.ok, scrolled: first.top !== last.top, navStill: first.navTop === last.navTop, first, last };
+}
+
+async function expectReach(label, selector, { mustScroll = false } = {}) {
+  const modes = current.mobile ? ['touch', 'wheel'] : ['wheel'];
+  for (const mode of modes) {
+    const r = await scrollToReach(selector, mode);
+    check(r.ok && r.navStill && (!mustScroll || r.scrolled), `${label} (${mode})`,
+      JSON.stringify({ ok: r.ok, scrolled: r.scrolled, navStill: r.navStill, why: r.why, first: r.first, last: r.last }));
+  }
+}
+
+const LAST = {
+  explore: '#udc-resource-list .udc-resource-item:last-child',
+  network: '#cd-network-history .ch-peer-card:last-child .ch-btn-peer-connect',
+  inbox: '#conversations-list .conversation-item:last-child',
+  you: '#btn-open-profile-editor',
+};
+const phoneLayout = () => current.width < 1024;
+
+async function scrollChecks(P) {
+  await step(`${P}: Home scrolls to its last item`, async () => {
+    await go('home');
+    await expectReach(`${P}: Home scrolls to its last item`, phoneLayout() ? '#mobile-you-content > :last-child' : '#cd-focus-welcome');
+  });
+  await step(`${P}: Explore scrolls to the last Skill`, async () => {
+    await go('explore');
+    await press('#udc-resource-tabs [data-resource="themes"]', 'Skills tab');
+    await waitFor(`document.querySelectorAll('#udc-resource-list .udc-resource-item').length === 15`, 'Skills', 6000);
+    await expectReach(`${P}: Explore scrolls to the last Skill`, LAST.explore, { mustScroll: phoneLayout() });
+  });
+  await step(`${P}: Network scrolls to the last person you met`, async () => {
+    await go('network');
+    await waitFor(`/HCD Event/.test(document.getElementById('cd-network-history')?.innerText || '')`, 'People you met', 8000);
+    await expectReach(`${P}: Network scrolls to the last person you met`, LAST.network);
+  });
+  await step(`${P}: Inbox scrolls to the last conversation`, async () => {
+    await press(NAV('inbox'), 'Inbox');
+    await waitFor(`document.querySelectorAll('#conversations-list .conversation-item').length === 20`, 'conversations', 8000);
+    await expectReach(`${P}: Inbox scrolls to the last conversation`, LAST.inbox, { mustScroll: true });
+    await closeMessages();
+  });
+  await step(`${P}: You scrolls to its last action`, async () => {
+    await press(NAV('you'), 'You');
+    await waitFor(`document.getElementById('btn-open-profile-editor')?.getClientRects().length`, 'profile', 6000);
+    await expectReach(`${P}: You scrolls to its last action`, LAST.you);
+    await evaluate(`window.closeProfileModal?.(); true`);
+    await sleep(300);
+  });
+}
+
+// Scrolling keeps working after switching pages, closing a panel and
+// resizing across the breakpoint.
+async function scrollScenarioChecks() {
+  await load(WIDTHS[0]);
+  await step('scroll: after switching pages', async () => {
+    for (const page of ['network', 'home', 'explore', 'network', 'explore']) await go(page);
+    await press('#udc-resource-tabs [data-resource="themes"]', 'Skills tab');
+    await waitFor(`document.querySelectorAll('#udc-resource-list .udc-resource-item').length === 15`, 'Skills', 6000);
+    await expectReach('scroll: Explore after switching pages', LAST.explore, { mustScroll: true });
+  });
+  await step('scroll: after opening and closing a panel', async () => {
+    await press('#udc-resource-tabs [data-resource="organizations"]', 'Organizations tab');
+    await waitFor(`/Harbor Builders/.test(document.getElementById('udc-resource-list')?.innerText || '')`, 'organizations', 6000);
+    await press('#udc-resource-list .udc-resource-item[data-id="30000000-0000-4000-8000-0000000000a1"] .udc-resource-show-btn', 'Harbor Builders');
+    await waitFor(isOpen.panel, 'panel', 6000);
+    await closePanel();
+    await press('#udc-resource-tabs [data-resource="themes"]', 'Skills tab');
+    await waitFor(`document.querySelectorAll('#udc-resource-list .udc-resource-item').length === 15`, 'Skills', 6000);
+    await expectReach('scroll: Explore after closing a panel', LAST.explore, { mustScroll: true });
+    await go('network');
+    await waitFor(`/HCD Event/.test(document.getElementById('cd-network-history')?.innerText || '')`, 'People you met', 8000);
+    await press(NAV('you'), 'You');
+    await sleep(800);
+    await evaluate(`window.closeProfileModal?.(); true`);
+    await sleep(400);
+    await expectReach('scroll: Network after closing You', LAST.network, { mustScroll: true });
+  });
+  await step('scroll: after resizing', async () => {
+    for (const w of [WIDTHS[2], { ...WIDTHS[0], name: 'phone-again' }, { ...WIDTHS[2], name: 'desktop-chrome-820', width: 820, height: 700, mobile: false }]) {
+      current = w;
+      await send('Emulation.setDeviceMetricsOverride', { width: w.width, height: w.height, deviceScaleFactor: 1, mobile: w.mobile });
+      await send('Emulation.setTouchEmulationEnabled', { enabled: w.mobile, maxTouchPoints: w.mobile ? 5 : 1 });
+      await sleep(900);
+      await go('explore');
+      await press('#udc-resource-tabs [data-resource="themes"]', 'Skills tab');
+      await waitFor(`document.querySelectorAll('#udc-resource-list .udc-resource-item').length === 15`, 'Skills', 6000);
+      await expectReach(`scroll: Explore after resizing to ${w.name} (${w.width}×${w.height})`, LAST.explore, { mustScroll: w.width < 1024 || w.height < 1000 });
+    }
+  });
+  // A phone with a home indicator (34px bottom safe area): the bar grows by
+  // the safe area and every surface ends at its top edge, so the last item
+  // can still be reached above it.
+  await load(WIDTHS[0]);
+  await send('Emulation.setSafeAreaInsetsOverride', { insets: { top: 47, bottom: 34, left: 0, right: 0 } });
+  await sleep(600);
+  try {
+    const edges = () => callInPage(function () {
+      const bottom = (sel) => { const e = document.querySelector(sel); return e && e.getClientRects().length ? Math.round(e.getBoundingClientRect().bottom) : null; };
+      return { navTop: Math.round(document.getElementById('app-nav').getBoundingClientRect().top), home: bottom('#mobile-you-screen'), dashboard: bottom('#command-dashboard') };
+    });
+    await step('safe area: Home ends at the bottom bar', async () => {
+      await go('home');
+      const e = await edges();
+      check(e.navTop === 844 - 60 - 34 && e.home === e.navTop, 'safe area: Home ends at the bottom bar', JSON.stringify(e));
+      await expectReach('safe area: Home scrolls to its last item', '#mobile-you-content > :last-child');
+    });
+    await step('safe area: Explore ends at the bottom bar', async () => {
+      await go('explore');
+      const e = await edges();
+      check(e.dashboard === e.navTop, 'safe area: Explore ends at the bottom bar', JSON.stringify(e));
+      await press('#udc-resource-tabs [data-resource="themes"]', 'Skills tab');
+      await waitFor(`document.querySelectorAll('#udc-resource-list .udc-resource-item').length === 15`, 'Skills', 6000);
+      await expectReach('safe area: Explore scrolls to the last Skill', LAST.explore, { mustScroll: true });
+    });
+  } finally {
+    await send('Emulation.setSafeAreaInsetsOverride', { insets: { top: 0, bottom: 0, left: 0, right: 0 } });
+  }
+
+  // Sizes beyond the three full runs: a desktop Chrome window showing the
+  // phone/tablet layout (mouse, no touch), a short phone, narrow desktop.
+  for (const w of [
+    { ...WIDTHS[2], name: 'desktop-chrome-820', width: 820, height: 700, mobile: false },
+    { ...WIDTHS[0], name: 'short-phone', width: 390, height: 600 },
+    { ...WIDTHS[2], name: 'narrow-desktop', width: 1200, height: 760 },
+  ]) {
+    await load(w);
+    console.log(`\n${w.name} (${w.width}×${w.height})`);
+    await scrollChecks(w.name);
+  }
+}
+
 async function navChecks(P) {
   const nav = await evaluate(`(() => {
     const bar = document.getElementById('app-nav');
@@ -693,6 +913,7 @@ async function run(w) {
   await assistanceChecks(P);
   await contentChecks(P);
   await networkSearchChecks(P);
+  await scrollChecks(P);
 
   // Phase 1 regressions: Explore categories, organization management and
   // search at this width.
@@ -785,6 +1006,7 @@ try {
   await send('Page.addScriptToEvaluateOnNewDocument', { source: boot });
   for (const w of WIDTHS) await run(w);
   await resizeChecks();
+  await scrollScenarioChecks();
   await signedOutChecks();
   // The network map is never initialized against the fake client (it has no
   // graph data), so Network-view calls into UnifiedNetworkAPI report that.

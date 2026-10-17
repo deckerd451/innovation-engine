@@ -480,11 +480,18 @@ body.reflection-resizing #network-reflection { transition:none; }
     z-index: auto !important;
   }
 
-  /* On mobile the scroll area should not clip — let parent scroll */
+  /* Explore and Network on phones and tablets: the dashboard is a
+     fixed-height column that ends at the top of #app-nav, so its scroll area
+     takes the remaining height and scrolls. (It used to grow to its content
+     for an old split view whose parent pane scrolled; with the dashboard
+     clipping, nothing could scroll.) */
   #command-dashboard.cd-mobile-panel .cd-scroll-area {
-    flex: none;
-    min-height: unset;
-    overflow: visible;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 1.25rem;
   }
 
   /* Compact header */

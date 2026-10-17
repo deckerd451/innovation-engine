@@ -47,3 +47,6 @@ body.mta-open{overflow:hidden}
 .mta-overlay .cm-use-btn{min-height:44px}
 .mta-overlay button{touch-action:manipulation}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+/* The panel ends at the top of the bottom bar: anything scrolled into view
+   (focus, links to a step) stops clear of it. */
+.mta-panel{scroll-padding-bottom:1rem}
