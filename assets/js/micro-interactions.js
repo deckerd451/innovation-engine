@@ -24,7 +24,10 @@ function addButtonRipples() {
     ripple.style.left = `${x}px`;
     ripple.style.top = `${y}px`;
     
-    btn.style.position = 'relative';
+    // The ripple needs a positioned button. Leave positioned buttons (close
+    // buttons are absolute) where they are: overriding them with relative
+    // dropped the profile X into the content after its first click.
+    if (getComputedStyle(btn).position === 'static') btn.style.position = 'relative';
     btn.style.overflow = 'hidden';
     btn.appendChild(ripple);
     
