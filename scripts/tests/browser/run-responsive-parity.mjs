@@ -789,11 +789,11 @@ const messagesHeader = () => callInPage(function () {
   for (let i = 0; i < names.length; i++) for (let j = i + 1; j < names.length; j++) if (hit(g[names[i]], g[names[j]])) overlaps.push(names[i] + '/' + names[j]);
   if (g.badge && (hit(g.badge, g.add) || hit(g.badge, g.close))) overlaps.push('badge');
   const p = document.createElement('div'); p.style.cssText = 'position:fixed;top:0;height:env(safe-area-inset-top,0px)'; document.body.appendChild(p); const safe = Math.round(p.getBoundingClientRect().height); p.remove();
-  return { safe, ...g, overlaps, addOwns: owns(parts.add), closeOwns: owns(parts.close), addLabel: parts.add?.getAttribute('aria-label') || parts.add?.textContent.trim() || '', closeLabel: parts.close?.getAttribute('aria-label') || '', vw: innerWidth };
+  return { safe, ...g, headingFont: parts.heading ? parseFloat(getComputedStyle(parts.heading).fontSize) : 0, overlaps, addOwns: owns(parts.add), closeOwns: owns(parts.close), addLabel: parts.add?.getAttribute('aria-label') || parts.add?.textContent.trim() || '', closeLabel: parts.close?.getAttribute('aria-label') || '', vw: innerWidth };
 });
 
 const msgsLabel = { add: 'New message', close: 'Close messages' };
-function headerProblems(g, safeTop, { aligned = false } = {}) {
+function headerProblems(g, safeTop, { aligned = false, oneLine = false } = {}) {
   const bad = [];
   if (!g.heading || !g.add || !g.close || !g.search) return ['missing'];
   if (Math.min(g.heading.top, g.add.top, g.close.top, g.badge ? g.badge.top : Infinity) < safeTop) bad.push('under the safe area');
@@ -805,6 +805,8 @@ function headerProblems(g, safeTop, { aligned = false } = {}) {
   if (g.addLabel !== msgsLabel.add || g.closeLabel !== msgsLabel.close) bad.push('labels');
   // Full screen (below 1024px): the X shares the header row with New.
   if (aligned && Math.abs(g.close.top - g.add.top) > 1) bad.push('X not in the header row');
+  // "💬 Messages 3" stays on one line (New moves down instead of squeezing it).
+  if (oneLine && g.heading.h > 1.8 * g.headingFont) bad.push('heading squeezed onto several lines');
   return bad;
 }
 const headerSummary = (g) => JSON.stringify({ safe: g.safe, heading: g.heading, badge: g.badge, add: g.add, close: g.close, search: g.search, overlaps: g.overlaps });
@@ -818,7 +820,7 @@ async function messagesHeaderChecks(P, safeTop) {
       await waitFor(`${isOpen.messages} && document.querySelector('#messages-container .conversations-header .unread-badge')`, 'messages', 6000);
       await sleep(400);
       const g = await messagesHeader();
-      const bad = headerProblems(g, safeTop, { aligned: fullScreen });
+      const bad = headerProblems(g, safeTop, { aligned: fullScreen, oneLine: true });
       check(!bad.length, `${P}: Messages header (from ${page}) is below the safe area in one row; New and X are 44px, clickable and clear of the search`, bad.join('; ') + ' ' + headerSummary(g));
       // New opens the new-message picker.
       await press('#messages-container .new-message-btn', 'New');
@@ -866,7 +868,7 @@ async function messagesHeaderChecks(P, safeTop) {
         await evaluate(`${js}; true`);
         await sleep(250);
         const g = await messagesHeader();
-        const bad = headerProblems(g, safeTop);
+        const bad = headerProblems(g, safeTop, { oneLine: name === 'large text' });
         check(!bad.length, `${P}: Messages header with ${name} (and the variants before it) stays clear and clickable`, bad.join('; ') + ' ' + headerSummary(g));
       }
     } finally {
