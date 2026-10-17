@@ -39,13 +39,8 @@
     document.body.classList.toggle('mobile-network-list', isNetwork);
     setMobileMapButton(isNetwork);
     removeMobileRightNow();
-    if (isNetwork) {
-      document.querySelector('[data-resource="people"]')?.click();
-      renderMobileNetworkHistory();
-    } else {
-      removeMobileNetworkHistory();
-      document.querySelector('[data-resource="themes"]')?.click();
-    }
+    // Network lists people ("People you met" is added by app-nav.js).
+    document.querySelector(`[data-resource="${isNetwork ? 'people' : 'themes'}"]`)?.click();
     const toggle = document.getElementById('cd-explore-toggle');
     const browse = document.querySelector('.cd-mobile-browse');
     if (browse) browse.open = true;
@@ -130,8 +125,7 @@
         if (nextAction === 'messages') {
           window.AppNav?.go?.('inbox');
         } else if (nextAction === 'people') {
-          setDiscoverMode('network', 'community');
-          document.querySelector('[data-resource="people"]')?.click();
+          window.AppNav?.go?.('network');
         } else {
           window.openProfileModal?.();
           window.setTimeout(() => {
@@ -147,30 +141,6 @@
     }
   }
 
-  function removeMobileNetworkHistory() {
-    document.getElementById('cd-mobile-network-history')?.remove();
-  }
-
-  async function renderMobileNetworkHistory() {
-    if (window.innerWidth >= 1024) return;
-    const host = document.getElementById('cd-explore-body');
-    if (!host) return;
-    if (!window.NearifyEventsPanel?.render) {
-      try { await import('./nearify-events-panel.js?v=1'); } catch (error) {
-        console.warn('[MobileNav] event history module unavailable:', error);
-      }
-    }
-    if (!window.NearifyEventsPanel?.render) return;
-    removeMobileNetworkHistory();
-    const section = document.createElement('section');
-    section.id = 'cd-mobile-network-history';
-    section.className = 'cd-mobile-network-history';
-    section.setAttribute('aria-label', 'People you met');
-    section.innerHTML = window.NearifyEventsPanel.render();
-    host.appendChild(section);
-    await window.NearifyEventsPanel.init(section);
-  }
-
   function setMobileMapButton(show) {
     const row = document.querySelector('#cd-explore .cd-section-toggle-row');
     if (!row) return;
@@ -182,6 +152,8 @@
       button.className = 'cd-mobile-view-map';
       button.innerHTML = '<i class="fas fa-project-diagram" aria-hidden="true"></i><span>View map</span>';
       button.addEventListener('click', () => {
+        // The map is its own surface: the Network list surface hides it.
+        setMobileSurface('map');
         window.CommandDashboard?.setWorkspaceView?.('network');
         document.getElementById('command-dashboard')?.classList.remove('cd-mobile-panel');
         document.body.classList.remove('mobile-network-list');
@@ -193,7 +165,7 @@
   }
 
   function setMobileSurface(surface) {
-    const surfaces = ['today', 'discover', 'community', 'you'];
+    const surfaces = ['today', 'discover', 'community', 'you', 'map'];
     surfaces.forEach((name) => document.body.classList.toggle(`mobile-surface-${name}`, name === surface));
     const dashboard = document.getElementById('command-dashboard');
     const focus = document.getElementById('cd-focus');
@@ -209,7 +181,26 @@
     if (explore) explore.inert = surface !== 'discover' && surface !== 'community';
   }
 
+  // Desktop layout (app-nav.js, on crossing the breakpoint): drop the phone
+  // and tablet surface state so it cannot hide, disable or filter desktop
+  // content.
+  function reset() {
+    ['today', 'discover', 'community', 'you', 'map'].forEach((name) => document.body.classList.remove(`mobile-surface-${name}`));
+    document.body.classList.remove('mobile-network-list');
+    window.MobileYou?.hide?.();
+    const dashboard = document.getElementById('command-dashboard');
+    dashboard?.classList.remove('cd-mobile-panel');
+    ['command-dashboard', 'cd-focus', 'cd-explore'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.inert = false;
+    });
+    const you = document.getElementById('mobile-you-screen');
+    if (you) { you.inert = true; you.setAttribute('aria-hidden', 'true'); }
+    setMobileMapButton(false);
+  }
+
   window.MobileNav = {
+    reset,
     show(page) {
       if (['home', 'explore', 'network'].includes(page)) {
         // Leaving the Network map (opened with "View map") returns to the

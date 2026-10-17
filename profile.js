@@ -466,7 +466,6 @@
             <div id="community-intent-start-actions"></div>
             <div id="community-intent-form-host"></div>
           </div>
-          ${window.NearifyEventsPanel?.render?.() || ""}
         </div>
 
         <div class="ch-profile-actions">
@@ -487,7 +486,6 @@
     if (!modal || !content) return;
 
     ensureStyles();
-    window.NearifyEventsPanel?.ensureStyles?.();
     content.innerHTML = renderProfileView(state.profile, state.user);
 
     $("btn-open-profile-editor")?.addEventListener("click", () => window.openProfileEditor?.(), { once: true });
@@ -495,7 +493,6 @@
 
     _loadNearifyExperienceRow(content);
     _loadCommunityIntents(content);
-    window.NearifyEventsPanel?.init?.(content);
 
     openModal(modal);
   };

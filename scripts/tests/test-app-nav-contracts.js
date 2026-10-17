@@ -76,6 +76,46 @@ const header = index.slice(index.indexOf('id="mobile-header-actions"'), index.in
 assert.match(header, /id="btn-admin-mobile"/);
 assert.match(commandCss, /#btn-admin-mobile \{\s*\/\* Sits in the #mobile-header-actions row, before Actions\. \*\/\s*position:static;/);
 
+// Each desktop destination shows its own part of the dashboard: Home the
+// focus cards, Explore the Explore list, Network the people list.
+for (const rule of [
+  /body\[data-destination="home"\] #command-dashboard #cd-explore \{ display:none!important; \}/,
+  /body\[data-destination="explore"\] #command-dashboard #cd-focus \{ display:none!important; \}/,
+  /body\[data-destination="network"\] #command-dashboard #cd-focus \{ display:none!important; \}/,
+  /body\[data-destination="network"\] #command-dashboard \.udc-resource-tab:not\(\[data-resource="people"\]\) \{ display:none!important; \}/,
+]) assert.match(commandCss, rule);
+assert.match(appNav, /if \(page === 'network'\) window\.CommandDashboard\?\.selectResourceTab\?\.\('people'\)/);
+// Crossing into the desktop layout clears the phone/tablet surface state.
+assert.match(appNav, /if \(isDesktop\(\)\) \{\s*window\.MobileNav\?\.reset\?\.\(\);/);
+assert.match(mobileNav, /function reset\(\) \{[\s\S]*?mobile-network-list[\s\S]*?cd-mobile-panel[\s\S]*?inert = false/);
+
+// "People you met" is one section, mounted by the router on Network at every
+// width and removed elsewhere; it brings its own card styles.
+const events = read('assets/js/nearify-events-panel.js');
+assert.match(events, /export async function mountNearifyEventsPanel\(container\) \{[\s\S]*?ensureNearifyEventsPanelStyles\(\);[\s\S]*?renderNearifyEventsPanel\(\)[\s\S]*?initNearifyEventsPanel\(section\)/);
+assert.match(appNav, /if \(page !== 'network'\) \{\s*window\.NearifyEventsPanel\?\.unmount\?\.\(\);/);
+assert.match(appNav, /window\.NearifyEventsPanel\?\.mount\?\.\(document\.getElementById\('cd-explore-body'\)\)/);
+assert.match(appNav, /\n    syncNetworkHistory\(page\);\n  \}/, 'every layout runs it');
+const mounters = jsFiles.filter(file => !file.endsWith('nearify-events-panel.js') && /NearifyEventsPanel\??\.(render|init|mount)\b/.test(read(file)));
+assert.deepEqual(mounters.map(f => path.basename(f)), ['app-nav.js']);
+// Network is its only home: the profile (You) no longer renders or loads it.
+assert.doesNotMatch(read('profile.js'), /NearifyEventsPanel/);
+assert.doesNotMatch(commandCss, /#profile-modal \.ch-nearify-events-panel/);
+assert.doesNotMatch(events, /id="nearify-events/);
+// The desktop list heading names the page.
+assert.match(appNav, /heading\.textContent = page === 'network' \? 'Network' : 'Explore';/);
+// One module instance: the router's fallback import matches the page's.
+const eventsTag = (index.match(/nearify-events-panel\.js\?v=([a-z0-9-]+)/) || [])[1];
+assert.ok(eventsTag && appNav.includes(`import('./nearify-events-panel.js?v=${eventsTag}')`));
+
+// Network → View map (phones and tablets) is its own surface; the Network
+// list surface hides the map.
+assert.match(mobileNav, /addEventListener\('click', \(\) => \{\s*\/\/[^\n]*\n\s*setMobileSurface\('map'\);\s*window\.CommandDashboard\?\.setWorkspaceView\?\.\('network'\);/);
+assert.match(mobileNav, /const surfaces = \['today', 'discover', 'community', 'you', 'map'\];/);
+
+// Search from Network: people stay in Network; anything else opens in Explore.
+assert.match(read('assets/js/dashboardPane.js'), /if \(mode && mode !== 'people' && document\.body\.dataset\.destination === 'network'\) \{\s*window\.AppNav\?\.go\?\.\('explore'\);\s*\}\s*if \(mode\) window\.CommandDashboard\?\.selectResourceTab\?\.\(mode\);/);
+
 // Callers that used the old tabs go through the router.
 assert.match(read('assets/js/mobile-task-assistance.js'), /window\.AppNav\?\.go\?\.\('home'\)/);
 assert.match(read('assets/js/command-dashboard.js'), /window\.AppNav\?\.go\?\.\('inbox'\)[\s\S]*window\.AppNav\?\.go\?\.\('explore'\)/);
