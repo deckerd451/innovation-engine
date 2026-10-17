@@ -102,6 +102,11 @@ assert.deepEqual(mounters.map(f => path.basename(f)), ['app-nav.js']);
 const eventsTag = (index.match(/nearify-events-panel\.js\?v=([a-z0-9-]+)/) || [])[1];
 assert.ok(eventsTag && appNav.includes(`import('./nearify-events-panel.js?v=${eventsTag}')`));
 
+// Network → View map (phones and tablets) is its own surface; the Network
+// list surface hides the map.
+assert.match(mobileNav, /addEventListener\('click', \(\) => \{\s*\/\/[^\n]*\n\s*setMobileSurface\('map'\);\s*window\.CommandDashboard\?\.setWorkspaceView\?\.\('network'\);/);
+assert.match(mobileNav, /const surfaces = \['today', 'discover', 'community', 'you', 'map'\];/);
+
 // Search from Network: people stay in Network; anything else opens in Explore.
 assert.match(read('assets/js/dashboardPane.js'), /if \(mode && mode !== 'people' && document\.body\.dataset\.destination === 'network'\) \{\s*window\.AppNav\?\.go\?\.\('explore'\);\s*\}\s*if \(mode\) window\.CommandDashboard\?\.selectResourceTab\?\.\(mode\);/);
 

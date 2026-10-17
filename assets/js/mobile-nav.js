@@ -152,6 +152,8 @@
       button.className = 'cd-mobile-view-map';
       button.innerHTML = '<i class="fas fa-project-diagram" aria-hidden="true"></i><span>View map</span>';
       button.addEventListener('click', () => {
+        // The map is its own surface: the Network list surface hides it.
+        setMobileSurface('map');
         window.CommandDashboard?.setWorkspaceView?.('network');
         document.getElementById('command-dashboard')?.classList.remove('cd-mobile-panel');
         document.body.classList.remove('mobile-network-list');
@@ -163,7 +165,7 @@
   }
 
   function setMobileSurface(surface) {
-    const surfaces = ['today', 'discover', 'community', 'you'];
+    const surfaces = ['today', 'discover', 'community', 'you', 'map'];
     surfaces.forEach((name) => document.body.classList.toggle(`mobile-surface-${name}`, name === surface));
     const dashboard = document.getElementById('command-dashboard');
     const focus = document.getElementById('cd-focus');
@@ -183,7 +185,7 @@
   // and tablet surface state so it cannot hide, disable or filter desktop
   // content.
   function reset() {
-    ['today', 'discover', 'community', 'you'].forEach((name) => document.body.classList.remove(`mobile-surface-${name}`));
+    ['today', 'discover', 'community', 'you', 'map'].forEach((name) => document.body.classList.remove(`mobile-surface-${name}`));
     document.body.classList.remove('mobile-network-list');
     window.MobileYou?.hide?.();
     const dashboard = document.getElementById('command-dashboard');

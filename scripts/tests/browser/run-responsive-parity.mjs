@@ -468,6 +468,16 @@ async function contentChecks(P) {
     check(await evaluate(`window.__promoted.join() === 'e1000000-0000-4000-8000-000000000001'`), `${P}: People you met → Connect sends a request`);
   });
   if (current.mobile) {
+    await step(`${P}: Network → View map opens the map`, async () => {
+      await go('network');
+      await press('#cd-mobile-view-map', 'View map');
+      await waitFor(`document.body.classList.contains('buildspace-view-network')`, 'map view', 4000);
+      const c = await contentState();
+      check(c.map && !c.explore && (await current_()) === 'network', `${P}: Network → View map opens the map`, JSON.stringify({ map: c.map, list: c.explore }));
+      await shot(`${P}-network-map`);
+      await go('network');
+      await expectPage(P, 'network', `${P}: Network returns to the list from the map`);
+    });
     // The fake client has no graph data, so the map reports an error toast;
     // start the next checks from a fresh page.
     await load(current);
