@@ -64,6 +64,18 @@ assert.doesNotMatch(commandCss, /cd-mobile-panel \.cd-scroll-area \{\s*flex: non
 assert.match(read('assets/css/base.css'), /:root \{ --mobile-tab-bar-height: calc\(60px \+ env\(safe-area-inset-bottom, 0px\)\); \}/);
 assert.match(commandCss, /inset:0 0 calc\(60px \+ env\(safe-area-inset-bottom,0px\)\) 0!important;/, 'the dashboard ends at the bottom bar');
 
+// The You (profile) close button: below the top safe area on phones (the
+// window sits inside the safe areas), a labelled 44px target in the corner,
+// and a click effect may not reposition it (micro-interactions.js used to make
+// every clicked button position: relative).
+const profileJs = read('profile.js');
+assert.match(profileJs, /#profile-modal \.modal-content\{width:calc\(100vw - 16px\) !important;height:calc\(100dvh - 16px - env\(safe-area-inset-top, 0px\) - env\(safe-area-inset-bottom, 0px\)\) !important;[^}]*margin:env\(safe-area-inset-top, 0px\) 0 env\(safe-area-inset-bottom, 0px\) !important;/);
+assert.match(profileJs, /#profile-modal \.modal-close\{position:absolute !important;top:8px !important;right:8px !important;z-index:2;min-width:44px;min-height:44px;/);
+assert.match(index, /<button class="modal-close" type="button" aria-label="Close profile" onclick="closeProfileModal\(\)">/);
+const micro = read('assets/js/micro-interactions.js');
+assert.match(micro, /if \(getComputedStyle\(btn\)\.position === 'static'\) btn\.style\.position = 'relative';/);
+assert.doesNotMatch(micro, /\n\s*btn\.style\.position = 'relative';/);
+
 // Settings on desktop uses the existing settings modal (one implementation).
 assert.match(index, /<div class="cd-identity-actions">[\s\S]*?id="cd-settings-btn"[\s\S]*?id="cd-logout-btn"/);
 assert.match(commandJs, /\$id\('cd-settings-btn'\);[\s\S]{0,80}addEventListener\('click', \(\) => window\.SettingsModal\?\.open\?\.\(\)\)/);

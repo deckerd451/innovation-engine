@@ -25,6 +25,11 @@
 //     last item of Home, Explore, Network, Inbox and You can be reached,
 //     clear of the navigation, at phone, tablet, short and desktop sizes,
 //     after switching pages, closing a panel and resizing
+//   - closing dialogs: with iOS-sized safe areas, the You (profile) close
+//     button sits below the status bar / Dynamic Island, is at least 44px,
+//     clear of the profile header, stays put while the profile scrolls, and
+//     a real tap closes it back to the same page; Messages, Settings, Actions
+//     and goal assistance close the same way
 //   - Explore search: keyboard-safe input, suggestions on screen, opening a
 //     result, and Enter for full results
 //   - goal assistance on phones and tablets, closed by navigating away
@@ -767,6 +772,94 @@ async function scrollScenarioChecks() {
   }
 }
 
+// ── Closing dialogs under iOS safe areas ─────────────────────────────────
+const safeTopNow = () => evaluate(`(() => { const p = document.createElement('div'); p.style.cssText = 'position:fixed;top:0;height:env(safe-area-inset-top,0px)'; document.body.appendChild(p); const h = p.getBoundingClientRect().height; p.remove(); return Math.round(h); })()`);
+const closeGeometry = (selector) => callInPage(function (sel) {
+  const el = document.querySelector(sel);
+  if (!el || !el.getClientRects().length) return { missing: true };
+  const r = el.getBoundingClientRect();
+  const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+  const overlaps = [...document.querySelectorAll('#profile-modal .ch-profile-header *')].filter(o => { const q = o.getBoundingClientRect(); return q.width && q.height && q.left < r.right && q.right > r.left && q.top < r.bottom && q.bottom > r.top; }).length;
+  return { top: Math.round(r.top), left: Math.round(r.left), w: Math.round(r.width), h: Math.round(r.height), owns: !!hit && (hit === el || el.contains(hit)), label: el.getAttribute('aria-label') || '', overlaps, onScreen: r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1 };
+}, selector);
+const profileOpen = `(() => { const m = document.getElementById('profile-modal'); return !!m && getComputedStyle(m).display !== 'none' && m.getClientRects().length > 0; })()`;
+
+async function closeDialogChecks(P, safeTop, safeBottom) {
+  const safe = await safeTopNow();
+  check(safe === safeTop, `${P}: safe area applied (${safeTop}px)`, `${safe}`);
+  for (const page of ['network', 'explore']) {
+    await step(`${P}: You → tap X returns to ${page}`, async () => {
+      await go(page);
+      await press(NAV('you'), 'You');
+      await waitFor(profileOpen, 'profile', 6000);
+      await sleep(400);
+      const g = await closeGeometry('#profile-modal .modal-close');
+      // The whole window sits inside the safe areas on phones.
+      const win = await evaluate(`(() => { const r = document.querySelector('#profile-modal .modal-content').getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(innerHeight - r.bottom) }; })()`);
+      check(win.top >= safeTop && win.bottom >= safeBottom, `${P}: the profile window sits inside the safe areas`, JSON.stringify({ safeTop, safeBottom, ...win }));
+      check(!g.missing && g.top >= safeTop && g.w >= 44 && g.h >= 44 && g.owns && g.onScreen && g.overlaps === 0 && g.label === 'Close profile',
+        `${P}: the profile X is below the top safe area, at least 44px and clear of the header`, JSON.stringify({ safeTop, ...g }));
+      // Scroll the profile; the X stays where it is and still works.
+      // The last section shown at every width ("Right now" is hidden on phones).
+      const target = '#profile-modal #nearify-experience-row';
+      const r = await scrollToReach(target, current.mobile ? 'touch' : 'wheel');
+      const after = await closeGeometry('#profile-modal .modal-close');
+      check(r.ok && after.top === g.top && after.owns, `${P}: the profile scrolls and the X stays in place`, JSON.stringify({ reached: r.ok, before: g.top, after: after.top, owns: after.owns }));
+      await press('#profile-modal .modal-close', 'profile X');
+      await waitFor(`!${profileOpen}`, 'profile to close', 4000);
+      check((await destination()) === page && (await current_()) === page && await usable(NAV(page)),
+        `${P}: You → tap X returns to ${page}`, `${await destination()}`);
+    });
+  }
+  // The other full-screen dialogs: their close control is below the top
+  // safe area and a real tap closes them.
+  const others = [
+    ['Messages', `window.openMessagesModal(); true`, '#messages-modal .modal-close', isOpen.messages],
+    ['Settings', `window.SettingsModal.open(); true`, '#settings-close-btn', isOpen.settings],
+    ['Actions', `window.UnifiedNotifications.showPanel('actions'); true`, '#close-unified-panel', `!!document.getElementById('close-unified-panel')?.getClientRects().length`],
+  ];
+  if (current.width < 1024) others.push(['goal assistance', `(() => { document.querySelector('#mobile-you-content [data-next-task]')?.click(); return true; })()`, '#mobile-task-assistance .mta-close', `!!document.querySelector('#mobile-task-assistance .mta-close')`]);
+  for (const [name, open, selector, isShown] of others) {
+    await step(`${P}: ${name} closes with its X below the safe area`, async () => {
+      await go('home');
+      if (name === 'goal assistance') await waitFor(`document.querySelector('#mobile-you-content [data-next-task]')`, 'next task', 8000);
+      // Twice: a tap must not move the X for next time (a click effect once
+      // made clicked buttons position: relative).
+      const seen = [];
+      for (let round = 0; round < 2; round++) {
+        if (name === 'goal assistance' && round) await waitFor(`document.querySelector('#mobile-you-content [data-next-task]')`, 'next task', 8000);
+        await evaluate(open);
+        await waitFor(isShown, name, 8000);
+        await sleep(400);
+        seen.push(await closeGeometry(selector));
+        await press(selector, `${name} close`);
+        await waitFor(`!(${isShown})`, `${name} to close`, 4000);
+      }
+      const [g, again] = seen;
+      check(!g.missing && g.top >= safeTop && g.owns && again.top === g.top && again.left === g.left && again.owns,
+        `${P}: ${name} closes with its X below the safe area, in the same place every time`, JSON.stringify({ safeTop, first: g, again }));
+    });
+  }
+}
+
+async function closeDialogRuns() {
+  for (const [w, insets] of [
+    [WIDTHS[0], { top: 59, bottom: 34 }],
+    [{ ...WIDTHS[0], name: 'short-phone', height: 600 }, { top: 59, bottom: 34 }],
+    [{ ...WIDTHS[0], name: 'phone-notch', width: 375, height: 812 }, { top: 44, bottom: 34 }],
+    [WIDTHS[1], { top: 24, bottom: 20 }],
+    [{ ...WIDTHS[2], name: 'desktop-chrome-820', width: 820, height: 700, mobile: false }, { top: 0, bottom: 0 }],
+    [WIDTHS[2], { top: 0, bottom: 0 }],
+  ]) {
+    await load(w);
+    await send('Emulation.setSafeAreaInsetsOverride', { insets: { ...insets, left: 0, right: 0 } });
+    await sleep(500);
+    console.log(`\nclose: ${w.name} (${w.width}×${w.height}, safe top ${insets.top})`);
+    try { await closeDialogChecks(`close ${w.name}`, insets.top, insets.bottom); }
+    finally { await send('Emulation.setSafeAreaInsetsOverride', { insets: { top: 0, bottom: 0, left: 0, right: 0 } }); }
+  }
+}
+
 async function navChecks(P) {
   const nav = await evaluate(`(() => {
     const bar = document.getElementById('app-nav');
@@ -923,11 +1016,16 @@ async function run(w) {
 
   // Settings and Log out: Home → Account on phones and tablets, the identity
   // bar on desktop (both move to You in a later change).
+  // Home renders again (asynchronously) each time it is shown, which closes
+  // Account; open it on the settled page, and again if a render closed it.
   const openAccount = async () => {
     await go('home');
-    await waitFor(`document.querySelector('#mobile-you-content details.mobile-you-secondary:last-of-type summary')`, 'Account', 6000);
-    if (!(await evaluate(`document.querySelector('#mobile-you-content details.mobile-you-secondary:last-of-type').open`))) {
+    await sleep(800);
+    for (let i = 0; i < 3; i++) {
+      await waitFor(`document.querySelector('#mobile-you-content details.mobile-you-secondary:last-of-type summary')`, 'Account', 6000);
+      if (await evaluate(`document.querySelector('#mobile-you-content details.mobile-you-secondary:last-of-type').open`)) return;
       await press('#mobile-you-content details.mobile-you-secondary:last-of-type summary', 'Account');
+      await sleep(300);
     }
   };
   if (current.mobile) {
@@ -1007,6 +1105,7 @@ try {
   for (const w of WIDTHS) await run(w);
   await resizeChecks();
   await scrollScenarioChecks();
+  await closeDialogRuns();
   await signedOutChecks();
   // The network map is never initialized against the fake client (it has no
   // graph data), so Network-view calls into UnifiedNetworkAPI report that.
