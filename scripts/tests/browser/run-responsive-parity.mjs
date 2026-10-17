@@ -218,8 +218,9 @@ const boot = `${fixtures}\n${fake}\n(() => {
   window.supabase = window.createFakeSupabase(seed, { session });
   const rpc = window.supabase.rpc;
   window.__promoted = [];
+  window.__eventPeerLoads = 0;
   window.supabase.rpc = async (name, args) => {
-    if (name === 'get_nearify_event_peers') return { data: eventPeers, error: null };
+    if (name === 'get_nearify_event_peers') { window.__eventPeerLoads += 1; return { data: eventPeers, error: null }; }
     if (name === 'promote_edge_to_connection') { window.__promoted.push(args.p_edge_id); return { data: { success: true, status: 'pending' }, error: null }; }
     return rpc(name, args);
   };
@@ -465,19 +466,26 @@ async function contentChecks(P) {
     await expectPage(P, 'network', `${P}: Network lists people after another Explore category`);
     await shot(`${P}-network-people-you-met`);
   });
-  // You (the profile) has its own copy of People you met; with Network open
-  // both load into their own containers, with no repeated element ids.
-  await step(`${P}: People you met in Network and in You load separately`, async () => {
+  // Network is the only home of People you met: opening You over Network
+  // adds no second copy and no second load of the event data.
+  await step(`${P}: You over Network adds no second People you met`, async () => {
+    const before = await evaluate(`window.__eventPeerLoads`);
     await press(NAV('you'), 'You');
-    await waitFor(`/Charleston Founders Meetup/.test(document.querySelector('#profile-modal .ch-nearify-events-panel')?.textContent || '')`, 'You copy', 8000);
+    await waitFor(`(() => { const m = document.getElementById('profile-modal'); return m && getComputedStyle(m).display !== 'none' && m.getClientRects().length; })()`, 'profile', 6000);
+    await sleep(1500);
     const state = await evaluate(`({
-      network: /Charleston Founders Meetup/.test(document.getElementById('cd-network-history')?.innerText || ''),
+      inYou: document.querySelectorAll('#profile-modal .ch-nearify-events-panel').length,
       copies: document.querySelectorAll('.ch-nearify-events-panel').length,
+      network: /Charleston Founders Meetup/.test(document.getElementById('cd-network-history')?.innerText || ''),
       ids: document.querySelectorAll('[id^="nearify-events"]').length,
+      loads: window.__eventPeerLoads,
     })`);
-    check(state.network && state.copies === 2 && state.ids === 0, `${P}: People you met in Network and in You load separately`, JSON.stringify(state));
     await evaluate(`window.closeProfileModal?.(); true`);
-    await sleep(300);
+    await sleep(400);
+    const after = await evaluate(`({ dest: document.body.dataset.destination, copies: document.querySelectorAll('.ch-nearify-events-panel').length, loads: window.__eventPeerLoads })`);
+    check(state.inYou === 0 && state.copies === 1 && state.network && state.ids === 0 && state.loads === before
+      && after.dest === 'network' && after.copies === 1 && after.loads === before,
+      `${P}: You over Network adds no second People you met`, JSON.stringify({ before, state, after }));
   });
   await step(`${P}: People you met → Connect sends a request`, async () => {
     await press('#cd-network-history .ch-btn-peer-connect[data-edge-id="e1000000-0000-4000-8000-000000000001"]', 'Connect (Sam)');

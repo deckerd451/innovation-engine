@@ -46,8 +46,7 @@ export async function initNearifyEventsPanel(container) {
     : document.querySelector('.ch-nearify-events-panel');
   if (!panel) return;
 
-  // Classes, not ids: the section can be on the page twice (Network and
-  // the profile in You), and each copy loads into its own container.
+  // Classes, not ids, scoped to the container the section was mounted in.
   const body = panel.querySelector('.ch-nearify-events-body');
   const status = panel.querySelector('.ch-nearify-events-status');
 

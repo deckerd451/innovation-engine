@@ -98,8 +98,9 @@ assert.match(appNav, /window\.NearifyEventsPanel\?\.mount\?\.\(document\.getElem
 assert.match(appNav, /\n    syncNetworkHistory\(page\);\n  \}/, 'every layout runs it');
 const mounters = jsFiles.filter(file => !file.endsWith('nearify-events-panel.js') && /NearifyEventsPanel\??\.(render|init|mount)\b/.test(read(file)));
 assert.deepEqual(mounters.map(f => path.basename(f)), ['app-nav.js']);
-// The profile (You) keeps its existing copy; copies use classes, not ids.
-assert.match(read('profile.js'), /window\.NearifyEventsPanel\?\.render\?\.\(\)/);
+// Network is its only home: the profile (You) no longer renders or loads it.
+assert.doesNotMatch(read('profile.js'), /NearifyEventsPanel/);
+assert.doesNotMatch(commandCss, /#profile-modal \.ch-nearify-events-panel/);
 assert.doesNotMatch(events, /id="nearify-events/);
 // The desktop list heading names the page.
 assert.match(appNav, /heading\.textContent = page === 'network' \? 'Network' : 'Explore';/);
