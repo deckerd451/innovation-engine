@@ -218,6 +218,9 @@
       @media (max-height:560px){ .ch-profile-top{padding:.75rem;} }
 
       .ch-profile-header{display:flex;align-items:center;gap:1rem;margin-bottom:1.1rem;}
+      /* Close: a 44px target in the window's top corner, above the content
+         and clear of the header row below it. */
+      #profile-modal .modal-close{position:absolute !important;top:8px !important;right:8px !important;z-index:2;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;}
       .ch-profile-avatar{width:72px;height:72px;border-radius:999px;object-fit:cover;border:3px solid #00e0ff;flex:0 0 auto;}
       .ch-profile-avatar-placeholder{width:72px;height:72px;border-radius:999px;background:rgba(0,224,255,.1);border:3px dashed rgba(0,224,255,.3);display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
       .ch-profile-avatar-initials{font-size:1.25rem;color:#00e0ff;font-weight:800;letter-spacing:.02em;}
@@ -306,7 +309,10 @@
       }
       .ch-profile-editor-actions .btn{flex:1;min-width:200px;}
       @media (max-width:700px){
-        #profile-modal .modal-content{width:calc(100vw - 16px) !important;height:calc(100dvh - 16px) !important;max-height:calc(100dvh - 16px) !important;border-radius:12px !important;}
+        /* Full height on phones, inside the safe areas: the top of the window
+           (and its close button) stays below the status bar and notch or
+           Dynamic Island, the bottom above the home indicator. */
+        #profile-modal .modal-content{width:calc(100vw - 16px) !important;height:calc(100dvh - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;max-height:calc(100dvh - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;margin:env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px) !important;border-radius:12px !important;}
         .ch-profile-actions,.ch-profile-editor-actions{padding:.75rem;}
         .ch-profile-actions .btn,.ch-profile-editor-actions .btn{min-width:0;flex:1 1 140px;}
       }
