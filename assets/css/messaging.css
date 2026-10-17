@@ -884,8 +884,17 @@
     z-index: 5 !important;
     padding-top: calc(0.75rem + var(--safe-top)) !important;
     padding-bottom: 0.75rem !important;
+    /* Room for the close X in the corner, as in the conversations header. */
+    padding-right: calc(44px + 1rem) !important;
     background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%) !important;
     flex-shrink: 0 !important;
+  }
+
+  /* A long name, email or context wraps instead of running under the X. */
+  #messages-container .chat-header-info,
+  #messages-container .chat-context {
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   /* Message list = scrollable area - THIS IS KEY */

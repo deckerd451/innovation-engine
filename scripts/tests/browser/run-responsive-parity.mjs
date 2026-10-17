@@ -876,6 +876,49 @@ async function messagesHeaderChecks(P, safeTop) {
       await closeMessages();
     }
   });
+  // Inside a conversation (phones: the chat replaces the list) the chat
+  // header is the top row; a long name, email or context stays clear of the X.
+  if (current.width <= 768) {
+    await step(`${P}: in a conversation, a long name, email and context stay clear of the X`, async () => {
+      await go('home');
+      await evaluate(`window.openMessagesModal(); true`);
+      await waitFor(`${isOpen.messages} && document.querySelector('#conversations-list .conversation-item')`, 'messages', 6000);
+      await sleep(400);
+      await press('#conversations-list .conversation-item', 'conversation');
+      await waitFor(`document.querySelector('#chat-panel .chat-header')?.getClientRects().length`, 'chat', 6000);
+      await evaluate(`(() => {
+        const h = document.querySelector('#chat-panel .chat-header');
+        h.querySelector('.chat-header-name').textContent = 'Alexandria Montgomery-Fitzgerald of the Charleston Builders';
+        h.querySelector('.chat-header-status').textContent = 'alexandria.montgomery.fitzgerald.community@example-collaborators.test';
+        if (!h.querySelector('.chat-context')) { const c = document.createElement('div'); c.className = 'chat-context'; c.textContent = 'About: Waterfront sensor network for the Charleston harbor resilience project'; h.appendChild(c); }
+        return true;
+      })()`);
+      try {
+        for (const size of ['', '150%']) {
+          await evaluate(`document.documentElement.style.fontSize = '${size}'; true`);
+          await sleep(250);
+          const g = await callInPage(function () {
+            const x = document.querySelector('#messages-modal .modal-close');
+            const r = x.getBoundingClientRect();
+            const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+            const under = [...document.querySelectorAll('#chat-panel .chat-header > *, #chat-panel .chat-header-name, #chat-panel .chat-header-status')].filter(e => {
+              const q = e.getBoundingClientRect();
+              return q.width && q.height && q.left < r.right && q.right > r.left && q.top < r.bottom && q.bottom > r.top;
+            }).map(e => String(e.className));
+            const head = document.querySelector('#chat-panel .chat-header').getBoundingClientRect();
+            return { top: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height), owns: !!hit && (hit === x || x.contains(hit)), under, fits: head.right <= innerWidth + 1 };
+          });
+          check(g.top >= safeTop && g.w >= 44 && g.h >= 44 && g.owns && !g.under.length && g.fits,
+            `${P}: in a conversation${size ? ' with large text' : ''}, nothing in the chat header runs under the X`, JSON.stringify({ safeTop, ...g }));
+        }
+      } finally {
+        await evaluate(`document.documentElement.style.fontSize = ''; true`);
+      }
+      await press('#messages-modal .modal-close', 'Messages X');
+      await waitFor(`!${isOpen.messages}`, 'messages to close', 4000);
+      check((await destination()) === 'home', `${P}: the X closes Messages from a conversation and returns to home`, await destination());
+    });
+  }
 }
 
 // ── Closing dialogs under iOS safe areas ─────────────────────────────────
