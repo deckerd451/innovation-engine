@@ -15,6 +15,12 @@
 //   - Actions, Settings and Admin entry points
 //   - Explore: Organizations and Opportunities, organization management,
 //     and notification links opening panels over any page
+//   - what Home, Explore and Network each show (and do not show), including
+//     after resizing across the breakpoint
+//   - Network: people, requests, search, the map and "People you met"
+//     (event names and dates, consented photos at card size, Connect)
+//   - search from Network: people stay in Network, anything else opens in
+//     Explore
 //   - Explore search: keyboard-safe input, suggestions on screen, opening a
 //     result, and Enter for full results
 //   - goal assistance on phones and tablets, closed by navigating away
@@ -191,10 +197,32 @@ const boot = `${fixtures}\n${fake}\n(() => {
   seed.organizations = [{ id: '30000000-0000-4000-8000-0000000000a1', name: 'Harbor Builders', description: 'Fixture organization', status: 'active', created_by: me, created_at: '2026-09-01T00:00:00Z' }];
   seed.organization_members = [{ id: '31000000-0000-4000-8000-0000000000a1', organization_id: '30000000-0000-4000-8000-0000000000a1', community_id: me, role: 'owner', status: 'active' }];
   seed.opportunities = [{ id: '40000000-0000-4000-8000-0000000000a1', title: 'Mentor first-time founders', description: 'Fixture opportunity', status: 'open', is_public: true, application_deadline: null, organization_id: '30000000-0000-4000-8000-0000000000a1', created_at: '2026-09-02T00:00:00Z' }];
+  // People you met: two events. Sam shared a large photo with consent (a full
+  // size upload, 1067px); Riley's photo has no consent, so initials show;
+  // Dana is already connected.
+  const [, dana, sam, riley] = seed.community;
+  Object.assign(sam, { image_url: '/images/bubbleh512.png', photo_visible: true, photo_consent_at: '2026-09-01T00:00:00Z' });
+  Object.assign(riley, { image_url: '/images/bubbleh.png', photo_visible: true, photo_consent_at: null });
+  const eventPeers = { success: true, events: [
+    { event_name: 'Charleston Founders Meetup', occurred_at: '2026-10-10T22:00:00Z', peers: [
+      { edge_id: 'e1000000-0000-4000-8000-000000000001', community_id: sam.id, name: sam.name, headline: 'Frontend engineer', signal_type: 'qr_confirmed', status: 'suggested' },
+      { edge_id: 'e1000000-0000-4000-8000-000000000002', community_id: dana.id, name: dana.name, headline: 'Event planner', signal_type: 'ble', status: 'promoted' },
+    ] },
+    { event_name: 'HCD Event', occurred_at: '2026-09-18T17:00:00Z', peers: [
+      { edge_id: 'e1000000-0000-4000-8000-000000000003', community_id: riley.id, name: riley.name, headline: 'Speaker coach', signal_type: 'ble', status: 'suggested' },
+    ] },
+  ] };
   // The person panel reads this view.
   seed.community_with_last_seen = seed.community.map(row => ({ ...row }));
   const session = signedOut ? null : { access_token: 'fixture', user: { id: 'auth-me', email: 'member@example.test' } };
   window.supabase = window.createFakeSupabase(seed, { session });
+  const rpc = window.supabase.rpc;
+  window.__promoted = [];
+  window.supabase.rpc = async (name, args) => {
+    if (name === 'get_nearify_event_peers') return { data: eventPeers, error: null };
+    if (name === 'promote_edge_to_connection') { window.__promoted.push(args.p_edge_id); return { data: { success: true, status: 'pending' }, error: null }; }
+    return rpc(name, args);
+  };
   window.__fixtureProfile = seed.community[0];
 })();`;
 
@@ -341,6 +369,149 @@ async function go(page) {
   await sleep(300);
 }
 
+// What the page shows. "Shown" means rendered, not hidden by CSS and not
+// inert; it may be below the fold.
+const contentState = () => callInPage(function () {
+  const $ = (sel) => document.querySelector(sel);
+  const shown = (el) => !!el && el.getClientRects().length > 0 && el.checkVisibility({ visibilityProperty: true }) && !el.closest('[inert]');
+  const rect = (el) => el.getBoundingClientRect();
+  const history = $('#cd-network-history');
+  const photos = history ? [...history.querySelectorAll('img.ch-peer-avatar')] : [];
+  const cards = history ? [...history.querySelectorAll('.ch-peer-card')] : [];
+  return {
+    homeScreen: shown($('#mobile-you-screen')),
+    focus: shown($('#cd-focus')),
+    explore: shown($('#cd-explore')),
+    search: shown($('#global-search')),
+    tabs: [...document.querySelectorAll('#udc-resource-tabs .udc-resource-tab')].filter(shown).map(t => t.dataset.resource),
+    activeTab: $('#udc-resource-tabs .udc-resource-tab.active')?.dataset.resource || '',
+    listLabel: $('#udc-resource-list .udc-resource-section-label')?.textContent || '',
+    listText: shown($('#udc-resource-list')) ? $('#udc-resource-list').innerText : '',
+    histories: document.querySelectorAll('#cd-network-history').length,
+    history: shown(history),
+    historyText: history ? history.innerText : '',
+    photos: photos.map(img => ({ w: Math.round(rect(img).width), h: Math.round(rect(img).height), src: img.getAttribute('src') })),
+    initials: history ? history.querySelectorAll('.ch-peer-avatar-placeholder').length : 0,
+    fits: history ? history.scrollWidth <= history.clientWidth + 1 && rect(history).left >= -1 && rect(history).right <= innerWidth + 1 : null,
+    tallestCard: cards.length ? Math.round(Math.max(...cards.map(c => rect(c).height))) : 0,
+    map: shown($('#synapse-main-view')),
+    mobileState: [...document.body.classList].filter(c => /^mobile-surface-|^mobile-network-list$/.test(c)).join(' '),
+    dashboardInert: !!$('#command-dashboard')?.closest('[inert]'),
+  };
+});
+
+// Each destination has one purpose: Home its own content, Explore the
+// categories, Network your people with "People you met" (and the map on
+// desktop). Nothing from one leaks into another.
+async function expectPage(P, page, label = `${P}: ${page} shows only its own content`) {
+  await waitForPage(page);
+  if (page === 'network') {
+    await waitFor(`/Charleston Founders Meetup/.test(document.getElementById('cd-network-history')?.innerText || '')`, 'People you met', 8000);
+  } else {
+    await sleep(300);
+  }
+  const c = await contentState();
+  const desktop = !current.mobile;
+  const problems = [];
+  const want = (ok, what) => { if (!ok) problems.push(what); };
+  if (page === 'home') {
+    want(desktop ? c.focus : c.homeScreen, 'Home content');
+    want(!c.explore, 'no Explore list');
+    want(!c.map, 'no map');
+  } else if (page === 'explore') {
+    want(c.search && c.explore, 'search and Explore list');
+    want(c.tabs.join() === 'people,projects,themes,organizations,opportunities', `all five categories (${c.tabs})`);
+    want(!c.focus && !c.homeScreen, 'no Home content');
+    want(!c.map, 'no map');
+  } else {
+    want(c.search && c.explore, 'people search and list');
+    want(c.tabs.join() === 'people' && c.activeTab === 'people' && /People/.test(c.listLabel), `only people (${c.tabs}; ${c.activeTab}; ${c.listLabel})`);
+    want(/Dana \(fixture\)/.test(c.listText) && /Jordan \(fixture\)[\s\S]*Connection request/.test(c.listText), 'connections and requests');
+    want(!c.focus && !c.homeScreen, 'no Home content');
+    want(desktop ? c.map : !c.map, desktop ? 'the map beside the list' : 'the list (map behind View map)');
+  }
+  if (page === 'network') {
+    want(c.histories === 1 && c.history, 'People you met, once');
+    for (const text of ['PEOPLE YOU MET', 'Charleston Founders Meetup', 'Oct 10, 2026', 'HCD Event', 'Sam (fixture)', 'Frontend engineer', 'Riley (fixture)', 'Dana (fixture)', 'Connected']) {
+      want(c.historyText.toUpperCase().includes(text.toUpperCase()), `People you met: ${text}`);
+    }
+    // Sam consented to a photo; Riley did not and Dana has none: initials.
+    want(c.photos.length === 1 && c.photos[0].src === '/images/bubbleh512.png' && c.initials === 2, `consented photo only (${JSON.stringify(c.photos)}, ${c.initials} initials)`);
+    want(c.photos.every(p => p.w > 0 && p.w <= 40 && p.h <= 40), `avatar at card size (${JSON.stringify(c.photos)})`);
+    want(c.fits && c.tallestCard <= 80, `cards fit the width (fits ${c.fits}, tallest ${c.tallestCard}px)`);
+  } else {
+    want(c.histories === 0, 'no People you met');
+  }
+  if (desktop) want(!c.mobileState && !c.dashboardInert, `no phone layout state (${c.mobileState}${c.dashboardInert ? ' inert' : ''})`);
+  check(problems.length === 0, label, problems.join('; '));
+  return c;
+}
+
+async function contentChecks(P) {
+  for (const page of ['home', 'explore', 'network', 'explore', 'home']) {
+    await step(`${P}: ${page} content`, async () => {
+      await go(page);
+      await expectPage(P, page);
+    });
+  }
+  // Explore's last category must not follow you into Network.
+  await step(`${P}: Network lists people after another Explore category`, async () => {
+    await go('explore');
+    await press('#udc-resource-tabs [data-resource="opportunities"]', 'Opportunities tab');
+    await go('network');
+    await expectPage(P, 'network', `${P}: Network lists people after another Explore category`);
+    await shot(`${P}-network-people-you-met`);
+  });
+  await step(`${P}: People you met → Connect sends a request`, async () => {
+    await press('#cd-network-history .ch-btn-peer-connect[data-edge-id="e1000000-0000-4000-8000-000000000001"]', 'Connect (Sam)');
+    await waitFor(`/Request sent/.test(document.querySelector('#cd-network-history .ch-peer-card[data-edge-id="e1000000-0000-4000-8000-000000000001"]')?.innerText || '')`, 'request sent', 4000);
+    check(await evaluate(`window.__promoted.join() === 'e1000000-0000-4000-8000-000000000001'`), `${P}: People you met → Connect sends a request`);
+  });
+  if (current.mobile) {
+    // The fake client has no graph data, so the map reports an error toast;
+    // start the next checks from a fresh page.
+    await load(current);
+  }
+}
+
+// Search from Network: a person stays in Network; anything else opens in
+// Explore with its category selected.
+async function networkSearchChecks(P) {
+  const choose = async (text, pattern) => {
+    await press('#global-search', 'search box');
+    await evaluate(`(() => { const i = document.getElementById('global-search'); i.select(); return true; })()`);
+    await send('Input.insertText', { text });
+    await waitFor(`[...document.querySelectorAll('#search-suggestions .search-suggestion-item')].some(i => ${pattern}.test(i.innerText))`, `${text} suggestion`, 6000);
+    const index = await evaluate(`[...document.querySelectorAll('#search-suggestions .search-suggestion-item')].findIndex(i => ${pattern}.test(i.innerText))`);
+    await press(`#search-suggestions .search-suggestion-item[data-index="${index}"]`, `${text} suggestion`);
+  };
+  await step(`${P}: Network search → a person opens in Network`, async () => {
+    await go('network');
+    await choose('Sam', '/Sam \\(fixture\\)/');
+    await waitFor(`${isOpen.panel} && /Sam/.test(document.getElementById('node-side-panel').innerText)`, 'person panel', 6000);
+    check((await destination()) === 'network' && (await current_()) === 'network', `${P}: Network search → a person opens in Network`);
+    await closePanel();
+    await expectPage(P, 'network', `${P}: Network keeps its people after a person search`);
+  });
+  for (const [kind, text, pattern, tab, panelText] of [
+    ['an opportunity', 'Mentor', '/Mentor first-time founders/', 'opportunities', /Mentor first-time founders/],
+    ['an organization', 'Harbor', '/Harbor Builders/', 'organizations', /Harbor Builders/],
+  ]) {
+    await step(`${P}: Network search → ${kind} opens in Explore`, async () => {
+      await go('network');
+      await choose(text, pattern);
+      await waitForPage('explore');
+      await waitFor(`${isOpen.panel} && ${panelText}.test(document.getElementById('node-side-panel').innerText)`, `${kind} panel`, 6000);
+      const c = await contentState();
+      check((await current_()) === 'explore' && c.activeTab === tab && c.tabs.length === 5 && c.histories === 0 && c.explore,
+        `${P}: Network search → ${kind} opens in Explore`, JSON.stringify({ tab: c.activeTab, tabs: c.tabs, histories: c.histories }));
+      await shot(`${P}-network-search-${tab}`);
+      await closePanel();
+    });
+  }
+  await evaluate(`(() => { const i = document.getElementById('global-search'); i.value = ''; i.blur(); document.getElementById('search-suggestions')?.replaceChildren(); return true; })()`);
+}
+
 async function navChecks(P) {
   const nav = await evaluate(`(() => {
     const bar = document.getElementById('app-nav');
@@ -485,6 +656,8 @@ async function run(w) {
   await inboxAndYou(P);
   await accessChecks(P);
   await assistanceChecks(P);
+  await contentChecks(P);
+  await networkSearchChecks(P);
 
   // Phase 1 regressions: Explore categories, organization management and
   // search at this width.
@@ -525,6 +698,33 @@ async function resizeChecks() {
     await waitFor(`document.body.classList.contains('buildspace-view-network')`, 'desktop Network', 5000);
     check(phone && (await destination()) === 'network' && (await current_()) === 'network', 'resize: the current page survives crossing the desktop breakpoint');
   });
+  // Every page keeps only its own content through phone, tablet, iPad
+  // landscape (1180px, the desktop layout) and back.
+  const resizeTo = async (w) => {
+    current = w;
+    await send('Emulation.setDeviceMetricsOverride', { width: w.width, height: w.height, deviceScaleFactor: 1, mobile: w.mobile });
+    await send('Emulation.setTouchEmulationEnabled', { enabled: w.mobile, maxTouchPoints: w.mobile ? 5 : 1 });
+    await sleep(900);
+  };
+  const landscape = { ...WIDTHS[1], name: 'tablet-landscape', width: 1180, height: 820, mobile: false };
+  for (const page of ['home', 'explore', 'network']) {
+    await load(WIDTHS[2]);
+    await go(page);
+    for (const w of [WIDTHS[0], WIDTHS[1], landscape, WIDTHS[0], WIDTHS[2]]) {
+      await step(`resize: ${page} at ${w.name}`, async () => {
+        await resizeTo(w);
+        await expectPage('resize', page, `resize: ${page} keeps only its own content at ${w.name} (${w.width}px)`);
+        if (page === 'network') await shot(`resize-network-${w.name}`);
+      });
+    }
+    // The page still works after the round trip: its controls respond.
+    await step(`resize: ${page} still responds after resizing`, async () => {
+      const next = page === 'home' ? 'explore' : 'home';
+      await go(next);
+      await go(page);
+      await expectPage('resize', page, `resize: ${page} still responds after resizing`);
+    });
+  }
 }
 
 async function signedOutChecks() {

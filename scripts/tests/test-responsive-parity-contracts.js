@@ -66,12 +66,15 @@ assert.match(mobileNav, /isNetwork \? 'Network' : 'Explore'/);
 // The shared navigation is the only Explore / Network switch.
 assert.doesNotMatch(mobileNav, /data-discover-mode|cd-mobile-discover-mode/);
 
-// Returning visitors get the changed files.
+// Returning visitors get the changed files: each carries this phase's tag
+// or a later shell version (sw.js).
 const tag = 'shared-nav-20261016';
+const shellTag = (sw.match(/const VERSION = "v\d+-([^"]+)"/) || [])[1];
+assert.ok(shellTag, 'service worker declares a versioned shell');
+const versions = `(${escapeRegExp(tag)}|${escapeRegExp(shellTag)})`;
 for (const asset of ['dashboard.css', 'assets/css/command-dashboard.css', 'assets/js/command-dashboard.js', 'assets/js/mobile-nav.js', 'assets/js/mobile-you.js', 'assets/js/unified-network-integration.js']) {
-  assert.match(index, new RegExp(`${escapeRegExp(asset)}\\?v=${tag}`), `${asset} is cache-busted`);
+  assert.match(index, new RegExp(`${escapeRegExp(asset)}\\?v=${versions}`), `${asset} is cache-busted`);
 }
 assert.match(integration, new RegExp(`import './explorer-coordinator\\.js\\?v=${tag}';`));
-assert.match(sw, new RegExp(`const VERSION = "v15-${tag}";`));
 
 console.log('responsive parity contracts passed');

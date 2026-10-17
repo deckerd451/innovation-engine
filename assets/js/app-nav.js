@@ -6,8 +6,10 @@
 // each destination onto the existing screens.
 //
 //   Home, Explore, Network  pages. Desktop uses CommandDashboard's Home and
-//                           Network views (Explore is the Home view without
-//                           the focus cards); mobile uses MobileNav surfaces.
+//                           Network views (Home shows the focus cards,
+//                           Explore the Explore list, Network the people list
+//                           beside the map); mobile uses MobileNav surfaces.
+//                           Network adds "People you met" at every width.
 //   Inbox                   opens the existing Messages interface.
 //   You                     opens the existing profile interface.
 //
@@ -47,10 +49,28 @@
     if (isShown('profile-modal')) window.closeProfileModal?.();
   }
 
+  // "People you met" (nearify-events-panel.js) belongs to Network: the same
+  // section under the people list on phones, tablets and desktop.
+  async function syncNetworkHistory(page) {
+    if (page !== 'network') {
+      window.NearifyEventsPanel?.unmount?.();
+      return;
+    }
+    if (!window.NearifyEventsPanel?.mount) {
+      try { await import('./nearify-events-panel.js?v=network-dest-20261017'); } catch (error) {
+        console.warn('[AppNav] People you met is unavailable:', error);
+      }
+    }
+    if (current !== 'network') return;
+    await window.NearifyEventsPanel?.mount?.(document.getElementById('cd-explore-body'));
+  }
+
   function showPage(page) {
     if (isDesktop()) {
-      window.MobileYou?.hide?.();
+      window.MobileNav?.reset?.();
       window.CommandDashboard?.setWorkspaceView?.(page === 'network' ? 'network' : 'today');
+      // Network lists people; the other resource tabs are Explore's.
+      if (page === 'network') window.CommandDashboard?.selectResourceTab?.('people');
       const scroller = document.querySelector('#command-dashboard .cd-scroll-area');
       if (page === 'explore') {
         document.getElementById('centered-search-container')?.scrollIntoView({ block: 'start' });
@@ -60,6 +80,7 @@
     } else {
       window.MobileNav?.show?.(page);
     }
+    syncNetworkHistory(page);
   }
 
   function go(destination) {

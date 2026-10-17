@@ -1261,6 +1261,10 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     const entity = result.data;
     const label = result.title || entity.name || entity.title || null;
     const mode = SEARCH_TYPE_TO_MODE[type];
+    // Network lists people. Anything else opens in Explore, beside its tab.
+    if (mode && mode !== 'people' && document.body.dataset.destination === 'network') {
+      window.AppNav?.go?.('explore');
+    }
     if (mode) window.CommandDashboard?.selectResourceTab?.(mode);
 
     const coordinator = window.ExplorerCoordinator;

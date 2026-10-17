@@ -164,6 +164,9 @@ body.reflection-resizing #network-reflection { transition:none; }
   body.reflection-collapsed #network-reflection-resizer { display:none; }
 }
 
+/* "People you met" under the Network people list (nearify-events-panel.js). */
+.cd-network-history { margin:.8rem .75rem 1rem; }
+
 @media (max-width:1023px) {
   /* Mobile is a decision surface, not a compressed desktop canvas. */
   #command-dashboard .cd-identity { display:none!important; }
@@ -193,7 +196,6 @@ body.reflection-resizing #network-reflection { transition:none; }
   .cd-mobile-secondary-links-body { display:grid; gap:.45rem; color:rgba(224,232,255,.62); font-size:.72rem; }
   .cd-mobile-secondary-links-body .cd-mobile-intent-list { margin-top:.1rem; }
   .cd-mobile-secondary-links-body button { justify-self:start; min-height:38px; padding:.45rem .65rem; border:1px solid rgba(0,224,255,.28); border-radius:8px; background:rgba(0,224,255,.08); color:#dffbff; font:inherit; font-weight:800; cursor:pointer; }
-  .cd-mobile-network-history { margin-top:.8rem; }
   #profile-modal .ch-right-now-card, #profile-modal .ch-nearify-events-panel { display:none !important; }
   #profile-modal .ch-right-now-card.mobile-intent-editor-open { display:block !important; }
   /* Explore search is the same control as on desktop. 16px keeps iOS from
@@ -353,8 +355,13 @@ body.reflection-resizing #network-reflection { transition:none; }
   body.buildspace-view-today #command-dashboard { width:calc(100% - var(--reflection-width))!important; border-right:0!important; }
   body.buildspace-view-today #command-dashboard .cd-scroll-area { width:min(760px,100%); margin:0 auto; }
   body.buildspace-view-today #cd-panel-tab { display:none!important; }
-  /* Explore (app-nav.js) is the Home view without the Home focus cards. */
+  /* Each destination (app-nav.js) shows its own part of the dashboard:
+     Home the focus cards, Explore the Explore list, Network the people list
+     (with "People you met") beside the map. */
+  body[data-destination="home"] #command-dashboard #cd-explore { display:none!important; }
   body[data-destination="explore"] #command-dashboard #cd-focus { display:none!important; }
+  body[data-destination="network"] #command-dashboard #cd-focus { display:none!important; }
+  body[data-destination="network"] #command-dashboard .udc-resource-tab:not([data-resource="people"]) { display:none!important; }
 
   /* ── Node side panel: slides from right of viewport ── */
   /* Panel already uses position:fixed; right:-450px → right:0 */

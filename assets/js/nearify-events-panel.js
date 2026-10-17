@@ -1,19 +1,14 @@
 // ================================================================
 // NEARIFY EVENTS PANEL
 // ================================================================
-// Renders a "People you met at events" section in the profile modal.
+// Renders the "People you met" section of Network (every width).
 // Calls get_nearify_event_peers() RPC and renders event groups with
 // peer cards. Suggested (BLE) edges show a "Connect" button that
 // calls promote_edge_to_connection().
 //
-// Usage:
-//   import { renderNearifyEventsPanel, initNearifyEventsPanel } from './nearify-events-panel.js';
-//
-//   // 1. Inject placeholder HTML into the profile view:
-//   container.insertAdjacentHTML('beforeend', renderNearifyEventsPanel());
-//
-//   // 2. Load data and wire interactions:
-//   await initNearifyEventsPanel(container);
+// Usage (app-nav.js does this when Network opens and closes):
+//   window.NearifyEventsPanel.mount(container);  // styles, skeleton, data
+//   window.NearifyEventsPanel.unmount();
 // ================================================================
 
 const LOG = '[NearifyEventsPanel]';
@@ -300,11 +295,38 @@ export function ensureNearifyEventsPanelStyles() {
   document.head.appendChild(style);
 }
 
+// ----------------------------------------------------------------
+// Network section: one mount at every width
+// ----------------------------------------------------------------
+
+const SECTION_ID = 'cd-network-history';
+
+export async function mountNearifyEventsPanel(container) {
+  if (!container) return;
+  // The cards are laid out by these styles (32px avatars); without them a
+  // photo renders at its full size.
+  ensureNearifyEventsPanelStyles();
+  unmountNearifyEventsPanel();
+  const section = document.createElement('section');
+  section.id = SECTION_ID;
+  section.className = 'cd-network-history';
+  section.setAttribute('aria-label', 'People you met');
+  section.innerHTML = renderNearifyEventsPanel();
+  container.appendChild(section);
+  await initNearifyEventsPanel(section);
+}
+
+export function unmountNearifyEventsPanel() {
+  document.getElementById(SECTION_ID)?.remove();
+}
+
 // Global exposure for non-module callers
 window.NearifyEventsPanel = {
   render: renderNearifyEventsPanel,
   init: initNearifyEventsPanel,
   ensureStyles: ensureNearifyEventsPanelStyles,
+  mount: mountNearifyEventsPanel,
+  unmount: unmountNearifyEventsPanel,
 };
 
 export default window.NearifyEventsPanel;
