@@ -244,6 +244,7 @@ const boot = `${fixtures}\n${fake}\n(() => {
   window.__eventPeerLoads = 0;
   window.supabase.rpc = async (name, args) => {
     if (name === 'get_nearify_event_peers') { window.__eventPeerLoads += 1; return { data: eventPeers, error: null }; }
+    if (name === 'get_unread_count') return { data: window.__unreadCount ?? 3, error: null };
     if (name === 'promote_edge_to_connection') { window.__promoted.push(args.p_edge_id); return { data: { success: true, status: 'pending' }, error: null }; }
     return rpc(name, args);
   };
@@ -772,6 +773,154 @@ async function scrollScenarioChecks() {
   }
 }
 
+
+// ── Messages header under iOS safe areas ─────────────────────────────────
+// Heading, unread badge, New and X: below the top safe area, in one row, not
+// overlapping, the buttons at least 44px and clickable; the search below.
+const messagesHeader = () => callInPage(function () {
+  const q = (sel) => document.querySelector(sel);
+  const box = (el) => { if (!el || !el.getClientRects().length) return null; const r = el.getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(r.bottom), left: Math.round(r.left), right: Math.round(r.right), w: Math.round(r.width), h: Math.round(r.height) }; };
+  const owns = (el) => { if (!el) return false; const r = el.getBoundingClientRect(); const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !!hit && (hit === el || el.contains(hit)); };
+  const parts = { heading: q('#messages-container .conversations-header h3'), badge: q('#messages-container .conversations-header .unread-badge'), add: q('#messages-container .new-message-btn'), close: q('#messages-modal .modal-close'), search: q('#conv-search-input') };
+  const g = Object.fromEntries(Object.entries(parts).map(([k, el]) => [k, box(el)]));
+  const hit = (a, b) => a && b && a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+  const names = ['heading', 'add', 'close', 'search'];
+  const overlaps = [];
+  for (let i = 0; i < names.length; i++) for (let j = i + 1; j < names.length; j++) if (hit(g[names[i]], g[names[j]])) overlaps.push(names[i] + '/' + names[j]);
+  if (g.badge && (hit(g.badge, g.add) || hit(g.badge, g.close))) overlaps.push('badge');
+  const p = document.createElement('div'); p.style.cssText = 'position:fixed;top:0;height:env(safe-area-inset-top,0px)'; document.body.appendChild(p); const safe = Math.round(p.getBoundingClientRect().height); p.remove();
+  return { safe, ...g, headingFont: parts.heading ? parseFloat(getComputedStyle(parts.heading).fontSize) : 0, overlaps, addOwns: owns(parts.add), closeOwns: owns(parts.close), addLabel: parts.add?.getAttribute('aria-label') || parts.add?.textContent.trim() || '', closeLabel: parts.close?.getAttribute('aria-label') || '', vw: innerWidth };
+});
+
+const msgsLabel = { add: 'New message', close: 'Close messages' };
+function headerProblems(g, safeTop, { aligned = false, oneLine = false } = {}) {
+  const bad = [];
+  if (!g.heading || !g.add || !g.close || !g.search) return ['missing'];
+  if (Math.min(g.heading.top, g.add.top, g.close.top, g.badge ? g.badge.top : Infinity) < safeTop) bad.push('under the safe area');
+  if (g.add.w < 44 || g.add.h < 44 || g.close.w < 44 || g.close.h < 44) bad.push('target under 44px');
+  if (!g.addOwns || !g.closeOwns) bad.push('not clickable');
+  if (g.overlaps.length) bad.push('overlap ' + g.overlaps.join(','));
+  if (g.search.top < Math.max(g.heading.bottom, g.add.bottom, g.close.bottom)) bad.push('search not below the header');
+  if (g.close.right > g.vw || g.add.right > g.vw) bad.push('off screen');
+  if (g.addLabel !== msgsLabel.add || g.closeLabel !== msgsLabel.close) bad.push('labels');
+  // Full screen (below 1024px): the X shares the header row with New.
+  if (aligned && Math.abs(g.close.top - g.add.top) > 1) bad.push('X not in the header row');
+  // "💬 Messages 3" stays on one line (New moves down instead of squeezing it).
+  if (oneLine && g.heading.h > 1.8 * g.headingFont) bad.push('heading squeezed onto several lines');
+  return bad;
+}
+const headerSummary = (g) => JSON.stringify({ safe: g.safe, heading: g.heading, badge: g.badge, add: g.add, close: g.close, search: g.search, overlaps: g.overlaps });
+
+async function messagesHeaderChecks(P, safeTop) {
+  const fullScreen = current.width < 1024;
+  for (const page of ['network', 'explore']) {
+    await step(`${P}: Inbox → Messages header, then X returns to ${page}`, async () => {
+      await go(page);
+      await press(NAV('inbox'), 'Inbox');
+      await waitFor(`${isOpen.messages} && document.querySelector('#messages-container .conversations-header .unread-badge')`, 'messages', 6000);
+      await sleep(400);
+      const g = await messagesHeader();
+      const bad = headerProblems(g, safeTop, { aligned: fullScreen, oneLine: true });
+      check(!bad.length, `${P}: Messages header (from ${page}) is below the safe area in one row; New and X are 44px, clickable and clear of the search`, bad.join('; ') + ' ' + headerSummary(g));
+      // New opens the new-message picker.
+      await press('#messages-container .new-message-btn', 'New');
+      await waitFor(`document.getElementById('new-message-modal')?.classList.contains('active')`, 'new message', 4000);
+      await evaluate(`window.MessagingModule.hideNewMessageModal(); true`);
+      // Search filters the conversations, and clearing it restores them.
+      await press('#conv-search-input', 'search conversations');
+      await send('Input.insertText', { text: 'Contact 07' });
+      await waitFor(`document.querySelectorAll('#conversations-list .conversation-item').length === 1`, 'filtered', 4000);
+      await evaluate(`(() => { const i = document.getElementById('conv-search-input'); i.value = ''; window.MessagingModule.filterConversations(''); i.blur(); return true; })()`);
+      await waitFor(`document.querySelectorAll('#conversations-list .conversation-item').length === 20`, 'all conversations', 4000);
+      // The list scrolls under a header that stays put.
+      const r = await scrollToReach(LAST.inbox, current.mobile ? 'touch' : 'wheel');
+      const after = await messagesHeader();
+      check(r.ok && r.scrolled && after.close.top === g.close.top && after.add.top === g.add.top && after.closeOwns && after.addOwns,
+        `${P}: New works, search filters, and the list scrolls with the header in place (${page})`, JSON.stringify({ reached: r.ok, scrolled: r.scrolled, before: [g.add.top, g.close.top], after: [after.add.top, after.close.top] }));
+      await press('#messages-modal .modal-close', 'Messages X');
+      await waitFor(`!${isOpen.messages}`, 'messages to close', 4000);
+      check((await destination()) === page && (await current_()) === page, `${P}: Messages X returns to ${page}`, await destination());
+      // Reopen: the header and X are where they were, and X closes again.
+      await press(NAV('inbox'), 'Inbox');
+      await waitFor(`${isOpen.messages} && document.querySelector('#messages-container .new-message-btn')`, 'messages', 6000);
+      await sleep(400);
+      const again = await messagesHeader();
+      check(!headerProblems(again, safeTop, { aligned: fullScreen }).length && again.close.top === g.close.top && again.close.left === g.close.left && again.add.top === g.add.top,
+        `${P}: reopened Messages has the same header (${page})`, headerSummary(again));
+      await press('#messages-modal .modal-close', 'Messages X');
+      await waitFor(`!${isOpen.messages}`, 'messages to close', 4000);
+      check((await destination()) === page, `${P}: reopened Messages X returns to ${page}`);
+    });
+  }
+  // Large text, a long heading and long unread counts: still no overlap.
+  await step(`${P}: Messages header with large text, a long heading and unread counts`, async () => {
+    await go('home');
+    await evaluate(`window.openMessagesModal(); true`);
+    await waitFor(`${isOpen.messages} && document.querySelector('#messages-container .conversations-header .unread-badge')`, 'messages', 6000);
+    await sleep(400);
+    const variants = [
+      ['large text', `document.documentElement.style.fontSize = '150%'`],
+      ['a long heading', `document.querySelector('#messages-container .conversations-header h3').firstChild.textContent = '💬 Messages from your community collaborators '`],
+      ...['1', '12', '99+', '1234'].map(n => [`${n} unread`, `document.querySelector('#messages-container .conversations-header .unread-badge').textContent = '${n}'`]),
+    ];
+    try {
+      for (const [name, js] of variants) {
+        await evaluate(`${js}; true`);
+        await sleep(250);
+        const g = await messagesHeader();
+        const bad = headerProblems(g, safeTop, { oneLine: name === 'large text' });
+        check(!bad.length, `${P}: Messages header with ${name} (and the variants before it) stays clear and clickable`, bad.join('; ') + ' ' + headerSummary(g));
+      }
+    } finally {
+      await evaluate(`document.documentElement.style.fontSize = ''; true`);
+      await closeMessages();
+    }
+  });
+  // Inside a conversation (phones: the chat replaces the list) the chat
+  // header is the top row; a long name, email or context stays clear of the X.
+  if (current.width <= 768) {
+    await step(`${P}: in a conversation, a long name, email and context stay clear of the X`, async () => {
+      await go('home');
+      await evaluate(`window.openMessagesModal(); true`);
+      await waitFor(`${isOpen.messages} && document.querySelector('#conversations-list .conversation-item')`, 'messages', 6000);
+      await sleep(400);
+      await press('#conversations-list .conversation-item', 'conversation');
+      await waitFor(`document.querySelector('#chat-panel .chat-header')?.getClientRects().length`, 'chat', 6000);
+      await evaluate(`(() => {
+        const h = document.querySelector('#chat-panel .chat-header');
+        h.querySelector('.chat-header-name').textContent = 'Alexandria Montgomery-Fitzgerald of the Charleston Builders';
+        h.querySelector('.chat-header-status').textContent = 'alexandria.montgomery.fitzgerald.community@example-collaborators.test';
+        if (!h.querySelector('.chat-context')) { const c = document.createElement('div'); c.className = 'chat-context'; c.textContent = 'About: Waterfront sensor network for the Charleston harbor resilience project'; h.appendChild(c); }
+        return true;
+      })()`);
+      try {
+        for (const size of ['', '150%']) {
+          await evaluate(`document.documentElement.style.fontSize = '${size}'; true`);
+          await sleep(250);
+          const g = await callInPage(function () {
+            const x = document.querySelector('#messages-modal .modal-close');
+            const r = x.getBoundingClientRect();
+            const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+            const under = [...document.querySelectorAll('#chat-panel .chat-header > *, #chat-panel .chat-header-name, #chat-panel .chat-header-status')].filter(e => {
+              const q = e.getBoundingClientRect();
+              return q.width && q.height && q.left < r.right && q.right > r.left && q.top < r.bottom && q.bottom > r.top;
+            }).map(e => String(e.className));
+            const head = document.querySelector('#chat-panel .chat-header').getBoundingClientRect();
+            return { top: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height), owns: !!hit && (hit === x || x.contains(hit)), under, fits: head.right <= innerWidth + 1 };
+          });
+          check(g.top >= safeTop && g.w >= 44 && g.h >= 44 && g.owns && !g.under.length && g.fits,
+            `${P}: in a conversation${size ? ' with large text' : ''}, nothing in the chat header runs under the X`, JSON.stringify({ safeTop, ...g }));
+        }
+      } finally {
+        await evaluate(`document.documentElement.style.fontSize = ''; true`);
+      }
+      await press('#messages-modal .modal-close', 'Messages X');
+      await waitFor(`!${isOpen.messages}`, 'messages to close', 4000);
+      check((await destination()) === 'home', `${P}: the X closes Messages from a conversation and returns to home`, await destination());
+    });
+  }
+}
+
 // ── Closing dialogs under iOS safe areas ─────────────────────────────────
 const safeTopNow = () => evaluate(`(() => { const p = document.createElement('div'); p.style.cssText = 'position:fixed;top:0;height:env(safe-area-inset-top,0px)'; document.body.appendChild(p); const h = p.getBoundingClientRect().height; p.remove(); return Math.round(h); })()`);
 const closeGeometry = (selector) => callInPage(function (sel) {
@@ -849,13 +998,17 @@ async function closeDialogRuns() {
     [{ ...WIDTHS[0], name: 'phone-notch', width: 375, height: 812 }, { top: 44, bottom: 34 }],
     [WIDTHS[1], { top: 24, bottom: 20 }],
     [{ ...WIDTHS[2], name: 'desktop-chrome-820', width: 820, height: 700, mobile: false }, { top: 0, bottom: 0 }],
+    [{ ...WIDTHS[2], name: 'narrow-desktop', width: 1200, height: 760 }, { top: 0, bottom: 0 }],
     [WIDTHS[2], { top: 0, bottom: 0 }],
   ]) {
     await load(w);
     await send('Emulation.setSafeAreaInsetsOverride', { insets: { ...insets, left: 0, right: 0 } });
     await sleep(500);
     console.log(`\nclose: ${w.name} (${w.width}×${w.height}, safe top ${insets.top})`);
-    try { await closeDialogChecks(`close ${w.name}`, insets.top, insets.bottom); }
+    try {
+      await closeDialogChecks(`close ${w.name}`, insets.top, insets.bottom);
+      await messagesHeaderChecks(`messages ${w.name}`, insets.top);
+    }
     finally { await send('Emulation.setSafeAreaInsetsOverride', { insets: { top: 0, bottom: 0, left: 0, right: 0 } }); }
   }
 }

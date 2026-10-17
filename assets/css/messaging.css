@@ -98,7 +98,6 @@
 
 .conversations-header {
   padding: 1.5rem;
-  padding-right: 3.5rem; /* Add extra padding to avoid X button */
   border-bottom: 1px solid rgba(0, 224, 255, 0.2);
   display: flex;
   align-items: center;
@@ -138,6 +137,32 @@
   align-items: center;
   gap: 0.5rem;
   font-size: 0.9rem;
+}
+
+/* New and close: 44px targets at every width. When a long or enlarged
+   heading does not fit beside New, New moves to the next line. */
+.conversations-header {
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.conversations-header h3 {
+  min-width: 0;
+  flex-wrap: wrap;
+  overflow-wrap: break-word;
+}
+
+.conversations-header .new-message-btn {
+  min-height: 44px;
+  flex-shrink: 0;
+}
+
+#messages-modal .modal-close {
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .new-message-btn:hover {
@@ -751,7 +776,7 @@
     display: none;
   }
 }
-//* =========================================================
+/* =========================================================
    WhatsApp / iMessage Mobile Mode (targets your messaging.js DOM)
    DOM (from messaging.js):
    .messages-container
@@ -792,10 +817,16 @@
     position: relative !important;
   }
 
-  /* Close button positioning for mobile */
+  /* Header row below the status bar. The close X sits in the same row, in
+     the right corner (the 44px corner X used by You); the header leaves
+     room for it so nothing overlaps and the search stays below. */
+  #messages-container .conversations-header {
+    padding: calc(0.75rem + var(--safe-top, 0px)) calc(44px + 1rem) 0.75rem 1rem !important;
+  }
+
   #messages-modal .modal-close {
     position: absolute !important;
-    top: calc(0.5rem + var(--safe-top, 0px)) !important;
+    top: calc(0.75rem + 1px + var(--safe-top, 0px)) !important; /* + the sidebar's border */
     right: 0.5rem !important;
     z-index: 10051 !important;
   }
@@ -853,8 +884,17 @@
     z-index: 5 !important;
     padding-top: calc(0.75rem + var(--safe-top)) !important;
     padding-bottom: 0.75rem !important;
+    /* Room for the close X in the corner, as in the conversations header. */
+    padding-right: calc(44px + 1rem) !important;
     background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%) !important;
     flex-shrink: 0 !important;
+  }
+
+  /* A long name, email or context wraps instead of running under the X. */
+  #messages-container .chat-header-info,
+  #messages-container .chat-context {
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   /* Message list = scrollable area - THIS IS KEY */
