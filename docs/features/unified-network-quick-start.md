@@ -393,34 +393,28 @@ unifiedNetworkApi.on('discovery-triggered', ({ reasons, timestamp }) => {
 unifiedNetworkApi.triggerDiscovery();
 ```
 
-### Discovery Preferences
+### Discovery On/Off
+
+Members turn discovery on or off in Settings → Network → "Suggest people
+and projects on the map" (on by default, saved on the device as
+`discovery-suggestions-enabled`). The map starts with the saved value and
+applies changes as soon as Settings is saved. When it is off, nothing enters
+Discovery: not the automatic triggers, the physics loop or `triggerDiscovery()`.
 
 ```javascript
-// Set user preferences
-unifiedNetworkApi.setDiscoveryPreferences({
-  frequency: 'normal', // 'low', 'normal', 'high', 'off'
-  enabled: true
-});
+// What Settings does when the switch changes
+unifiedNetworkApi.setDiscoveryPreferences({ enabled: false });
 
-// Get current preferences
-const prefs = unifiedNetworkApi.getDiscoveryPreferences();
-console.log('Frequency:', prefs.frequency);
-console.log('Enabled:', prefs.enabled);
+// Current value
+console.log('Enabled:', unifiedNetworkApi.getDiscoveryPreferences().enabled);
 
-// Listen to preference changes
+// Listen to changes
 unifiedNetworkApi.on('discovery-preferences-updated', (prefs) => {
-  console.log('Preferences updated:', prefs);
+  console.log('Discovery on:', prefs.enabled);
 });
 ```
 
-### Frequency Settings
-
-- **low**: Discovery every 4 minutes (minimum)
-- **normal**: Discovery every 2 minutes (minimum)
-- **high**: Discovery every 1 minute (minimum)
-- **off**: Discovery disabled
-
-For small graphs (< 5 nodes), frequency is automatically increased by 50%.
+Discovery shows at most once every 2 minutes.
 
 ### Rate Limiting
 

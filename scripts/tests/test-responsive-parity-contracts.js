@@ -100,6 +100,43 @@ assert.match(messagingCss, /@media \(min-width: 1024px\) \{\s*\.msg-sidebar-tab 
 assert.doesNotMatch(messagingCss, /@media \(min-width: 769px\)/);
 assert.match(read('assets/js/messaging.js'), /<button class="new-message-btn" type="button" aria-label="New message" onclick="MessagingModule\.showNewMessageModal\(\)">/);
 
+// Discovery: one switch in Settings ("Suggest people and projects on the
+// map"), no injected Discovery button, no old preferences dialog, and no
+// shortcuts that take over the browser's Cmd/Ctrl+P, D or H.
+{
+  const integrationJs = read('assets/js/unified-network-integration.js');
+  const onboardingJs = read('assets/js/unified-network/onboarding.js');
+  const apiJs = read('assets/js/unified-network/api.js');
+  const settingsJs = read('assets/js/settings-modal.js');
+  assert.doesNotMatch(integrationJs, /unified-network-preferences-btn|showPreferencesPanel|addEventListener\('keydown'/);
+  assert.doesNotMatch(onboardingJs, /discovery-frequency|Discovery Preferences|createPreferencesPanel/);
+  assert.doesNotMatch(apiJs, /PreferencesPanel|loadPreferences\(/);
+  assert.match(settingsJs, /id="settings-discovery-suggestions"/);
+  assert.match(settingsJs, />Suggest people and projects on the map</);
+  assert.match(settingsJs, /window\.SettingsModal = \{ open, close, discoverySuggestionsEnabled \}/);
+  // The map starts with the saved setting (no Settings dependency, no gap).
+  assert.match(read('assets/js/unified-network/state-manager.js'), /this\._discoveryEnabled = storedDiscoveryEnabled\(\);/);
+  // A change applies even before the map has started (no "not initialized"
+  // error, straight to the state manager), from a listener registered when
+  // the module loads; turning it off while suggestions show or appear also
+  // clears their highlight and focus.
+  {
+    const setPrefs = apiJs.slice(apiJs.indexOf('  setDiscoveryPreferences(preferences) {'), apiJs.indexOf('  getDiscoveryPreferences() {'));
+    assert.doesNotMatch(setPrefs, /_ensureInitialized/);
+    assert.match(setPrefs, /this\._stateManager\.setDiscoveryEnabled\(enabled\);/);
+    assert.match(setPrefs, /if \(!enabled && wasActive && this\._initialized\) \{\s*this\.resetToMyNetwork\(\);/);
+    assert.match(apiJs, /getDiscoveryPreferences\(\) \{\s*return \{ enabled: this\._stateManager\.isDiscoveryEnabled\(\) \};/);
+    assert.match(integrationJs, /^window\.addEventListener\('discovery-suggestions-changed'/m);
+    assert.doesNotMatch(apiJs, /discovery-requested/);
+    // The changed map modules are fetched fresh with api.js.
+    for (const m of ['state-manager', 'discovery-trigger-manager', 'onboarding', 'accessibility']) {
+      assert.match(apiJs, new RegExp(`from '\\./${m}\\.js\\?v=discovery-setting-20261019'`), `${m}.js is cache-busted`);
+    }
+  }
+  // The map's keyboard handler leaves the browser's Ctrl/Cmd+D alone.
+  assert.doesNotMatch(read('assets/js/unified-network/accessibility.js'), /case 'd':/);
+  assert.doesNotMatch(read('assets/css/mobile-safe-area.css'), /unified-network-preferences|\.preferences-content/);
+}
 // Settings on desktop uses the existing settings modal (one implementation).
 assert.match(index, /<div class="cd-identity-actions">[\s\S]*?id="cd-settings-btn"[\s\S]*?id="cd-logout-btn"/);
 assert.match(commandJs, /\$id\('cd-settings-btn'\);[\s\S]{0,80}addEventListener\('click', \(\) => window\.SettingsModal\?\.open\?\.\(\)\)/);

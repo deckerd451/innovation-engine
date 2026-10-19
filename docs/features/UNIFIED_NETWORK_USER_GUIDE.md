@@ -81,7 +81,7 @@ Discovery activates automatically when:
 2. **No strong actions** - No highly relevant nodes (effectivePull > 0.7)
 3. **Relevant presence** - Someone interesting is online
 4. **Temporal opportunity** - Upcoming deadline or event
-5. **User preference** - Based on your discovery frequency setting
+5. **Your setting** - Settings → Network → "Suggest people and projects on the map" (on by default)
 
 ### Discovery Nodes
 
@@ -149,7 +149,7 @@ When discovery activates, you'll see 1-3 new nodes appear:
 
 **Return to your position:**
 - Tap the background
-- Press `Ctrl+H` (or `Cmd+H` on Mac)
+- Press `Esc` while the map has keyboard focus
 - Click your own node
 
 ### Search
@@ -161,22 +161,21 @@ When discovery activates, you'll see 1-3 new nodes appear:
 
 ### Keyboard Shortcuts
 
-- `Ctrl/Cmd + D` - Trigger discovery manually
-- `Ctrl/Cmd + H` - Return to your network (home)
-- `Ctrl/Cmd + P` - Open discovery preferences
-- `Ctrl/Cmd + K` - Open search
+While the map has keyboard focus:
+- Arrow keys - Move between nodes
+- `Enter` / `Space` - Open the focused node
+- `Esc` - Return to your network (home)
 
-## Preferences
+The browser's own `Ctrl/Cmd + D`, `H` and `P` (bookmark, history, print) are left alone.
 
-### Discovery Frequency
+## Settings
 
-Control how often discovery activates:
+### Suggest people and projects on the map
 
-**Never** - Discovery disabled, manual only
-**Rarely** - Every 10+ minutes
-**Sometimes** - Every 5-10 minutes (default)
-**Often** - Every 2-5 minutes
-**Always** - Continuous discovery
+Settings → Network → **Suggest people and projects on the map** turns
+discovery suggestions on or off. It is on by default, saved on this device,
+and applies straight away. When it is off, no suggestions appear on the map.
+When it is on, discovery shows at most once every 2 minutes.
 
 ### Reduced Motion
 
@@ -212,8 +211,7 @@ If you have motion sensitivity:
 ### Discovery Not Appearing
 
 **Check your settings:**
-- Discovery frequency not set to "Never"
-- Feature is enabled (Ctrl+Shift+U to check)
+- Settings → Network → "Suggest people and projects on the map" is on
 
 **Network conditions:**
 - You have connections and themes
@@ -225,7 +223,7 @@ If you have motion sensitivity:
 **Try these steps:**
 1. Close other browser tabs
 2. Disable debug mode
-3. Reduce discovery frequency
+3. Turn off "Suggest people and projects on the map" in Settings
 4. Clear browser cache
 5. Update your browser
 
@@ -296,13 +294,6 @@ If you encounter problems:
 
 ## Advanced Features
 
-### Manual Discovery Trigger
-
-Press `Ctrl/Cmd + D` to manually trigger discovery:
-- Useful when you want fresh suggestions
-- Bypasses timing restrictions
-- Shows up to 3 relevant nodes
-
 ### Debug Mode
 
 Enable debug mode for detailed information:
@@ -324,10 +315,10 @@ Check system health anytime:
 ## Frequently Asked Questions
 
 **Q: Why don't I see any discovery suggestions?**
-A: Discovery requires calm network activity, relevant matches in the community, and appropriate settings. Try manually triggering with Ctrl+D.
+A: Discovery requires calm network activity, relevant matches in the community, and "Suggest people and projects on the map" turned on in Settings.
 
 **Q: Can I disable discovery completely?**
-A: Yes, set discovery frequency to "Never" in preferences. You can still manually trigger with Ctrl+D.
+A: Yes, turn off "Suggest people and projects on the map" in Settings → Network. No suggestions appear while it is off.
 
 **Q: How is relevance calculated?**
 A: Based on shared themes (20%), shared projects (30%), connection history (15%), interaction frequency (15%), and temporal opportunities (20%).

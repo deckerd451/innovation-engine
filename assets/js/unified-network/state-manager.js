@@ -11,6 +11,23 @@ import {
 } from './constants.js';
 
 /**
+ * Whether map discovery suggestions are on, as saved on this device by
+ * Settings → "Suggest people and projects on the map" (the same rule as
+ * discoverySuggestionsEnabled() in settings-modal.js): on unless turned off
+ * there, or turned off earlier in the old Discovery Preferences dialog.
+ * Read here so the map starts with it, before any discovery check runs.
+ */
+export function storedDiscoveryEnabled(storage = globalThis.localStorage) {
+  try {
+    const saved = storage?.getItem('discovery-suggestions-enabled');
+    if (saved !== null && saved !== undefined) return saved !== 'false';
+    const legacy = JSON.parse(storage?.getItem('unified-network-preferences') || 'null');
+    if (legacy && (legacy.enabled === false || legacy.frequency === 'off')) return false;
+  } catch (_) { /* unreadable: default */ }
+  return true;
+}
+
+/**
  * State Manager
  * Manages system state transitions between My Network and Discovery
  */
@@ -31,6 +48,33 @@ export class StateManager {
 
     this._eventHandlers = new Map();
     this._lastTransitionTime = Date.now();
+    // Settings → "Suggest people and projects on the map". Every way into
+    // Discovery (automatic triggers, the physics loop, a manual trigger)
+    // goes through this flag.
+    this._discoveryEnabled = storedDiscoveryEnabled();
+  }
+
+  /**
+   * Turn map discovery suggestions on or off. Turning them off leaves
+   * Discovery straight away and clears the suggested nodes.
+   * @param {boolean} enabled
+   */
+  setDiscoveryEnabled(enabled) {
+    const next = enabled !== false;
+    if (next === this._discoveryEnabled) return;
+    this._discoveryEnabled = next;
+    // Mid-way into Discovery, transitionToDiscovery() lands on My Network
+    // instead; mid-way back to My Network, nothing more is needed.
+    if (!next && this._state.mode === SystemMode.Discovery) {
+      this.transitionToMyNetwork();
+    }
+  }
+
+  /**
+   * @returns {boolean} Whether discovery suggestions are on
+   */
+  isDiscoveryEnabled() {
+    return this._discoveryEnabled;
   }
 
   /**
@@ -39,6 +83,9 @@ export class StateManager {
    */
   initialize(config = {}) {
     console.log('🎯 Initializing StateManager');
+
+    // The saved setting, as Settings last wrote it
+    this._discoveryEnabled = storedDiscoveryEnabled();
 
     // Apply config overrides
     if (config.initialMode) {
@@ -71,8 +118,8 @@ export class StateManager {
    * @returns {boolean}
    */
   shouldTransitionToDiscovery(nodes) {
-    // Don't transition if already in discovery or transitioning
-    if (this._state.mode !== SystemMode.MyNetwork) {
+    // Don't transition if suggestions are off, already in discovery or transitioning
+    if (!this._discoveryEnabled || this._state.mode !== SystemMode.MyNetwork) {
       return false;
     }
 
@@ -197,6 +244,7 @@ export class StateManager {
    * Transition to Discovery state
    */
   transitionToDiscovery() {
+    if (!this._discoveryEnabled) return;
     if (this._state.mode === SystemMode.Discovery) {
       console.warn('Already in Discovery mode');
       return;
@@ -211,6 +259,15 @@ export class StateManager {
 
     // Simulate transition delay
     setTimeout(() => {
+      // Turned off during the transition: land on My Network instead.
+      if (!this._discoveryEnabled) {
+        this._state.mode = SystemMode.MyNetwork;
+        this._state.guidedNodes = [];
+        this._state.presenceAmplifiedNode = null;
+        this._lastTransitionTime = Date.now();
+        this.emit('mode-changed', { mode: SystemMode.MyNetwork });
+        return;
+      }
       this._state.mode = SystemMode.Discovery;
       this._lastTransitionTime = Date.now();
       this.emit('mode-changed', { mode: SystemMode.Discovery });
@@ -265,7 +322,7 @@ export class StateManager {
    * @param {Node[]} nodes - All nodes
    */
   updateGuidedNodes(nodes) {
-    if (this._state.mode !== SystemMode.Discovery) {
+    if (!this._discoveryEnabled || this._state.mode !== SystemMode.Discovery) {
       return;
     }
 

@@ -5,6 +5,7 @@
 //   - Quiet Mode toggle
 //   - Language selector
 //   - Notification preferences
+//   - Map discovery suggestions (unified-network-integration.js applies it)
 //   - Debug mode toggle
 
 (() => {
@@ -42,6 +43,27 @@
     try { localStorage.removeItem(key); } catch {}
   }
 
+  // Map discovery suggestions: on unless turned off here. Someone who turned
+  // discovery off in the old Discovery Preferences dialog (stored as
+  // unified-network-preferences) stays off until they change it here. The
+  // map reads the same value (storedDiscoveryEnabled() in state-manager.js).
+  const DISCOVERY_KEY = 'discovery-suggestions-enabled';
+  function discoverySuggestionsEnabled() {
+    const saved = getSetting(DISCOVERY_KEY, null);
+    if (saved !== null) return saved !== 'false';
+    try {
+      const legacy = JSON.parse(getSetting('unified-network-preferences', 'null'));
+      if (legacy && (legacy.enabled === false || legacy.frequency === 'off')) return false;
+    } catch {}
+    return true;
+  }
+  function applyDiscoverySuggestions(enabled) {
+    if (enabled === discoverySuggestionsEnabled()) return;
+    setSetting(DISCOVERY_KEY, enabled ? 'true' : 'false');
+    removeSetting('unified-network-preferences'); // the old dialog's value, now replaced
+    window.dispatchEvent(new CustomEvent('discovery-suggestions-changed', { detail: { enabled } }));
+  }
+
   function applyQuietMode(enabled) {
     if (enabled) {
       document.body.classList.add('quiet-mode');
@@ -64,6 +86,7 @@
                         : getSetting('preferred_language', 'en');
     const notifPush = getSetting('push-notifications-enabled', 'false') === 'true';
     const notifEmail= getSetting('email-notifications-enabled', 'true') === 'true';
+    const discovery = discoverySuggestionsEnabled();
 
     const langOptions = LANGUAGES.map(l =>
       `<option value="${l.code}" ${l.code === curLang ? 'selected' : ''}>${l.flag} ${l.label}</option>`
@@ -126,6 +149,28 @@
                   </div>
                 </div>
                 <input type="checkbox" id="settings-quiet-mode" ${isQuiet ? 'checked' : ''} style="
+                  width: 20px; height: 20px; accent-color: #00e0ff; cursor: pointer; flex-shrink: 0;
+                ">
+              </label>
+            </section>
+
+            <!-- Network -->
+            <section>
+              <div style="color: #00e0ff; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 0.75rem;">
+                <i class="fas fa-project-diagram"></i>&nbsp; Network
+              </div>
+              <label style="
+                display: flex; align-items: center; justify-content: space-between;
+                background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+                border-radius: 10px; padding: 0.85rem 1rem; cursor: pointer;
+              ">
+                <div>
+                  <div style="color: #fff; font-size: 0.95rem; font-weight: 600;">Suggest people and projects on the map</div>
+                  <div style="color: rgba(255,255,255,0.5); font-size: 0.8rem; margin-top: 0.2rem;">
+                    Highlights relevant people and projects you're not yet connected to
+                  </div>
+                </div>
+                <input type="checkbox" id="settings-discovery-suggestions" ${discovery ? 'checked' : ''} style="
                   width: 20px; height: 20px; accent-color: #00e0ff; cursor: pointer; flex-shrink: 0;
                 ">
               </label>
@@ -257,6 +302,10 @@
     const quietEl = document.getElementById('settings-quiet-mode');
     if (quietEl) applyQuietMode(quietEl.checked);
 
+    // Map discovery suggestions
+    const discoveryEl = document.getElementById('settings-discovery-suggestions');
+    if (discoveryEl) applyDiscoverySuggestions(discoveryEl.checked);
+
     // Language
     const langEl = document.getElementById('settings-language');
     if (langEl && typeof window.setLanguage === 'function') {
@@ -300,6 +349,6 @@
   // ----------------------------------------------------------------
   // Public API
   // ----------------------------------------------------------------
-  window.SettingsModal = { open, close };
+  window.SettingsModal = { open, close, discoverySuggestionsEnabled };
 
 })();

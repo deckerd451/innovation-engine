@@ -239,14 +239,6 @@ export class AccessibilityManager {
         event.preventDefault();
         this.emit('navigate-nodes', { direction: key.replace('Arrow', '').toLowerCase() });
         break;
-        
-      case 'd':
-        // Trigger discovery
-        if (event.ctrlKey || event.metaKey) {
-          event.preventDefault();
-          this.emit('discovery-requested');
-        }
-        break;
     }
   }
   

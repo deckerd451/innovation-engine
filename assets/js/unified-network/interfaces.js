@@ -221,6 +221,31 @@ export class StateManager {
   }
 
   /**
+   * Get current mode ('my-network' | 'discovery' | 'transitioning')
+   * @returns {string}
+   */
+  getMode() {
+    throw new Error('Not implemented');
+  }
+
+  /**
+   * Turn discovery suggestions on or off (Settings → "Suggest people and
+   * projects on the map")
+   * @param {boolean} enabled
+   */
+  setDiscoveryEnabled(enabled) {
+    throw new Error('Not implemented');
+  }
+
+  /**
+   * Whether discovery suggestions are on
+   * @returns {boolean}
+   */
+  isDiscoveryEnabled() {
+    throw new Error('Not implemented');
+  }
+
+  /**
    * Check if should transition to discovery
    * @param {Node[]} nodes - All nodes
    * @returns {boolean}

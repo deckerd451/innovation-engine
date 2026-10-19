@@ -36,6 +36,9 @@
 //   - Home during unread refreshes (every 30 seconds and when messages are
 //     read): expanded sections, unfinished text, focus and scroll stay, and
 //     the Inbox badge shows the new count
+//   - Settings → "Suggest people and projects on the map": one switch, on by
+//     default, saved on the device and announced to the map; no separate
+//     Discovery button or preferences dialog
 //   - Explore search: keyboard-safe input, suggestions on screen, opening a
 //     result, and Enter for full results
 //   - goal assistance on phones and tablets, closed by navigating away
@@ -1144,6 +1147,120 @@ async function homeRefreshRuns() {
   }
 }
 
+// ── Discovery suggestions in Settings ────────────────────────────────────
+// Map discovery is turned on or off in one place: Settings → "Suggest
+// people and projects on the map" (on by default), opened as Settings
+// always is (Home → Account below 1024px, the identity bar from 1024px).
+// The setting is kept on this device and announced to the map. There is no
+// separate Discovery button or preferences dialog.
+const DISCOVERY_SWITCH = '#settings-discovery-suggestions';
+async function openSettings() {
+  if (current.width >= 1024) {
+    await go('home');
+    await press('#cd-settings-btn', 'Settings');
+  } else {
+    await go('home');
+    await sleep(800);
+    const account = '#mobile-you-content > details.mobile-you-secondary:last-of-type';
+    for (let i = 0; i < 3; i++) {
+      await waitUntil(function (sel) { return !!document.querySelector(sel + ' > summary'); }, [account], 'Account', 6000);
+      if (await callInPage(function (sel) { return document.querySelector(sel).open; }, account)) break;
+      await press(`${account} > summary`, 'Account');
+      await sleep(300);
+    }
+    await press('[data-profile-action="settings"]', 'Settings');
+  }
+  await waitFor(isOpen.settings, 'settings', 5000);
+  await sleep(200);
+}
+const discoverySwitch = () => callInPage(function (sel) {
+  const input = document.querySelector(sel);
+  if (!input) return { missing: true };
+  const label = input.closest('label');
+  const title = label?.querySelector('div > div');
+  // Readable: the label's text colour differs clearly from what is behind it.
+  const rgb = (c) => (c.match(/[\d.]+/g) || []).slice(0, 4).map(Number);
+  const lum = ([r, g, b]) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
+  let bg = null;
+  for (let el = title; el && !bg; el = el.parentElement) { const c = rgb(getComputedStyle(el).backgroundColor); if (c.length === 3 || c[3] > 0.5) bg = c; }
+  const fg = rgb(getComputedStyle(title).color);
+  const [hi, lo] = [lum(fg), lum(bg || [0, 0, 0])].sort((a, b) => b - a);
+  return { checked: input.checked, title: title?.textContent.trim() || '', name: (label?.textContent || '').replace(/\s+/g, ' ').trim(), contrast: Math.round(((hi + 0.05) / (lo + 0.05)) * 10) / 10 };
+}, DISCOVERY_SWITCH);
+const storedDiscovery = () => evaluate(`localStorage.getItem('discovery-suggestions-enabled')`);
+const discoveryUI = () => evaluate(`document.querySelectorAll('.unified-network-preferences-btn, .unified-network-preferences, #discovery-frequency').length`);
+
+async function discoverySettingChecks(P, { legacy = false } = {}) {
+  await step(`${P}: Settings has one "Suggest people and projects on the map" switch, on by default, that saves`, async () => {
+    await evaluate(`(() => { localStorage.removeItem('discovery-suggestions-enabled'); localStorage.removeItem('unified-network-preferences'); window.__discoveryEvents = []; if (!window.__discoveryListening) { window.__discoveryListening = true; window.addEventListener('discovery-suggestions-changed', (e) => window.__discoveryEvents.push(e.detail && e.detail.enabled)); } return true; })()`);
+    check(await discoveryUI() === 0, `${P}: no separate Discovery button or preferences dialog`, String(await discoveryUI()));
+    await openSettings();
+    const before = await discoverySwitch();
+    check(!before.missing && before.title === 'Suggest people and projects on the map' && before.checked && before.contrast >= 4.5 && await usable(DISCOVERY_SWITCH),
+      `${P}: the switch is labelled, on by default, readable and usable`, JSON.stringify(before));
+    await shot(`${current.name}-settings-discovery`);
+
+    // Turn it off with a real tap or click, and save.
+    await press(DISCOVERY_SWITCH, 'Suggest people and projects switch');
+    await press('#settings-save-btn', 'Save');
+    await waitFor(`!${isOpen.settings}`, 'settings to close', 3000);
+    const events = await evaluate(`window.__discoveryEvents`);
+    check(await storedDiscovery() === 'false' && JSON.stringify(events) === '[false]', `${P}: turning it off saves it and tells the map`, JSON.stringify({ stored: await storedDiscovery(), events }));
+
+    // Still off after a reload; turn it back on.
+    await load(current);
+    await openSettings();
+    const reloaded = await discoverySwitch();
+    check(!reloaded.missing && !reloaded.checked, `${P}: off is kept after a reload`, JSON.stringify(reloaded));
+    await press(DISCOVERY_SWITCH, 'Suggest people and projects switch');
+    await press('#settings-save-btn', 'Save');
+    await waitFor(`!${isOpen.settings}`, 'settings to close', 3000);
+    check(await storedDiscovery() === 'true', `${P}: turning it back on saves it`, String(await storedDiscovery()));
+
+    // Saving Settings without changing the switch tells the map nothing.
+    // (First let the "Settings saved" toast from the last save go: it sits
+    // over Account and Save for a few seconds.)
+    await waitUntil(function () { return ![...document.querySelectorAll('body *')].some(el => el.childElementCount === 0 && el.textContent.trim() === 'Settings saved' && el.getClientRects().length); }, [], 'the Settings saved toast to go', 10000);
+    await evaluate(`(() => { window.__discoveryEvents = []; return true; })()`);
+    await openSettings();
+    await press('#settings-save-btn', 'Save');
+    await waitFor(`!${isOpen.settings}`, 'settings to close', 3000);
+    const unchanged = await evaluate(`window.__discoveryEvents`);
+    check(unchanged.length === 0 && await storedDiscovery() === 'true', `${P}: saving without changing the switch sends nothing to the map`, JSON.stringify(unchanged));
+  });
+  if (legacy) {
+    await step(`${P}: an earlier "off" in the old Discovery Preferences dialog is kept`, async () => {
+      await evaluate(`(() => { localStorage.removeItem('discovery-suggestions-enabled'); localStorage.setItem('unified-network-preferences', JSON.stringify({ frequency: 'normal', enabled: false })); return true; })()`);
+      await load(current);
+      await openSettings();
+      const s = await discoverySwitch();
+      check(!s.missing && !s.checked, `${P}: an earlier "off" in the old Discovery Preferences dialog is kept`, JSON.stringify(s));
+      // Turning it on replaces the old dialog's value.
+      await press(DISCOVERY_SWITCH, 'Suggest people and projects switch');
+      await press('#settings-save-btn', 'Save');
+      await waitFor(`!${isOpen.settings}`, 'settings to close', 3000);
+      const after = await evaluate(`({ stored: localStorage.getItem('discovery-suggestions-enabled'), legacy: localStorage.getItem('unified-network-preferences') })`);
+      check(after.stored === 'true' && after.legacy === null, `${P}: turning it on replaces the old dialog's value`, JSON.stringify(after));
+    });
+  }
+}
+
+async function discoverySettingRuns() {
+  const ipad = WIDTHS[1].ua;
+  for (const [w, opts] of [
+    [WIDTHS[0], { legacy: true }],                                                           // iPhone
+    [{ ...WIDTHS[0], name: 'phone-small', width: 375, height: 667 }, {}],                     // iPhone SE
+    [{ ...WIDTHS[1], name: 'ipad-portrait' }, {}],                                            // 820×1180
+    [{ name: 'ipad-landscape', width: 1180, height: 820, mobile: true, ua: ipad }, {}],
+    [{ ...WIDTHS[2], name: 'desktop-window-900', width: 900, height: 760 }, {}],
+    [WIDTHS[2], { legacy: true }],                                                            // 1366×900
+  ]) {
+    await load(w);
+    console.log(`\ndiscovery setting: ${w.name} (${w.width}×${w.height}${w.mobile ? ', touch' : ''})`);
+    await discoverySettingChecks(`discovery ${w.name}`, opts);
+  }
+}
+
 // ── Opening a conversation ───────────────────────────────────────────────
 // Below 1024px Messages is full screen and shows either the list or the
 // chat; from 1024px both sit side by side. A real tap on a conversation
@@ -1569,6 +1686,7 @@ try {
   await closeDialogRuns();
   await conversationRuns();
   await homeRefreshRuns();
+  await discoverySettingRuns();
   await signedOutChecks();
   // The network map is never initialized against the fake client (it has no
   // graph data), so Network-view calls into UnifiedNetworkAPI report that.
