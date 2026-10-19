@@ -76,8 +76,10 @@ window.unifiedNetworkErrorIntegration?.getStats()
 const state = window.unifiedNetworkIntegration?.api?.getState();
 console.log('State:', state);
 
-// Check if discovery is enabled (Settings → Network → "Suggest people and projects on the map")
-console.log('Discovery on:', localStorage.getItem('discovery-suggestions-enabled') !== 'false');
+// Check if discovery is enabled (Settings → Network → "Suggest people and projects on the map").
+// Both apply the old saved preferences when the new setting hasn't been saved yet.
+console.log('Setting on:', window.SettingsModal?.discoverySuggestionsEnabled());
+console.log('Map on:', window.unifiedNetworkIntegration?.api?.getDiscoveryPreferences().enabled);
 
 // Check for potential matches
 console.log('Nodes:', window.unifiedNetworkIntegration?.api?.getAllNodes());
