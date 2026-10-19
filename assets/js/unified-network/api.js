@@ -6,7 +6,7 @@ import { SystemMode } from './types.js';
 import { graphDataStore } from './graph-data-store.js?v=hero-node-20260318';
 import { relevanceScoreEngine } from './relevance-engine.js';
 import { presenceEnergyTracker } from './presence-tracker.js';
-import { stateManager } from './state-manager.js';
+import { stateManager } from './state-manager.js?v=discovery-setting-20261019';
 import { effectivePullCalculator } from './effective-pull.js';
 import { nodeRenderer, NodeRenderer } from './node-renderer.js?v=hero-node-20260318';
 import { animationEngine } from './animation-engine.js';
@@ -14,10 +14,10 @@ import { physicsLoop, AdaptiveFrameRateManager } from './physics-loop.js';
 import { interactionHandler } from './interaction-handler.js';
 import { ActionResolver } from './action-resolver.js';
 import { guidedNodeDecay } from './guided-node-decay.js';
-import { DiscoveryTriggerManager } from './discovery-trigger-manager.js';
+import { DiscoveryTriggerManager } from './discovery-trigger-manager.js?v=discovery-setting-20261019';
 import { TemporalPresenceManager } from './temporal-presence-manager.js';
-import { AccessibilityManager } from './accessibility.js';
-import { OnboardingManager } from './onboarding.js';
+import { AccessibilityManager } from './accessibility.js?v=discovery-setting-20261019';
+import { OnboardingManager } from './onboarding.js?v=discovery-setting-20261019';
 import { PerformanceManager } from './performance.js';
 import { mobileTierController } from './mobile-tier-controller.js';
 import {
@@ -346,10 +346,6 @@ try {
       this._onboardingManager = new OnboardingManager();
       this._onboardingManager.initialize(this._svg, this);
       this._setupOnboardingHandlers();
-      
-      // Load saved preferences
-      this._onboardingManager.loadPreferences();
-      
       console.log('👋 Onboarding ready');
 
       // 16. Initialize Performance Manager
@@ -692,17 +688,24 @@ try {
   }
 
   /**
-   * Set discovery preferences
+   * Set discovery preferences (Settings → "Suggest people and projects on
+   * the map"; unified-network-integration.js applies it)
    * @param {Object} preferences - Discovery preferences
-   * @param {string} preferences.frequency - 'low', 'normal', 'high', or 'off'
-   * @param {boolean} preferences.enabled - Enable/disable discovery
+   * @param {boolean} preferences.enabled - Turn discovery suggestions on or off
    */
   setDiscoveryPreferences(preferences) {
-    this._ensureInitialized();
+    const enabled = preferences?.enabled;
+    if (typeof enabled !== 'boolean') return;
     console.log('⚙️ Setting discovery preferences', preferences);
-    
-    if (this._discoveryTriggerManager) {
-      this._discoveryTriggerManager.setPreferences(preferences);
+    const wasActive = this._stateManager.getMode() !== SystemMode.MyNetwork;
+    // The state manager gates every way into Discovery; this works before
+    // initialize() too, so a change made while the map starts is kept.
+    this._stateManager.setDiscoveryEnabled(enabled);
+    this._discoveryTriggerManager?.setPreferences({ enabled }); // 'discovery-preferences-updated'
+    // Turned off while suggestions show (or are appearing): also clear
+    // their highlight and focus.
+    if (!enabled && wasActive && this._initialized) {
+      this.resetToMyNetwork();
     }
   }
 
@@ -711,13 +714,7 @@ try {
    * @returns {Object} Current discovery preferences
    */
   getDiscoveryPreferences() {
-    this._ensureInitialized();
-    
-    if (this._discoveryTriggerManager) {
-      return this._discoveryTriggerManager.getPreferences();
-    }
-    
-    return { frequency: 'normal', enabled: true };
+    return { enabled: this._stateManager.isDiscoveryEnabled() };
   }
 
   /**
@@ -764,28 +761,6 @@ try {
       this._presenceTracker.clearPresence(nodeId);
     }
     this.emit('presence-cleared', { nodeId });
-  }
-
-  /**
-   * Show discovery preferences panel
-   */
-  showPreferencesPanel() {
-    this._ensureInitialized();
-    
-    if (this._onboardingManager) {
-      this._onboardingManager.showPreferencesPanel();
-    }
-  }
-
-  /**
-   * Hide discovery preferences panel
-   */
-  hidePreferencesPanel() {
-    this._ensureInitialized();
-
-    if (this._onboardingManager) {
-      this._onboardingManager.hidePreferencesPanel();
-    }
   }
 
   /**
@@ -1436,12 +1411,6 @@ try {
       this.resetToMyNetwork();
     });
 
-    // Discovery requested via keyboard
-    this._accessibilityManager.on('discovery-requested', () => {
-      console.log('♿ Discovery requested via keyboard');
-      this.triggerDiscovery();
-    });
-
     // Navigate nodes via keyboard
     this._accessibilityManager.on('navigate-nodes', ({ direction }) => {
       console.log(`♿ Navigate nodes: ${direction}`);
@@ -1507,24 +1476,6 @@ try {
     this._onboardingManager.on('tooltip-closed', () => {
       console.log('👋 Tooltip closed');
       this.emit('onboarding-tooltip-closed');
-    });
-
-    // Preferences saved
-    this._onboardingManager.on('preferences-saved', (preferences) => {
-      console.log('⚙️ Discovery preferences saved', preferences);
-      this.emit('discovery-preferences-saved', preferences);
-    });
-
-    // Preferences panel shown
-    this._onboardingManager.on('preferences-panel-shown', () => {
-      console.log('⚙️ Preferences panel shown');
-      this.emit('preferences-panel-shown');
-    });
-
-    // Preferences panel hidden
-    this._onboardingManager.on('preferences-panel-hidden', () => {
-      console.log('⚙️ Preferences panel hidden');
-      this.emit('preferences-panel-hidden');
     });
   }
 

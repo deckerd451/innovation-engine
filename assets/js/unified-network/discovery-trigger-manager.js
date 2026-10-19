@@ -6,7 +6,10 @@
  * - Strong action absence (no high effectivePull nodes)
  * - Relevant presence (high presenceEnergy)
  * - Temporal opportunities (deadlines, active collaboration)
- * - Rate limiting and adaptive frequency
+ * - Rate limiting (at most one discovery every 2 minutes)
+ *
+ * On/off is the state manager's discovery setting (Settings → "Suggest
+ * people and projects on the map").
  * 
  * Requirements: 3.1, 3.2, 3.3, 10.5, 12.3, 12.4, 12.5, 13.1
  */
@@ -24,10 +27,6 @@ export class DiscoveryTriggerManager {
     this.lastDiscoveryTime = 0;
     this.lowMomentumStartTime = null;
     this.lastInteractionTime = Date.now();
-    this.userPreferences = {
-      frequency: 'normal', // 'low', 'normal', 'high', 'off'
-      enabled: true
-    };
     
     // Monitoring intervals
     this.checkInterval = null;
@@ -65,14 +64,15 @@ export class DiscoveryTriggerManager {
    * Check all trigger conditions
    */
   checkTriggers() {
-    // Skip if discovery is disabled
-    if (!this.userPreferences.enabled || this.userPreferences.frequency === 'off') {
+    // Skip if discovery suggestions are off
+    if (!this.stateManager.isDiscoveryEnabled()) {
       return;
     }
     
-    // Skip if already in discovery state
-    const currentState = this.stateManager.getState();
-    if (currentState === 'discovery' || currentState === 'transitioning') {
+    // Skip if already in discovery state (compare the mode: getState()
+    // returns the whole state object)
+    const currentMode = this.stateManager.getMode();
+    if (currentMode === 'discovery' || currentMode === 'transitioning') {
       return;
     }
     
@@ -116,21 +116,10 @@ export class DiscoveryTriggerManager {
   }
   
   /**
-   * Get minimum interval based on user preferences
+   * Minimum time between discoveries (the former "normal" frequency)
    */
   getMinimumInterval() {
-    const baseInterval = DISCOVERY_FREQUENCY.RATE_LIMIT_MS; // 2 minutes
-    
-    switch (this.userPreferences.frequency) {
-      case 'low':
-        return baseInterval * 2; // 4 minutes
-      case 'normal':
-        return baseInterval; // 2 minutes
-      case 'high':
-        return baseInterval * 0.5; // 1 minute
-      default:
-        return baseInterval;
-    }
+    return DISCOVERY_FREQUENCY.RATE_LIMIT_MS; // 2 minutes
   }
   
   /**
@@ -251,6 +240,7 @@ export class DiscoveryTriggerManager {
    * Trigger discovery mode
    */
   triggerDiscovery(reasons) {
+    if (!this.stateManager.isDiscoveryEnabled()) return;
     logger.info('DiscoveryTriggerManager', 'Triggering discovery', { reasons });
     
     this.lastDiscoveryTime = Date.now();
@@ -271,24 +261,22 @@ export class DiscoveryTriggerManager {
   }
   
   /**
-   * Set user preferences for discovery frequency
-   * Requirement 10.5
+   * Turn discovery suggestions on or off ({ enabled })
    */
   setPreferences(preferences) {
-    this.userPreferences = {
-      ...this.userPreferences,
-      ...preferences
-    };
-    
-    logger.info('DiscoveryTriggerManager', 'Updated preferences', this.userPreferences);
-    this.emit('preferences-updated', this.userPreferences);
+    if (typeof preferences?.enabled === 'boolean') {
+      this.stateManager.setDiscoveryEnabled(preferences.enabled);
+    }
+    const current = this.getPreferences();
+    logger.info('DiscoveryTriggerManager', 'Updated preferences', current);
+    this.emit('preferences-updated', current);
   }
   
   /**
    * Get current preferences
    */
   getPreferences() {
-    return { ...this.userPreferences };
+    return { enabled: this.stateManager.isDiscoveryEnabled() };
   }
   
   /**

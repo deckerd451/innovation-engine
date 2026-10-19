@@ -9,7 +9,7 @@
  * - GRACEFUL FALLBACK: Errors fall back to legacy synapse.
  */
 
-import { unifiedNetworkApi } from './unified-network/api.js?v=nan-guard-20261010';
+import { unifiedNetworkApi } from './unified-network/api.js?v=discovery-setting-20261019';
 import { logger } from './logger.js';
 import { initializeErrorHandling } from './unified-network/error-integration.js';
 import { installUnifiedTierProbe } from './unified-tier-probe.js';
@@ -27,6 +27,20 @@ function getFeatureFlags() {
     DEBUG_MODE: localStorage.getItem('unified-network-debug') === 'true'
   };
 }
+
+// ------------------------------------------------------------------
+// Discovery on/off comes from Settings ("Suggest people and projects on the
+// map"). The map starts with the saved value (state-manager.js reads it);
+// a change is applied as soon as Settings is saved, also while the map is
+// still starting.
+// ------------------------------------------------------------------
+window.addEventListener('discovery-suggestions-changed', (event) => {
+  try {
+    unifiedNetworkApi.setDiscoveryPreferences({ enabled: event.detail?.enabled !== false });
+  } catch (e) {
+    logger.warn('UnifiedNetworkIntegration', 'Could not apply the discovery setting', e);
+  }
+});
 
 // ------------------------------------------------------------------
 // Integration state (kept in module scope)
@@ -48,7 +62,6 @@ const GUARDS = {
   styleInjected: false,
   bridgesWired: false,
   uiWired: false,
-  shortcutsWired: false,
   searchWired: false,
   perfIntervalId: null
 };
@@ -547,71 +560,7 @@ function setupUIIntegrations() {
   if (GUARDS.uiWired) return;
   GUARDS.uiWired = true;
 
-  addPreferencesButton();
   setupSearchIntegration();
-  setupKeyboardShortcuts();
-}
-
-/**
- * Add discovery preferences button to dashboard (idempotent).
- */
-function addPreferencesButton() {
-  // Avoid duplicates
-  if (document.querySelector('.unified-network-preferences-btn')) return;
-
-  const header =
-    document.querySelector('.dashboard-header') ||
-    document.querySelector('header') ||
-    document.querySelector('.top-bar');
-
-  if (!header) {
-    logger.debug(INTEGRATION_NS, 'No header found for preferences button - skipping UI integration');
-    return;
-  }
-
-  const button = document.createElement('button');
-  button.className = 'unified-network-preferences-btn';
-  button.type = 'button';
-  button.innerHTML = '<i class="fas fa-cog"></i> Discovery';
-  button.title = 'Discovery Preferences';
-
-  // Keep styling inline to avoid touching global CSS
-  button.style.cssText = `
-    background: rgba(68, 136, 255, 0.2);
-    border: 1px solid rgba(68, 136, 255, 0.5);
-    color: #4488ff;
-    padding: 8px 16px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 14px;
-    transition: all 0.2s;
-    margin-left: 12px;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-  `;
-
-  button.addEventListener('click', () => {
-    try {
-      unifiedNetworkApi.showPreferencesPanel?.();
-    } catch (e) {
-      logger.error(INTEGRATION_NS, 'Failed to open preferences panel', e);
-    }
-  });
-
-  button.addEventListener('mouseenter', () => {
-    button.style.background = 'rgba(68, 136, 255, 0.3)';
-    button.style.borderColor = 'rgba(68, 136, 255, 0.8)';
-  });
-
-  button.addEventListener('mouseleave', () => {
-    button.style.background = 'rgba(68, 136, 255, 0.2)';
-    button.style.borderColor = 'rgba(68, 136, 255, 0.5)';
-  });
-
-  header.appendChild(button);
-
-  logger.debug(INTEGRATION_NS, 'Preferences button added');
 }
 
 /**
@@ -623,39 +572,6 @@ function setupSearchIntegration() {
   // Search selects through ExplorerCoordinator directly. Kept as an
   // idempotent setup hook because initialization still calls this function.
   logger.debug(INTEGRATION_NS, 'Coordinator-backed search integration ready');
-}
-
-/**
- * Setup keyboard shortcuts (idempotent).
- * NOTE: These are active ONLY when unified network is active.
- */
-function setupKeyboardShortcuts() {
-  if (GUARDS.shortcutsWired) return;
-  GUARDS.shortcutsWired = true;
-
-  document.addEventListener('keydown', (event) => {
-    if (!integrationState.usingUnifiedNetwork || !integrationState.initialized) return;
-
-    // Ctrl/Cmd + D: Trigger discovery
-    if ((event.ctrlKey || event.metaKey) && event.key === 'd') {
-      event.preventDefault();
-      unifiedNetworkApi.triggerDiscovery?.();
-    }
-
-    // Ctrl/Cmd + H: Go to My Network
-    if ((event.ctrlKey || event.metaKey) && event.key === 'h') {
-      event.preventDefault();
-      unifiedNetworkApi.resetToMyNetwork?.();
-    }
-
-    // Ctrl/Cmd + P: Show preferences
-    if ((event.ctrlKey || event.metaKey) && event.key === 'p') {
-      event.preventDefault();
-      unifiedNetworkApi.showPreferencesPanel?.();
-    }
-  });
-
-  logger.debug(INTEGRATION_NS, 'Keyboard shortcuts setup');
 }
 
 /**

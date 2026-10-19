@@ -69,7 +69,6 @@ window.unifiedNetworkErrorIntegration?.getStats()
 **Symptoms:**
 - Network loads but no discovery suggestions
 - Nodes don't appear after waiting
-- Manual trigger (Ctrl+D) doesn't work
 
 **Diagnosis:**
 ```javascript
@@ -77,8 +76,8 @@ window.unifiedNetworkErrorIntegration?.getStats()
 const state = window.unifiedNetworkIntegration?.api?.getState();
 console.log('State:', state);
 
-// Check if discovery is enabled
-console.log('Discovery frequency:', /* check preferences */);
+// Check if discovery is enabled (Settings → Network → "Suggest people and projects on the map")
+console.log('Discovery on:', localStorage.getItem('discovery-suggestions-enabled') !== 'false');
 
 // Check for potential matches
 console.log('Nodes:', window.unifiedNetworkIntegration?.api?.getAllNodes());
@@ -86,18 +85,18 @@ console.log('Nodes:', window.unifiedNetworkIntegration?.api?.getAllNodes());
 
 **Solutions:**
 
-1. **Check discovery frequency:**
-   - Press `Ctrl+P` to open preferences
-   - Ensure frequency is not set to "Never"
-   - Try setting to "Often" for testing
+1. **Check the setting:**
+   - Open Settings (Home → Account → Settings on phones and tablets, the Settings button on desktop)
+   - Under Network, "Suggest people and projects on the map" must be on
+   - Discovery shows at most once every 2 minutes
 
 2. **Verify network conditions:**
    - You need connections and themes
    - Community must have potential matches
    - System needs time to calculate relevance (30+ seconds)
 
-3. **Manually trigger discovery:**
-   - Press `Ctrl+D` (or `Cmd+D` on Mac)
+3. **Trigger discovery from the console (when the setting is on):**
+   - `window.unifiedNetworkIntegration?.api?.triggerDiscovery()`
    - Should show up to 3 relevant nodes
    - If nothing appears, check console for errors
 
@@ -138,9 +137,8 @@ console.log('Nodes:', metrics.nodeCount);
    - Uncheck "Debug Mode"
    - Reduces console logging overhead
 
-3. **Reduce discovery frequency:**
-   - Press `Ctrl+P`
-   - Set to "Rarely" or "Sometimes"
+3. **Turn off map suggestions:**
+   - Settings → Network → "Suggest people and projects on the map"
    - Reduces computation load
 
 4. **Check node count:**
@@ -448,7 +446,7 @@ console.log('Legacy API:', typeof window.synapseApi);
 
 **Issue:** Animations choppy
 - **Solution:** Safari has different GPU acceleration
-- **Solution:** Reduce discovery frequency
+- **Solution:** Turn off "Suggest people and projects on the map" in Settings
 
 ### Edge
 
@@ -474,7 +472,7 @@ console.log('Legacy API:', typeof window.synapseApi);
 
 **Issue:** Performance issues
 - **Solution:** Close background apps
-- **Solution:** Reduce discovery frequency
+- **Solution:** Turn off "Suggest people and projects on the map" in Settings
 - **Solution:** Use lighter browser (Firefox Focus)
 
 **Issue:** Touch targets too small
@@ -583,7 +581,6 @@ Steps to reproduce:
 1. Enable unified network
 2. Load dashboard
 3. Wait 5+ minutes
-4. Press Ctrl+D
 
 Expected: 1-3 discovery nodes appear
 Actual: No nodes appear, no errors in console
@@ -596,8 +593,7 @@ Console: No errors
 Additional info:
 - Have 10 connections
 - Member of 3 themes
-- Discovery frequency set to "Often"
-- Manual trigger (Ctrl+D) also doesn't work
+- "Suggest people and projects on the map" is on in Settings
 ```
 
 ---
