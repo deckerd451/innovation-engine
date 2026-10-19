@@ -1042,21 +1042,27 @@ const homeState = () => callInPage(function () {
   };
 });
 // An unread message from another member, as the 30-second refresh finds it.
-const addUnread = (n) => evaluate(`(async () => {
+const addUnread = (n) => callInPage(async function (n) {
   const me = window.__fixtureProfile.id;
   const { data: convs } = await window.supabase.from('conversations').select('*').or('participant_1_id.eq.' + me + ',participant_2_id.eq.' + me).limit(1);
   const c = convs[0];
   const other = c.participant_1_id === me ? c.participant_2_id : c.participant_1_id;
-  await window.supabase.from('messages').insert({ conversation_id: c.id, sender_id: other, content: 'Unread ' + ${JSON.stringify(n)}, read: false, created_at: new Date().toISOString() });
+  await window.supabase.from('messages').insert({ conversation_id: c.id, sender_id: other, content: 'Unread ' + n, read: false, created_at: new Date().toISOString() });
   return true;
-})()`);
+}, n);
+// waitFor() for a page function: values go in as arguments, not into code.
+async function waitUntil(fn, args, label, timeout = 10000) {
+  const start = Date.now();
+  while (Date.now() - start < timeout) { if (await callInPage(fn, ...args).catch(() => false)) return true; await sleep(100); }
+  throw new Error(`Timed out waiting for ${label}`);
+}
 
 async function homeRefreshChecks(P, { realTimer = false } = {}) {
   await step(`${P}: background unread refreshes keep Home as it is`, async () => {
     await go('home');
     const phone = current.width < 1024;
     const input = phone ? '#mgd-goal-input' : '#global-search';
-    await waitFor(`document.querySelector(${JSON.stringify(input)})`, 'Home input', 10000);
+    await waitUntil(function (sel) { return !!document.querySelector(sel); }, [input], 'Home input', 10000);
     await sleep(800);
     // Open every collapsed section on Home with a real tap or click.
     let opened = [];
@@ -1064,7 +1070,7 @@ async function homeRefreshChecks(P, { realTimer = false } = {}) {
       const count = await evaluate(`document.querySelectorAll('#mobile-you-content > details').length`);
       for (let i = 1; i <= count; i++) {
         const summary = `#mobile-you-content > details:nth-of-type(${i}) > summary`;
-        if (!(await evaluate(`!!document.querySelector(${JSON.stringify(summary)}) && !document.querySelector(${JSON.stringify(summary)}).parentElement.open`))) continue;
+        if (!(await callInPage(function (sel) { const el = document.querySelector(sel); return !!el && !el.parentElement.open; }, summary))) continue;
         await press(summary, `Home section ${i}`);
       }
       opened = (await homeState()).open;
@@ -1074,7 +1080,12 @@ async function homeRefreshChecks(P, { realTimer = false } = {}) {
     const text = 'Find a co-founder for my harbor sensor';
     await press(input, 'Home input');
     await send('Input.insertText', { text });
-    await evaluate(`(() => { const i = document.querySelector(${JSON.stringify(input)}); i.__homeRefreshMarker = true; const s = ${JSON.stringify(phone)} ? document.querySelector('#mobile-you-screen .mobile-you-scroll') : document.querySelector('#command-dashboard .cd-scroll-area'); if (s) s.scrollTop = Math.min(120, s.scrollHeight - s.clientHeight); return true; })()`);
+    await callInPage(function (sel, phone) {
+      document.querySelector(sel).__homeRefreshMarker = true;
+      const s = phone ? document.querySelector('#mobile-you-screen .mobile-you-scroll') : document.querySelector('#command-dashboard .cd-scroll-area');
+      if (s) s.scrollTop = Math.min(120, s.scrollHeight - s.clientHeight);
+      return true;
+    }, input, phone);
     await sleep(200);
     const before = await homeState();
 
@@ -1083,13 +1094,13 @@ async function homeRefreshChecks(P, { realTimer = false } = {}) {
     // Wait for the badge to show the new count (a refresh already under way
     // when the message arrives can still report the old one).
     const expected = String(Number(before.badge) + 1);
-    const badgeShows = `!document.getElementById('app-nav-inbox-badge').hidden && document.getElementById('app-nav-inbox-badge').textContent === ${JSON.stringify(expected)}`;
+    const badgeShows = function (n) { const b = document.getElementById('app-nav-inbox-badge'); return !b.hidden && b.textContent === n; };
     await addUnread(1);
     if (realTimer) {
-      await waitFor(badgeShows, '30-second unread refresh', 70000);
+      await waitUntil(badgeShows, [expected], '30-second unread refresh', 70000);
     } else {
       await evaluate(`window.dispatchEvent(new CustomEvent('messages-updated')); true`);
-      await waitFor(badgeShows, 'unread refresh', 8000);
+      await waitUntil(badgeShows, [expected], 'unread refresh', 8000);
     }
     await sleep(1500); // what a re-render would take (Home loads its data again)
     const after = await homeState();
@@ -1113,7 +1124,7 @@ async function homeRefreshChecks(P, { realTimer = false } = {}) {
     const read = await homeState();
     check(read.badge === '0' && read.sameInput && read.value === `${text} network`, `${P}: reading the messages clears the badge and Home stays`, JSON.stringify(read));
     await shot(`${current.name}-home-after-refresh`);
-    await evaluate(`(() => { const i = document.querySelector(${JSON.stringify(input)}); i.value = ''; i.blur(); return true; })()`);
+    await callInPage(function (sel) { const i = document.querySelector(sel); i.value = ''; i.blur(); return true; }, input);
   });
 }
 
