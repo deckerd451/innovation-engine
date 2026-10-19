@@ -213,7 +213,7 @@
   window.addEventListener('profile-loaded', () => {
     if (document.body.classList.contains('mobile-surface-you')) window.MobileYou?.refresh?.();
   });
-  window.addEventListener('total-unread-messages-updated', () => {
-    if (document.body.classList.contains('mobile-surface-you')) window.MobileYou?.refresh?.();
-  });
+  // Home shows nothing from the unread count (the Inbox badge in app-nav.js
+  // does), so the 30-second unread refresh must not rebuild it: that closed
+  // its sections and cleared unfinished text.
 })();
