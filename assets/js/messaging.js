@@ -197,8 +197,10 @@ const MessagingModule = (function () {
     return null;
   }
 
+  // Messages is full screen, showing the list or the chat, below 1024px
+  // (the max-width: 1023px rules in messaging.css); keep the two in step.
   function isMobile() {
-    return window.matchMedia && window.matchMedia("(max-width: 768px)").matches;
+    return window.matchMedia && window.matchMedia("(max-width: 1023px)").matches;
   }
 
   function setMobileView(mode) {
@@ -208,10 +210,14 @@ const MessagingModule = (function () {
     if (!sidebar || !chat) return;
 
     if (!isMobile()) {
-      // Desktop/tablet: show both panes
+      // Desktop: show both panes (and drop the back button, e.g. after an
+      // iPad rotates to landscape with a chat open)
       sidebar.classList.remove("mobile-hide");
       chat.classList.remove("mobile-show");
-      state.mobileMode = null;
+      chat.querySelector(".mobile-back-btn")?.remove();
+      // Keep list or chat for when the layout goes full screen again (an
+      // iPad rotating back to portrait stays in its conversation).
+      if (mode === "chat") state.mobileMode = "chat";
       return;
     }
 
@@ -346,6 +352,8 @@ const MessagingModule = (function () {
       if (state.activeConversation) {
         // If user previously selected convo, keep them in chat
         setMobileView(state.mobileMode === "chat" ? "chat" : "list");
+        // Removed while side by side; back again with the full-screen chat.
+        if (state.mobileMode === "chat") ensureMobileBackButton();
       } else {
         setMobileView("list");
       }
