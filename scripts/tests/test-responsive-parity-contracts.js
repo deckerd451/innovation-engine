@@ -108,6 +108,10 @@ assert.match(commandCss, /#command-dashboard \.cd-identity \{ display:none!impor
 
 // Labels: Home, Explore, Network.
 assert.match(mobileNav, /isNetwork \? 'Network' : 'Explore'/);
+// Home is not rebuilt by the 30-second unread refresh (that closed its
+// sections and cleared unfinished text); the Inbox badge shows the count.
+assert.doesNotMatch(mobileNav, /total-unread-messages-updated/);
+assert.match(read('assets/js/app-nav.js'), /addEventListener\('total-unread-messages-updated', \(event\) => setUnread\(event\.detail\?\.count\)\)/);
 // The shared navigation is the only Explore / Network switch.
 assert.doesNotMatch(mobileNav, /data-discover-mode|cd-mobile-discover-mode/);
 

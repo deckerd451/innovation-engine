@@ -33,6 +33,9 @@
 //   - Messages: a real tap on a conversation opens its chat, which can be
 //     written in, from phones through iPads and 769–1023px windows to desktop;
 //     rotating an iPad with a conversation open keeps that conversation
+//   - Home during unread refreshes (every 30 seconds and when messages are
+//     read): expanded sections, unfinished text, focus and scroll stay, and
+//     the Inbox badge shows the new count
 //   - Explore search: keyboard-safe input, suggestions on screen, opening a
 //     result, and Enter for full results
 //   - goal assistance on phones and tablets, closed by navigating away
@@ -1018,6 +1021,129 @@ async function closeDialogRuns() {
   }
 }
 
+// ── Home during background unread refreshes ──────────────────────────────
+// The unread count refreshes every 30 seconds (and when messages are read).
+// Home keeps what the person is doing: expanded sections, unfinished text in
+// "Something else to accomplish?", focus and scroll; the Inbox badge still
+// shows the new count. (Each refresh once rebuilt Home from scratch.)
+const homeState = () => callInPage(function () {
+  const phone = !!document.getElementById('mobile-you-content')?.getClientRects().length;
+  const input = phone ? document.getElementById('mgd-goal-input') : document.getElementById('global-search');
+  const scroller = phone ? document.querySelector('#mobile-you-screen .mobile-you-scroll') : document.querySelector('#command-dashboard .cd-scroll-area');
+  const badge = document.getElementById('app-nav-inbox-badge');
+  return {
+    phone,
+    open: [...document.querySelectorAll(phone ? '#mobile-you-content > details' : '#command-dashboard details')].filter(d => d.open && d.getClientRects().length).map(d => d.querySelector('summary')?.textContent.trim()),
+    value: input?.value ?? null,
+    focused: !!input && document.activeElement === input,
+    sameInput: !!input?.__homeRefreshMarker,
+    scrollTop: Math.round(scroller?.scrollTop || 0),
+    badge: badge && !badge.hidden ? badge.textContent : '0',
+  };
+});
+// An unread message from another member, as the 30-second refresh finds it.
+const addUnread = (n) => callInPage(async function (n) {
+  const me = window.__fixtureProfile.id;
+  const { data: convs } = await window.supabase.from('conversations').select('*').or('participant_1_id.eq.' + me + ',participant_2_id.eq.' + me).limit(1);
+  const c = convs[0];
+  const other = c.participant_1_id === me ? c.participant_2_id : c.participant_1_id;
+  await window.supabase.from('messages').insert({ conversation_id: c.id, sender_id: other, content: 'Unread ' + n, read: false, created_at: new Date().toISOString() });
+  return true;
+}, n);
+// waitFor() for a page function: values go in as arguments, not into code.
+async function waitUntil(fn, args, label, timeout = 10000) {
+  const start = Date.now();
+  while (Date.now() - start < timeout) { if (await callInPage(fn, ...args).catch(() => false)) return true; await sleep(100); }
+  throw new Error(`Timed out waiting for ${label}`);
+}
+
+async function homeRefreshChecks(P, { realTimer = false } = {}) {
+  await step(`${P}: background unread refreshes keep Home as it is`, async () => {
+    await go('home');
+    const phone = current.width < 1024;
+    const input = phone ? '#mgd-goal-input' : '#global-search';
+    await waitUntil(function (sel) { return !!document.querySelector(sel); }, [input], 'Home input', 10000);
+    await sleep(800);
+    // Open every collapsed section on Home with a real tap or click.
+    let opened = [];
+    if (phone) {
+      const count = await evaluate(`document.querySelectorAll('#mobile-you-content > details').length`);
+      for (let i = 1; i <= count; i++) {
+        const summary = `#mobile-you-content > details:nth-of-type(${i}) > summary`;
+        if (!(await callInPage(function (sel) { const el = document.querySelector(sel); return !!el && !el.parentElement.open; }, summary))) continue;
+        await press(summary, `Home section ${i}`);
+      }
+      opened = (await homeState()).open;
+      check(opened.length >= 2, `${P}: Home sections open with a tap`, JSON.stringify(opened));
+    }
+    // Type an unfinished goal (not submitted) and scroll Home a little.
+    const text = 'Find a co-founder for my harbor sensor';
+    await press(input, 'Home input');
+    await send('Input.insertText', { text });
+    await callInPage(function (sel, phone) {
+      document.querySelector(sel).__homeRefreshMarker = true;
+      const s = phone ? document.querySelector('#mobile-you-screen .mobile-you-scroll') : document.querySelector('#command-dashboard .cd-scroll-area');
+      if (s) s.scrollTop = Math.min(120, s.scrollHeight - s.clientHeight);
+      return true;
+    }, input, phone);
+    await sleep(200);
+    const before = await homeState();
+
+    // A new unread message arrives; then the refresh runs: the real
+    // 30-second timer, or the immediate refresh messaging.js triggers.
+    // Wait for the badge to show the new count (a refresh already under way
+    // when the message arrives can still report the old one).
+    const expected = String(Number(before.badge) + 1);
+    const badgeShows = function (n) { const b = document.getElementById('app-nav-inbox-badge'); return !b.hidden && b.textContent === n; };
+    await addUnread(1);
+    if (realTimer) {
+      await waitUntil(badgeShows, [expected], '30-second unread refresh', 70000);
+    } else {
+      await evaluate(`window.dispatchEvent(new CustomEvent('messages-updated')); true`);
+      await waitUntil(badgeShows, [expected], 'unread refresh', 8000);
+    }
+    await sleep(1500); // what a re-render would take (Home loads its data again)
+    const after = await homeState();
+    check(after.badge === expected, `${P}: the Inbox badge shows the new unread count after the ${realTimer ? '30-second ' : ''}refresh`, JSON.stringify({ before: before.badge, after: after.badge }));
+    check(after.sameInput && after.value === text && after.focused,
+      `${P}: unfinished text in the Home ${phone ? '"Something else to accomplish?"' : 'search'} field stays, still focused`, JSON.stringify({ before, after }));
+    check(JSON.stringify(after.open) === JSON.stringify(before.open) && Math.abs(after.scrollTop - before.scrollTop) <= 1,
+      `${P}: ${phone ? 'expanded sections and ' : ''}the scroll position stay${phone ? '' : ' (the desktop Home has no collapsible sections)'}`, JSON.stringify({ before: [before.open, before.scrollTop], after: [after.open, after.scrollTop] }));
+
+    // More refreshes in a row change nothing either, and typing continues.
+    for (let i = 0; i < 3; i++) await evaluate(`window.dispatchEvent(new CustomEvent('messages-updated')); true`);
+    await sleep(1500);
+    await send('Input.insertText', { text: ' network' });
+    const later = await homeState();
+    check(later.sameInput && later.value === `${text} network` && JSON.stringify(later.open) === JSON.stringify(before.open),
+      `${P}: repeated refreshes keep Home, and typing carries on`, JSON.stringify(later));
+
+    // Reading the messages brings the count down (and still leaves Home alone).
+    await evaluate(`(async () => { await window.supabase.from('messages').update({ read: true }).eq('read', false); window.dispatchEvent(new CustomEvent('messages-updated')); return true; })()`);
+    await waitFor(`document.getElementById('app-nav-inbox-badge').hidden`, 'badge cleared', 8000);
+    const read = await homeState();
+    check(read.badge === '0' && read.sameInput && read.value === `${text} network`, `${P}: reading the messages clears the badge and Home stays`, JSON.stringify(read));
+    await shot(`${current.name}-home-after-refresh`);
+    await callInPage(function (sel) { const i = document.querySelector(sel); i.value = ''; i.blur(); return true; }, input);
+  });
+}
+
+async function homeRefreshRuns() {
+  const ipad = WIDTHS[1].ua;
+  for (const [w, opts] of [
+    [WIDTHS[0], { realTimer: true }],                                                        // iPhone, the real 30-second timer
+    [{ ...WIDTHS[0], name: 'phone-small', width: 375, height: 667 }, {}],                     // iPhone SE
+    [{ ...WIDTHS[1], name: 'ipad-portrait' }, {}],                                            // 820×1180
+    [{ name: 'ipad-landscape', width: 1180, height: 820, mobile: true, ua: ipad }, {}],
+    [{ ...WIDTHS[2], name: 'desktop-window-900', width: 900, height: 760 }, {}],
+    [WIDTHS[2], {}],                                                                          // 1366×900
+  ]) {
+    await load(w);
+    console.log(`\nhome refresh: ${w.name} (${w.width}×${w.height}${w.mobile ? ', touch' : ''})`);
+    await homeRefreshChecks(`home refresh ${w.name}`, opts);
+  }
+}
+
 // ── Opening a conversation ───────────────────────────────────────────────
 // Below 1024px Messages is full screen and shows either the list or the
 // chat; from 1024px both sit side by side. A real tap on a conversation
@@ -1442,6 +1568,7 @@ try {
   await scrollScenarioChecks();
   await closeDialogRuns();
   await conversationRuns();
+  await homeRefreshRuns();
   await signedOutChecks();
   // The network map is never initialized against the fake client (it has no
   // graph data), so Network-view calls into UnifiedNetworkAPI report that.
