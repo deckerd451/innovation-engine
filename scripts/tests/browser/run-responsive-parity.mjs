@@ -31,7 +31,8 @@
 //     a real tap closes it back to the same page; Messages, Settings, Actions
 //     and goal assistance close the same way
 //   - Messages: a real tap on a conversation opens its chat, which can be
-//     written in, from phones through iPads and 769–1023px windows to desktop
+//     written in, from phones through iPads and 769–1023px windows to desktop;
+//     rotating an iPad with a conversation open keeps that conversation
 //   - Explore search: keyboard-safe input, suggestions on screen, opening a
 //     result, and Enter for full results
 //   - goal assistance on phones and tablets, closed by navigating away
@@ -1127,8 +1128,8 @@ async function conversationRuns() {
       }
       const ok = seen.every(v => v.width >= 1024
         ? (v.list && v.chat && v.name === 'Contact 02' && !v.back)
-        : (v.list !== v.chat));
-      check(ok, `conversation resize (${name}): both panes and no back button from 1024px, one pane below it`, JSON.stringify(seen));
+        : (v.chat && !v.list && v.name === 'Contact 02' && v.back));
+      check(ok, `conversation resize (${name}): both panes and no back button from 1024px, the same chat full screen below it`, JSON.stringify(seen));
       // Still works afterwards: back at full screen, a tap opens a chat.
       await send('Emulation.setDeviceMetricsOverride', { width: start.width, height: start.height, deviceScaleFactor: 1, mobile: start.mobile });
       current = start;
@@ -1141,6 +1142,57 @@ async function conversationRuns() {
       await closeMessages();
     });
   }
+
+  // iPad portrait → landscape → portrait with a conversation open: the same
+  // conversation is still open full screen, its back button and composer
+  // work; and having gone back to the list, rotating keeps the list.
+  const portrait = { name: 'ipad-portrait', width: 820, height: 1180, mobile: true, ua: ipad };
+  const rotate = async (width, height) => {
+    await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: true });
+    await sleep(700);
+    return { width, ...(await msgPane()) };
+  };
+  await step('conversation rotation: portrait → landscape → portrait keeps the open conversation', async () => {
+    await load(portrait);
+    await go('home');
+    await press(NAV('inbox'), 'Inbox');
+    await waitFor(`${isOpen.messages} && document.querySelectorAll('#conversations-list .conversation-item').length === 20`, 'messages', 6000);
+    await sleep(400);
+    await press(conversationRow(4), 'conversation 4');
+    await waitFor(`document.querySelector('#chat-panel .chat-header-name')?.textContent.trim() === 'Contact 04'`, 'chat', 6000);
+    const before = await msgPane();
+    const landscape = await rotate(1180, 820);
+    const back = await rotate(820, 1180);
+    check(before.chat && !before.list && before.back
+      && landscape.chat && landscape.list && landscape.name === 'Contact 04' && !landscape.back
+      && back.chat && !back.list && back.name === 'Contact 04' && back.back,
+      'conversation rotation: after portrait → landscape → portrait, the same conversation is open full screen with its back button', JSON.stringify({ before, landscape, back }));
+    await shot('ipad-rotated-back-conversation');
+
+    // The composer still works: write and send with real touch input.
+    const text = 'Sent after rotating';
+    await press('#chat-panel .message-input', 'message input');
+    await send('Input.insertText', { text });
+    await press('#chat-panel .send-button', 'Send');
+    await waitFor(`[...document.querySelectorAll('#messages-area .message.sent .message-bubble')].some(b => b.textContent.includes(${JSON.stringify(text)}) && b.getClientRects().length)`, 'sent message', 6000);
+    check((await msgPane()).name === 'Contact 04', 'conversation rotation: after rotating back, a message can be written and sent in that conversation');
+
+    // The back button returns to the list; rotating then keeps the list.
+    await press('#chat-panel .mobile-back-btn', 'Back to conversations');
+    const list = await msgPane();
+    const listLandscape = await rotate(1180, 820);
+    const listBack = await rotate(820, 1180);
+    check(list.list && !list.chat && listBack.list && !listBack.chat && listLandscape.list && await usable(conversationRow(5)),
+      'conversation rotation: back returns to the list, and rotating there keeps the list', JSON.stringify({ list, listLandscape, listBack }));
+    await press(conversationRow(5), 'conversation 5');
+    await waitFor(`document.querySelector('#chat-panel .chat-header-name')?.textContent.trim() === 'Contact 05'`, 'chat', 6000);
+    const next = await msgPane();
+    check(next.chat && !next.list && next.back, 'conversation rotation: another conversation then opens full screen', JSON.stringify(next));
+
+    await press('#messages-modal .modal-close', 'Messages X');
+    await waitFor(`!${isOpen.messages}`, 'messages to close', 4000);
+    check((await destination()) === 'home', 'conversation rotation: the X closes Messages and returns to home', await destination());
+  });
 }
 
 async function navChecks(P) {

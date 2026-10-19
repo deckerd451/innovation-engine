@@ -215,7 +215,9 @@ const MessagingModule = (function () {
       sidebar.classList.remove("mobile-hide");
       chat.classList.remove("mobile-show");
       chat.querySelector(".mobile-back-btn")?.remove();
-      state.mobileMode = null;
+      // Keep list or chat for when the layout goes full screen again (an
+      // iPad rotating back to portrait stays in its conversation).
+      if (mode === "chat") state.mobileMode = "chat";
       return;
     }
 
@@ -350,6 +352,8 @@ const MessagingModule = (function () {
       if (state.activeConversation) {
         // If user previously selected convo, keep them in chat
         setMobileView(state.mobileMode === "chat" ? "chat" : "list");
+        // Removed while side by side; back again with the full-screen chat.
+        if (state.mobileMode === "chat") ensureMobileBackButton();
       } else {
         setMobileView("list");
       }
