@@ -197,8 +197,10 @@ const MessagingModule = (function () {
     return null;
   }
 
+  // Messages is full screen, showing the list or the chat, below 1024px
+  // (the max-width: 1023px rules in messaging.css); keep the two in step.
   function isMobile() {
-    return window.matchMedia && window.matchMedia("(max-width: 768px)").matches;
+    return window.matchMedia && window.matchMedia("(max-width: 1023px)").matches;
   }
 
   function setMobileView(mode) {
@@ -208,9 +210,11 @@ const MessagingModule = (function () {
     if (!sidebar || !chat) return;
 
     if (!isMobile()) {
-      // Desktop/tablet: show both panes
+      // Desktop: show both panes (and drop the back button, e.g. after an
+      // iPad rotates to landscape with a chat open)
       sidebar.classList.remove("mobile-hide");
       chat.classList.remove("mobile-show");
+      chat.querySelector(".mobile-back-btn")?.remove();
       state.mobileMode = null;
       return;
     }

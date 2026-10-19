@@ -30,6 +30,8 @@
 //     clear of the profile header, stays put while the profile scrolls, and
 //     a real tap closes it back to the same page; Messages, Settings, Actions
 //     and goal assistance close the same way
+//   - Messages: a real tap on a conversation opens its chat, which can be
+//     written in, from phones through iPads and 769–1023px windows to desktop
 //   - Explore search: keyboard-safe input, suggestions on screen, opening a
 //     result, and Enter for full results
 //   - goal assistance on phones and tablets, closed by navigating away
@@ -150,7 +152,9 @@ const locate = (selector) => callInPage(function (sel) {
   // is checked by hit-testing like everything else).
   const bar = document.getElementById('app-nav');
   const barRect = bar && !bar.hidden ? bar.getBoundingClientRect() : null;
-  const bottomBar = barRect && barRect.top > 0 && barRect.width >= innerWidth - 1;
+  // A full-screen dialog over the bar (Messages below 1024px) is not covered by it.
+  const barHit = barRect && document.elementFromPoint(barRect.left + barRect.width / 2, barRect.top + barRect.height / 2);
+  const bottomBar = barRect && barRect.top > 0 && barRect.width >= innerWidth - 1 && !!barHit && bar.contains(barHit);
   const barTop = bottomBar ? barRect.top : innerHeight;
   const onScreen = r.width > 0 && r.height > 0 && r.left >= -1 && r.right <= innerWidth + 1 && r.top >= -1 && r.bottom <= innerHeight + 1;
   const clear = el.closest('#app-nav') ? true : r.bottom <= barTop + 1;
@@ -1013,6 +1017,132 @@ async function closeDialogRuns() {
   }
 }
 
+// ── Opening a conversation ───────────────────────────────────────────────
+// Below 1024px Messages is full screen and shows either the list or the
+// chat; from 1024px both sit side by side. A real tap on a conversation
+// always shows its chat, which can be written in, at every width (iPads and
+// browser windows of 769–1023px once showed nothing).
+const msgPane = () => callInPage(function () {
+  const shown = (sel) => { const el = document.querySelector(sel); if (!el || !el.getClientRects().length) return false; const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && r.right > 0 && r.left < innerWidth; };
+  return { list: shown('#messages-container .conversations-sidebar'), chat: shown('#chat-panel .chat-header'), name: shown('#chat-panel .chat-header-name') ? document.querySelector('#chat-panel .chat-header-name').textContent.trim() : '', back: shown('#chat-panel .mobile-back-btn') };
+});
+const conversationRow = (n) => `#conversations-list .conversation-item:nth-child(${n})`;
+
+async function conversationChecks(P) {
+  const fullScreen = current.width < 1024;
+  const openChat = async (n) => {
+    await press(conversationRow(n), `conversation ${n}`);
+    const name = `Contact ${String(n).padStart(2, '0')}`;
+    await waitFor(`document.querySelector('#chat-panel .chat-header-name')?.textContent.trim() === ${JSON.stringify(name)}`, name, 6000);
+    await sleep(300);
+    return name;
+  };
+  await step(`${P}: tapping a conversation opens its chat`, async () => {
+    await go('home');
+    await press(NAV('inbox'), 'Inbox');
+    await waitFor(`${isOpen.messages} && document.querySelectorAll('#conversations-list .conversation-item').length === 20`, 'messages', 6000);
+    await sleep(400);
+    const name = await openChat(2);
+    const v = await msgPane();
+    // Full screen: the chat replaces the list and has a back button.
+    // Side by side: the list stays and there is no back button.
+    const layoutOk = fullScreen ? (v.chat && !v.list && v.back) : (v.chat && v.list && !v.back);
+    // The composer can be tapped once the chat has settled (allow a moment
+    // for anything still animating over it).
+    let composer, composerOk = false;
+    for (let i = 0; i < 10 && !composerOk; i++) {
+      if (i) await sleep(300);
+      composer = { input: await locate('#chat-panel .message-input'), send: await locate('#chat-panel .send-button') };
+      composerOk = Object.values(composer).every(c => !c.missing && c.onScreen && c.clear && c.owns);
+    }
+    check(layoutOk && v.name === name && composerOk,
+      `${P}: tapping a conversation shows its chat (${fullScreen ? 'full screen, with back' : 'beside the list'}) with the composer usable`, JSON.stringify({ ...v, composer }));
+    await shot(`${current.name}-conversation`);
+
+    // Write and send a message with real input.
+    const text = `Hello from ${current.name}`;
+    await press('#chat-panel .message-input', 'message input');
+    await send('Input.insertText', { text });
+    await press('#chat-panel .send-button', 'Send');
+    await waitFor(`[...document.querySelectorAll('#messages-area .message.sent .message-bubble')].some(b => b.textContent.includes(${JSON.stringify(text)}) && b.getClientRects().length)`, 'sent message', 6000);
+    check(true, `${P}: a message can be written and sent in the chat`);
+
+    // Then another conversation: back to the list first when full screen.
+    if (fullScreen) {
+      await press('#chat-panel .mobile-back-btn', 'Back to conversations');
+      const list = await msgPane();
+      check(list.list && !list.chat && await usable(conversationRow(3)), `${P}: back returns to the conversation list`, JSON.stringify(list));
+    }
+    const other = await openChat(3);
+    const v2 = await msgPane();
+    check(v2.chat && v2.name === other && (fullScreen ? !v2.list : v2.list), `${P}: tapping another conversation switches the chat`, JSON.stringify(v2));
+
+    await press('#messages-modal .modal-close', 'Messages X');
+    await waitFor(`!${isOpen.messages}`, 'messages to close', 4000);
+    check((await destination()) === 'home', `${P}: the X closes Messages from a chat and returns to home`, await destination());
+  });
+}
+
+async function conversationRuns() {
+  const ipad = WIDTHS[1].ua;
+  const mac = WIDTHS[2].ua;
+  for (const w of [
+    WIDTHS[0],                                                                                  // iPhone
+    { ...WIDTHS[0], name: 'phone-small', width: 375, height: 667 },                             // iPhone SE
+    { name: 'ipad-mini-portrait', width: 768, height: 1024, mobile: true, ua: ipad },           // the old breakpoint
+    { ...WIDTHS[1], name: 'ipad-portrait' },                                                    // 820×1180
+    { name: 'ipad-pro-portrait', width: 1000, height: 1366, mobile: true, ua: ipad },
+    { name: 'ipad-landscape', width: 1180, height: 820, mobile: true, ua: ipad },
+    { name: 'desktop-window-769', width: 769, height: 800, mobile: false, ua: mac },
+    { name: 'desktop-window-900', width: 900, height: 760, mobile: false, ua: mac },
+    { name: 'desktop-window-1023', width: 1023, height: 760, mobile: false, ua: mac },
+    { name: 'desktop-window-1024', width: 1024, height: 760, mobile: false, ua: mac },
+    WIDTHS[2],                                                                                  // 1366×900
+  ]) {
+    await load(w);
+    console.log(`\nconversation: ${w.name} (${w.width}×${w.height}${w.mobile ? ', touch' : ''})`);
+    await conversationChecks(`conversation ${w.name}`);
+  }
+
+  // Resizing across 1024px with a chat open (a desktop window, and an iPad
+  // rotating): side by side with no back button from 1024px; below it,
+  // exactly one of the list or the chat, never blank or both.
+  for (const [name, start, sizes] of [
+    ['desktop window', { name: 'desktop-window-900', width: 900, height: 760, mobile: false, ua: mac }, [[1366, 900], [900, 760], [1366, 900]]],
+    ['iPad rotation', { name: 'ipad-portrait', width: 820, height: 1180, mobile: true, ua: ipad }, [[1180, 820], [820, 1180], [1180, 820]]],
+  ]) {
+    await step(`conversation resize (${name}): the chat stays usable across the breakpoint`, async () => {
+      await load(start);
+      await go('home');
+      await press(NAV('inbox'), 'Inbox');
+      await waitFor(`${isOpen.messages} && document.querySelector(${JSON.stringify(conversationRow(2))})`, 'messages', 6000);
+      await sleep(400);
+      await press(conversationRow(2), 'conversation 2');
+      await waitFor(`document.querySelector('#chat-panel .chat-header-name')?.textContent.trim() === 'Contact 02'`, 'chat', 6000);
+      const seen = [];
+      for (const [width, height] of sizes) {
+        await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: start.mobile });
+        await sleep(600);
+        seen.push({ width, ...(await msgPane()) });
+      }
+      const ok = seen.every(v => v.width >= 1024
+        ? (v.list && v.chat && v.name === 'Contact 02' && !v.back)
+        : (v.list !== v.chat));
+      check(ok, `conversation resize (${name}): both panes and no back button from 1024px, one pane below it`, JSON.stringify(seen));
+      // Still works afterwards: back at full screen, a tap opens a chat.
+      await send('Emulation.setDeviceMetricsOverride', { width: start.width, height: start.height, deviceScaleFactor: 1, mobile: start.mobile });
+      current = start;
+      await sleep(600);
+      if ((await msgPane()).chat) await press('#chat-panel .mobile-back-btn', 'Back to conversations');
+      await press(conversationRow(3), 'conversation 3');
+      await waitFor(`document.querySelector('#chat-panel .chat-header-name')?.textContent.trim() === 'Contact 03'`, 'chat', 6000);
+      const after = await msgPane();
+      check(after.chat && !after.list && after.back, `conversation resize (${name}): after resizing back, tapping a conversation opens it full screen`, JSON.stringify(after));
+      await closeMessages();
+    });
+  }
+}
+
 async function navChecks(P) {
   const nav = await evaluate(`(() => {
     const bar = document.getElementById('app-nav');
@@ -1259,6 +1389,7 @@ try {
   await resizeChecks();
   await scrollScenarioChecks();
   await closeDialogRuns();
+  await conversationRuns();
   await signedOutChecks();
   // The network map is never initialized against the fake client (it has no
   // graph data), so Network-view calls into UnifiedNetworkAPI report that.

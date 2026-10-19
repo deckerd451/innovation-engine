@@ -89,6 +89,15 @@ assert.match(messagingCss, /#messages-container \.chat-header \{[^}]*padding-rig
 assert.match(messagingCss, /#messages-container \.chat-header-info,\s*#messages-container \.chat-context \{\s*min-width: 0;\s*overflow-wrap: anywhere;/);
 assert.doesNotMatch(messagingCss, /^\/\/\*/m, 'no stray slash that would drop the next rule');
 assert.match(index, /<button class="modal-close" type="button" aria-label="Close messages" onclick="closeMessagesModal\(\)">/);
+// Messages switches between list and chat wherever the CSS makes it full
+// screen and hides the chat panel (below 1024px); a narrower JS breakpoint
+// left iPads and 769–1023px windows with no chat after tapping a
+// conversation. The sidebar collapse tab is desktop-only to match.
+assert.match(messagingCss, /@media \(max-width: 1023px\) \{\s*\/\* Full-screen modal behavior/);
+assert.match(messagingCss, /#messages-container \.chat-panel \{\s*display: none !important;/);
+assert.match(read('assets/js/messaging.js'), /function isMobile\(\) \{\s*return window\.matchMedia && window\.matchMedia\("\(max-width: 1023px\)"\)\.matches;/);
+assert.match(messagingCss, /@media \(min-width: 1024px\) \{\s*\.msg-sidebar-tab \{/);
+assert.doesNotMatch(messagingCss, /@media \(min-width: 769px\)/);
 assert.match(read('assets/js/messaging.js'), /<button class="new-message-btn" type="button" aria-label="New message" onclick="MessagingModule\.showNewMessageModal\(\)">/);
 
 // Settings on desktop uses the existing settings modal (one implementation).

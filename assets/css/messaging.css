@@ -33,7 +33,9 @@
   display: none; /* hidden on mobile */
 }
 
-@media (min-width: 769px) {
+/* Side by side from 1024px; below that Messages is full screen (see the
+   max-width: 1023px rules and isMobile() in messaging.js). */
+@media (min-width: 1024px) {
   .msg-sidebar-tab {
     display: flex;
     position: absolute;
