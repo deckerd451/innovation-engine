@@ -941,6 +941,10 @@
       return;
     }
 
+    // Into You now, so leaving while the profile loads is respected.
+    window.openProfileModal?.();
+    const stillInYou = () => !window.AppNav || window.AppNav.current() === "you";
+
     try {
       const supabase = ensureSupabase();
       const { data: { user } } = await supabase.auth.getUser();
@@ -960,6 +964,9 @@
         toastError("Error loading profile: " + error.message);
         return;
       }
+
+      // Left for another tab meanwhile: stay there, with no editor.
+      if (!stillInYou()) return;
 
       const profile = row || { user_id: user.id };
 

@@ -83,7 +83,11 @@ const MessagingModule = (function () {
       return;
     }
     // Callers arriving while the first load runs wait for the same load.
-    if (!initPromise) initPromise = load().finally(() => { initPromise = null; });
+    // cleanup() detaches a load it cancels, so the next account starts its own.
+    if (!initPromise) {
+      const loading = load().finally(() => { if (initPromise === loading) initPromise = null; });
+      initPromise = loading;
+    }
     return initPromise;
   }
 
@@ -97,6 +101,7 @@ const MessagingModule = (function () {
       const { data: { session }, error: sessErr } = await window.supabase.auth.getSession();
       if (sessErr) throw sessErr;
       if (!session) throw new Error("No active session");
+      if (gen !== generation) return;
 
       state.authUser = session.user;
 
@@ -176,6 +181,7 @@ const MessagingModule = (function () {
   // messages stays in memory or on the page.
   function cleanup() {
     generation += 1;
+    initPromise = null;
     try {
       if (window.realtimeManager?.isChannelActive?.("messaging")) {
         window.realtimeManager.unsubscribe("messaging");

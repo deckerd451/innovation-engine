@@ -1908,6 +1908,48 @@ async function destinationChecks(P) {
     check((await composerText()) === '', `${P}: after signing in again, Home opens and Inbox has no earlier draft`, String(await composerText()));
   });
 
+  // Slow requests: hold the first call to an auth method until released.
+  const holdFirst = (method) => evaluate(`(() => { const auth = window.supabase.auth; const real = auth.${method}.bind(auth); let held = true;
+    window.__released = new Promise(r => { window.__release = r; });
+    auth.${method} = async (...a) => { if (held) { held = false; await window.__released; } return real(...a); }; return true; })()`);
+  const signOutAndIn = async () => {
+    await evaluate(`sessionStorage.clear(); window.dispatchEvent(new CustomEvent('user-logged-out')); true`);
+    await sleep(300);
+    await evaluate(`window.dispatchEvent(new CustomEvent('profile-loaded', { detail: { user: { id: 'auth-me' }, profile: window.__fixtureProfile } })); true`);
+    await waitForPage('home', 6000);
+  };
+
+  await step(`${P}: signing out while Inbox is still loading doesn't leave the next sign-in empty`, async () => {
+    await signOutAndIn();
+    await holdFirst('getSession');
+    await press(NAV('inbox'), 'Inbox');
+    await waitForPage('inbox');
+    await sleep(300);
+    await signOutAndIn();
+    await openInbox();
+    const before = await evaluate(`document.querySelectorAll('#conversations-list .conversation-item').length`);
+    await evaluate(`window.__release(); true`);
+    await sleep(500);
+    const after = await evaluate(`document.querySelectorAll('#conversations-list .conversation-item').length`);
+    check(before > 0 && after === before && (await destination()) === 'inbox',
+      `${P}: after signing in again, Inbox loads although the earlier load was still running`, JSON.stringify({ before, after }));
+  });
+
+  await step(`${P}: leaving You while Edit Profile loads stays where you went`, async () => {
+    await press(NAV('you'), 'You');
+    await waitForPage('you');
+    await waitFor(`document.querySelector('#btn-open-profile-editor')?.getClientRects().length`, 'profile', 6000);
+    await holdFirst('getUser');
+    await press('#btn-open-profile-editor', 'Edit Profile');
+    await sleep(200);
+    await press(NAV('home'), 'Home');
+    await waitForPage('home');
+    await evaluate(`window.__release(); true`);
+    await sleep(600);
+    const out = await evaluate(`({ destination: document.body.dataset.destination || '', editor: !!document.getElementById('edit-name'), you: document.getElementById('profile-modal').classList.contains('active') })`);
+    check(out.destination === 'home' && !out.editor && !out.you, `${P}: a late Edit Profile load neither reopens You nor opens the editor`, JSON.stringify(out));
+  });
+
   if (current.mobile && current.width >= 800) {
     // iPad rotation across 1024px with Inbox, then You, open.
     await step(`${P}: rotating across 1024px keeps Inbox and You beside the navigation`, async () => {
