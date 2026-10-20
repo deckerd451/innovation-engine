@@ -100,8 +100,7 @@ assert.match(messagingCss, /@media \(min-width: 1024px\) \{\s*\.msg-sidebar-tab 
 assert.doesNotMatch(messagingCss, /@media \(min-width: 769px\)/);
 assert.match(read('assets/js/messaging.js'), /<button class="new-message-btn" type="button" aria-label="New message" onclick="MessagingModule\.showNewMessageModal\(\)">/);
 
-// Discovery: one switch in Settings ("Suggest people and projects on the
-// map"), no injected Discovery button, no old preferences dialog, and no
+// Discovery: one switch in Settings ("Map suggestions"), no injected Discovery button, no old preferences dialog, and no
 // shortcuts that take over the browser's Cmd/Ctrl+P, D or H.
 {
   const integrationJs = read('assets/js/unified-network-integration.js');
@@ -112,7 +111,8 @@ assert.match(read('assets/js/messaging.js'), /<button class="new-message-btn" ty
   assert.doesNotMatch(onboardingJs, /discovery-frequency|Discovery Preferences|createPreferencesPanel/);
   assert.doesNotMatch(apiJs, /PreferencesPanel|loadPreferences\(/);
   assert.match(settingsJs, /id="settings-discovery-suggestions"/);
-  assert.match(settingsJs, />Suggest people and projects on the map</);
+  assert.match(settingsJs, />Map suggestions</);
+  assert.match(settingsJs, /Highlight people and projects you might want to meet/);
   assert.match(settingsJs, /window\.SettingsModal = \{ open, close, discoverySuggestionsEnabled \}/);
   // The map starts with the saved setting (no Settings dependency, no gap).
   assert.match(read('assets/js/unified-network/state-manager.js'), /this\._discoveryEnabled = storedDiscoveryEnabled\(\);/);
@@ -151,6 +151,29 @@ assert.doesNotMatch(mobileNav, /total-unread-messages-updated/);
 assert.match(read('assets/js/app-nav.js'), /addEventListener\('total-unread-messages-updated', \(event\) => setUnread\(event\.detail\?\.count\)\)/);
 // The shared navigation is the only Explore / Network switch.
 assert.doesNotMatch(mobileNav, /data-discover-mode|cd-mobile-discover-mode/);
+
+// Settings: a labelled dialog whose header and Save stay in view while the
+// body scrolls; email, push and language are "Coming soon" (can't be
+// changed, and Save leaves what's stored); Save is still the only way to
+// store a change.
+{
+  const settingsJs = read('assets/js/settings-modal.js');
+  assert.match(settingsJs, /id="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title"/);
+  assert.match(settingsJs, /<h2 id="settings-modal-title"[^>]*>Settings<\/h2>/);
+  assert.match(settingsJs, /id="settings-close-btn" aria-label="Close settings"/);
+  assert.match(settingsJs, /max-height: 90vh; max-height: 90dvh; overflow: hidden;\s*display: flex; flex-direction: column;/);
+  assert.match(settingsJs, /id="settings-modal-body" style="[^"]*min-height: 0; overflow-y: auto;/);
+  assert.match(settingsJs, /@media \(pointer: coarse\) \{\s*#settings-close-btn \{ width: 44px; height: 44px; \}\s*#settings-save-btn \{ min-height: 44px; \}/);
+  for (const id of ['settings-email-notif', 'settings-push-notif']) {
+    assert.match(settingsJs, new RegExp(`id="${id}" disabled `), `${id} can't be changed`);
+  }
+  assert.match(settingsJs, /<select id="settings-language" disabled aria-label="Language \(coming soon\)"/);
+  assert.equal((settingsJs.match(/\$\{comingSoon\}/g) || []).length, 3, 'three Coming soon controls');
+  const save = settingsJs.slice(settingsJs.indexOf('  function save() {'), settingsJs.indexOf('  // Keyboard:'));
+  assert.doesNotMatch(save, /email-notifications-enabled|push-notifications-enabled|preferred_language|setLanguage/);
+  assert.match(save, /window\.showToast\('Settings saved', 'success'\)/);
+  assert.doesNotMatch(settingsJs, /addEventListener\('change'|addEventListener\('input'/);
+}
 
 // Returning visitors get the changed files: each carries this phase's tag
 // or a later shell version (sw.js).

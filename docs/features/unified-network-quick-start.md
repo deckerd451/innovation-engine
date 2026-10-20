@@ -395,9 +395,8 @@ unifiedNetworkApi.triggerDiscovery();
 
 ### Discovery On/Off
 
-Members turn discovery on or off in Settings → Network → "Suggest people
-and projects on the map" (on by default, saved on the device as
-`discovery-suggestions-enabled`). The map starts with the saved value and
+Members turn discovery on or off in Settings → Network → "Map suggestions"
+(on by default, saved on the device as `discovery-suggestions-enabled`). The map starts with the saved value and
 applies changes as soon as Settings is saved. When it is off, nothing enters
 Discovery: not the automatic triggers, the physics loop or `triggerDiscovery()`.
 

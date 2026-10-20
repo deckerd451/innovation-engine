@@ -4,7 +4,7 @@
    - Never caches Supabase traffic
 */
 
-const VERSION = "v22-discovery-setting-20261019";
+const VERSION = "v23-settings-refinement-20261020";
 const CACHE_NAME = `innovation-engine-shell-${VERSION}`;
 
 // Keep install cache minimal and stable.

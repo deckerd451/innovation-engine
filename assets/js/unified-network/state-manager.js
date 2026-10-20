@@ -12,7 +12,7 @@ import {
 
 /**
  * Whether map discovery suggestions are on, as saved on this device by
- * Settings → "Suggest people and projects on the map" (the same rule as
+ * Settings → "Map suggestions" (the same rule as
  * discoverySuggestionsEnabled() in settings-modal.js): on unless turned off
  * there, or turned off earlier in the old Discovery Preferences dialog.
  * Read here so the map starts with it, before any discovery check runs.
@@ -48,7 +48,7 @@ export class StateManager {
 
     this._eventHandlers = new Map();
     this._lastTransitionTime = Date.now();
-    // Settings → "Suggest people and projects on the map". Every way into
+    // Settings → "Map suggestions". Every way into
     // Discovery (automatic triggers, the physics loop, a manual trigger)
     // goes through this flag.
     this._discoveryEnabled = storedDiscoveryEnabled();

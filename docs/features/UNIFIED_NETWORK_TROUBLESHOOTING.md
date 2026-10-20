@@ -76,7 +76,7 @@ window.unifiedNetworkErrorIntegration?.getStats()
 const state = window.unifiedNetworkIntegration?.api?.getState();
 console.log('State:', state);
 
-// Check if discovery is enabled (Settings → Network → "Suggest people and projects on the map").
+// Check if discovery is enabled (Settings → Network → "Map suggestions").
 // Both apply the old saved preferences when the new setting hasn't been saved yet.
 console.log('Setting on:', window.SettingsModal?.discoverySuggestionsEnabled());
 console.log('Map on:', window.unifiedNetworkIntegration?.api?.getDiscoveryPreferences().enabled);
@@ -89,7 +89,7 @@ console.log('Nodes:', window.unifiedNetworkIntegration?.api?.getAllNodes());
 
 1. **Check the setting:**
    - Open Settings (Home → Account → Settings on phones and tablets, the Settings button on desktop)
-   - Under Network, "Suggest people and projects on the map" must be on
+   - Under Network, "Map suggestions" must be on
    - Discovery shows at most once every 2 minutes
 
 2. **Verify network conditions:**
@@ -140,7 +140,7 @@ console.log('Nodes:', metrics.nodeCount);
    - Reduces console logging overhead
 
 3. **Turn off map suggestions:**
-   - Settings → Network → "Suggest people and projects on the map"
+   - Settings → Network → "Map suggestions"
    - Reduces computation load
 
 4. **Check node count:**
@@ -448,7 +448,7 @@ console.log('Legacy API:', typeof window.synapseApi);
 
 **Issue:** Animations choppy
 - **Solution:** Safari has different GPU acceleration
-- **Solution:** Turn off "Suggest people and projects on the map" in Settings
+- **Solution:** Turn off "Map suggestions" in Settings
 
 ### Edge
 
@@ -474,7 +474,7 @@ console.log('Legacy API:', typeof window.synapseApi);
 
 **Issue:** Performance issues
 - **Solution:** Close background apps
-- **Solution:** Turn off "Suggest people and projects on the map" in Settings
+- **Solution:** Turn off "Map suggestions" in Settings
 - **Solution:** Use lighter browser (Firefox Focus)
 
 **Issue:** Touch targets too small
@@ -595,7 +595,7 @@ Console: No errors
 Additional info:
 - Have 10 connections
 - Member of 3 themes
-- "Suggest people and projects on the map" is on in Settings
+- "Map suggestions" is on in Settings
 ```
 
 ---
