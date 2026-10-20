@@ -254,8 +254,7 @@ body.reflection-resizing #network-reflection { transition:none; }
     min-height: 44px !important;
   }
 
-  #command-dashboard .cd-admin-btn,
-  #command-dashboard #cd-logout-btn { display: none !important; }
+  #command-dashboard .cd-admin-btn { display: none !important; }
   #command-dashboard .cd-network-status,
   #command-dashboard .cd-focus-messages { display: none !important; }
   .synapse-guidance { display: none !important; }

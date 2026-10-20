@@ -53,33 +53,43 @@ const MessagingModule = (function () {
     messageOffset: 0,
 
     // Search
-    conversationSearch: ""
+    conversationSearch: "",
+
+    // Unsent text per conversation (kept until sent or sign-out)
+    drafts: {}
   };
 
   // ============================================================
   // INIT / CLEANUP
   // ============================================================
 
+  let initPromise = null;
+  // Bumped by cleanup(): a load still running for the previous member stops.
+  let generation = 0;
+
+  // Opening Inbox again shows Messages as it was left (drafts, the open
+  // conversation, search, scroll): nothing is rebuilt. A different account
+  // starts over.
   async function init() {
-    // One-time init guard - prevents double-binding and ghost listeners
-    if (window.__IE_MESSAGING_INIT_DONE__) {
-      // If already initialized, re-render for modal reopen / tab switch
-      if (state.initialized) {
-        renderMessagesTab();
-        renderConversationsList();
-        applyResponsiveLayout();
-      }
-      return;
-    }
+    const authId = window.currentAuthUser?.id;
+    if (state.initialized && authId && state.authUser?.id && authId !== state.authUser.id) cleanup();
 
     if (state.initialized) {
-      renderMessagesTab();
-      renderConversationsList();
+      if (!document.querySelector("#messages-container .messages-container")) {
+        renderMessagesTab();
+        if (state.activeConversation) renderChatPanel();
+      }
       applyResponsiveLayout();
       return;
     }
+    // Callers arriving while the first load runs wait for the same load.
+    if (!initPromise) initPromise = load().finally(() => { initPromise = null; });
+    return initPromise;
+  }
 
+  async function load() {
     window.__IE_MESSAGING_INIT_DONE__ = true;
+    const gen = generation;
 
     try {
       if (!window.supabase) throw new Error("Supabase not available");
@@ -99,6 +109,7 @@ const MessagingModule = (function () {
 
       if (profErr) throw profErr;
       if (!profile?.id) throw new Error("No community profile found (community.id missing)");
+      if (gen !== generation) return;
 
       state.currentUser = {
         authId: state.authUser.id,
@@ -113,6 +124,13 @@ const MessagingModule = (function () {
         loadAllUsers(),
         updateUnreadCount()
       ]);
+      if (gen !== generation) {
+        // Signed out meanwhile: drop what the previous load brought in.
+        state.conversations = [];
+        state.allUsers = [];
+        state.unreadCount = 0;
+        return;
+      }
 
       renderMessagesTab();
       setupRealtimeSubscriptions();
@@ -122,22 +140,57 @@ const MessagingModule = (function () {
       console.log("✅ Messaging initialized");
     } catch (error) {
       console.error("Failed to initialize messaging:", error);
+      window.__IE_MESSAGING_INIT_DONE__ = false;
       renderError(error?.message || "Failed to initialize messaging");
     }
   }
 
+  // Inbox is on screen and the app is in the foreground: only then are
+  // incoming messages marked read.
+  function isViewing() {
+    return !!document.getElementById("messages-modal")?.classList.contains("active") &&
+      document.visibilityState !== "hidden";
+  }
+
+  // Back in Inbox (or back in the app): what arrived in the open
+  // conversation meanwhile is now read.
+  function onShown() {
+    if (!state.initialized || !state.activeConversation || !isViewing()) return;
+    const unseen = state.messages.some((m) => m.sender_id !== state.currentUser?.communityId && m.read === false);
+    if (!unseen) return;
+    const conversationId = state.activeConversation.id;
+    markMessagesAsRead(conversationId).then(() => {
+      if (state.activeConversation?.id !== conversationId) return;
+      state.messages = state.messages.map((m) => (m.sender_id !== state.currentUser.communityId ? { ...m, read: true } : m));
+      renderMessages();
+      updateUnreadCount();
+    }).catch((error) => console.warn("Messaging: mark read failed:", error));
+  }
+
+  // Inbox selected again from a conversation (app-nav.js): the list.
+  function showList() {
+    if (isMobile() && state.mobileMode === "chat") setMobileView("list");
+  }
+
+  // Sign-out or a different account: nothing of the previous member's
+  // messages stays in memory or on the page.
   function cleanup() {
+    generation += 1;
     try {
-      if (state.realtimeChannel) {
+      if (window.realtimeManager?.isChannelActive?.("messaging")) {
+        window.realtimeManager.unsubscribe("messaging");
+      } else if (state.realtimeChannel) {
         window.supabase.removeChannel(state.realtimeChannel);
-        state.realtimeChannel = null;
       }
     } catch (e) {
       console.warn("Messaging cleanup channel removal failed:", e);
     }
+    state.realtimeChannel = null;
 
     // Clear module state
     state.initialized = false;
+    state.authUser = null;
+    state.currentUser = null;
     state.conversations = [];
     state.messages = [];
     state.activeConversation = null;
@@ -147,6 +200,11 @@ const MessagingModule = (function () {
     state.hasMoreMessages = false;
     state.messageOffset = 0;
     state.conversationSearch = "";
+    state.drafts = {};
+
+    const container = document.getElementById("messages-container");
+    if (container) container.innerHTML = "";
+    document.getElementById("msg-incoming-toast")?.remove();
 
     // Allow init again if user comes back
     window.__IE_MESSAGING_INIT_DONE__ = false;
@@ -266,6 +324,8 @@ const MessagingModule = (function () {
     header.insertBefore(btn, header.firstChild);
   }
 
+  let viewportWatched = false;
+
   function setupMobileKeyboardHandling() {
     if (!isMobile()) return;
 
@@ -305,29 +365,31 @@ const MessagingModule = (function () {
       inputContainer.classList.remove('keyboard-open');
     });
 
-    // Use Visual Viewport API for better keyboard detection
-    if (window.visualViewport) {
+    // Use Visual Viewport API for better keyboard detection (one listener
+    // for every chat opened; it finds the current composer).
+    if (window.visualViewport && !viewportWatched) {
+      viewportWatched = true;
       let lastHeight = window.visualViewport.height;
-      
+
       const handleViewportChange = () => {
         const currentHeight = window.visualViewport.height;
         const heightDiff = lastHeight - currentHeight;
-        
+        const container = document.getElementById("message-input-container");
+        const area = document.getElementById("messages-area");
+
         // If viewport shrunk significantly (keyboard opened)
         if (heightDiff > 150) {
-          inputContainer.classList.add('keyboard-open');
-          
+          container?.classList.add('keyboard-open');
+
           // Scroll messages to bottom
           setTimeout(() => {
-            if (messagesArea) {
-              messagesArea.scrollTop = messagesArea.scrollHeight;
-            }
+            if (area) area.scrollTop = area.scrollHeight;
           }, 100);
         } else if (heightDiff < -150) {
           // Keyboard closed
-          inputContainer.classList.remove('keyboard-open');
+          container?.classList.remove('keyboard-open');
         }
-        
+
         lastHeight = currentHeight;
       };
 
@@ -531,7 +593,10 @@ const MessagingModule = (function () {
 
     console.log(`[Messages] loaded ${state.messages.length} messages`);
 
-    await markMessagesAsRead(conversationId);
+    if (isViewing()) {
+      await markMessagesAsRead(conversationId);
+      state.messages = state.messages.map((m) => (m.sender_id !== state.currentUser.communityId ? { ...m, read: true } : m));
+    }
   }
 
   async function loadEarlierMessages() {
@@ -747,6 +812,7 @@ const MessagingModule = (function () {
       // Clear input
       const input = document.querySelector(".message-input");
       if (input) input.value = "";
+      delete state.drafts[state.activeConversation.id];
 
       // Reload and render
       await loadMessages(state.activeConversation.id);
@@ -809,35 +875,44 @@ const MessagingModule = (function () {
     if (btn) btn.style.display = "none";
   }
 
-  function showIncomingToast(senderName, preview, convId) {
+  // A new message elsewhere (another conversation, or while Inbox is not in
+  // view): who it is from, never what it says. Above the bottom bar on
+  // phones and tablets; opens the conversation in Inbox.
+  function showIncomingToast(senderName, convId) {
     const existing = document.getElementById("msg-incoming-toast");
     if (existing) existing.remove();
 
-    const toast = document.createElement("div");
+    const toast = document.createElement("button");
+    toast.type = "button";
     toast.id = "msg-incoming-toast";
+    toast.setAttribute("role", "status");
     toast.style.cssText = `
       position: fixed;
-      bottom: 2rem;
-      right: 2rem;
+      bottom: calc(var(--mobile-tab-bar-height, 1.25rem) + 0.75rem);
+      right: 1rem;
       background: #0d1b2e;
       border: 1px solid #00e0ff;
       color: #fff;
       padding: 0.75rem 1rem;
       border-radius: 12px;
+      font: inherit;
       font-size: 0.9rem;
+      text-align: left;
       z-index: 16000;
-      max-width: 300px;
+      max-width: min(300px, calc(100vw - 2rem));
+      min-height: 44px;
       box-shadow: 0 8px 24px rgba(0,224,255,0.2);
       cursor: pointer;
       animation: slideIn 0.3s ease;
     `;
     toast.innerHTML = `
-      <div style="font-weight:700;color:#00e0ff;margin-bottom:0.25rem;">💬 ${escapeHtml(senderName)}</div>
-      <div style="color:#aaa;font-size:0.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px;">${escapeHtml(preview || "Sent you a message")}</div>
+      <div style="font-weight:700;color:#00e0ff;margin-bottom:0.25rem;"><span aria-hidden="true">💬</span> New message</div>
+      <div style="color:#aaa;font-size:0.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px;">from ${escapeHtml(senderName)}</div>
     `;
-    toast.addEventListener("click", () => {
+    toast.addEventListener("click", async () => {
       toast.remove();
-      selectConversationById(convId);
+      if (typeof window.openMessagesModal === "function") await window.openMessagesModal();
+      await selectConversationById(convId);
     });
     document.body.appendChild(toast);
     setTimeout(() => { if (toast.parentNode) toast.remove(); }, 5000);
@@ -871,33 +946,49 @@ const MessagingModule = (function () {
         const isActive = state.activeConversation && newMessage.conversation_id === state.activeConversation.id;
 
         if (isActive) {
-          // sender_id is community.id.
-          const { data: sender } = await window.supabase
-            .from("community")
-            .select("id, name, image_url, user_id, photo_visible, photo_consent_at")
-            .eq("id", newMessage.sender_id)
-            .single()
-            .catch(() => ({ data: null }));
+          // sender_id is community.id. (Supabase queries are thenables
+          // without .catch(), so a failed lookup is caught here.)
+          let sender = null;
+          try {
+            ({ data: sender } = await window.supabase
+              .from("community")
+              .select("id, name, image_url, user_id, photo_visible, photo_consent_at")
+              .eq("id", newMessage.sender_id)
+              .single());
+          } catch (_) {
+            sender = null;
+          }
 
-          state.messages.push({
-            ...newMessage,
-            sender: sender ? { id: sender.id, name: sender.name, image_url: window.profilePhotoUrl?.(sender) } : null
-          });
-
-          renderMessages();
+          // A message already shown (your own, reloaded after sending)
+          // is not added twice.
+          if (!state.messages.some((m) => m.id === newMessage.id)) {
+            state.messages.push({
+              ...newMessage,
+              sender: sender ? { id: sender.id, name: sender.name, image_url: window.profilePhotoUrl?.(sender) } : null
+            });
+            renderMessages();
+          }
 
           const area = document.querySelector(".messages-area");
           if (area) area.scrollTop = area.scrollHeight;
 
-          // Mark as read if it's not mine
+          // Mark as read if it's not mine and Inbox is in view; otherwise
+          // it stays unread (and counted) until the member comes back.
           if (newMessage.sender_id !== state.currentUser.communityId) {
-            await markMessagesAsRead(state.activeConversation.id);
+            if (isViewing()) {
+              await markMessagesAsRead(state.activeConversation.id);
+              const read = state.messages[state.messages.length - 1];
+              if (read?.id === newMessage.id) read.read = true;
+            } else {
+              const conv = state.conversations.find((c) => c.id === newMessage.conversation_id);
+              showIncomingToast(conv?.otherUser?.name || "Someone", newMessage.conversation_id);
+            }
           }
         } else if (newMessage.sender_id !== state.currentUser.communityId) {
           // Show incoming toast for messages in other conversations
           const conv = state.conversations.find((c) => c.id === newMessage.conversation_id);
           const senderName = conv?.otherUser?.name || "Someone";
-          showIncomingToast(senderName, newMessage.content, newMessage.conversation_id);
+          showIncomingToast(senderName, newMessage.conversation_id);
         }
 
         await loadConversations();
@@ -1102,6 +1193,17 @@ const MessagingModule = (function () {
 
     // Mobile: inject back button
     ensureMobileBackButton();
+
+    // The unsent text for this conversation, kept while away from it.
+    const composer = panel.querySelector(".message-input");
+    const conversationId = state.activeConversation.id;
+    if (composer) {
+      composer.value = state.drafts[conversationId] || "";
+      composer.addEventListener("input", () => {
+        if (composer.value) state.drafts[conversationId] = composer.value;
+        else delete state.drafts[conversationId];
+      });
+    }
 
     // Setup keyboard handling for mobile
     setupMobileKeyboardHandling();
@@ -1396,12 +1498,36 @@ const MessagingModule = (function () {
     loadEarlierMessages,
     deleteMessage,
     scrollToBottom,
+    onShown,
+    showList,
     getState: () => ({ ...state })
   };
 })();
 
 // Expose globally
 window.MessagingModule = MessagingModule;
+
+// Back in the app with Inbox in view: the open conversation is now read.
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") MessagingModule.onShown();
+});
+
+// Restored from the back-forward cache after leaving the page (which clears
+// Messages, dashboardPane.js): Inbox loads again rather than staying empty.
+window.addEventListener("pageshow", (event) => {
+  if (event.persisted && document.getElementById("messages-modal")?.classList.contains("active")) {
+    MessagingModule.init();
+  }
+});
+
+// Escape closes New Message (and only that; Inbox stays).
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  if (document.getElementById("new-message-modal")?.classList.contains("active")) {
+    MessagingModule.hideNewMessageModal();
+    event.stopImmediatePropagation();
+  }
+}, true);
 
 // Auto-initialize when tab becomes active
 document.addEventListener("DOMContentLoaded", () => {

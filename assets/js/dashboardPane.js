@@ -351,9 +351,10 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     }
 
     // =========================================================
-    // MESSAGES MODAL — MessagingModule-first (WhatsApp/iMessage mobile)
+    // MESSAGES -- the Inbox destination (app-nav.js), MessagingModule-first
     // =========================================================
     window.openMessagesModal = async () => {
+      window.AppNav?.enter?.("inbox");
       openModal("messages-modal");
 
       // mobile scroll lock + safe-area behavior (pairs with messaging.css)
@@ -366,6 +367,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         // Callers such as the node-panel Message action must not select a
         // conversation until identity, conversations, and the modal DOM exist.
         await window.MessagingModule.init();
+        window.MessagingModule.onShown?.();
         return;
       }
 
@@ -374,15 +376,19 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       await loadConversationsForModal();
     };
 
-    window.closeMessagesModal = () => {
+    // Leaving Inbox hides Messages and keeps it as it was: the open
+    // conversation, drafts, search, scroll and live updates. Sign-out clears
+    // it (MessagingModule.cleanup).
+    window.hideMessagesModal = () => {
       closeModal("messages-modal");
       document.body.classList.remove("messages-open");
+    };
 
-      if (window.MessagingModule?.cleanup) {
-        window.MessagingModule.cleanup();
-        return;
-      }
-      cleanupMessageChannel();
+    // The close button (desktop) and older callers: leave Inbox for the page
+    // it was opened from.
+    window.closeMessagesModal = () => {
+      if (window.AppNav?.exit) window.AppNav.exit("inbox");
+      else window.hideMessagesModal();
     };
 
     window.openProjectsModal = async () => {

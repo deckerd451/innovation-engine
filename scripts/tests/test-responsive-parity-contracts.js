@@ -137,11 +137,12 @@ assert.match(read('assets/js/messaging.js'), /<button class="new-message-btn" ty
   assert.doesNotMatch(read('assets/js/unified-network/accessibility.js'), /case 'd':/);
   assert.doesNotMatch(read('assets/css/mobile-safe-area.css'), /unified-network-preferences|\.preferences-content/);
 }
-// Settings on desktop uses the existing settings modal (one implementation).
-assert.match(index, /<div class="cd-identity-actions">[\s\S]*?id="cd-settings-btn"[\s\S]*?id="cd-logout-btn"/);
-assert.match(commandJs, /\$id\('cd-settings-btn'\);[\s\S]{0,80}addEventListener\('click', \(\) => window\.SettingsModal\?\.open\?\.\(\)\)/);
-assert.match(commandJs, /_wireAdminBtn\(\);\s*_wireSettingsBtn\(\);/);
-assert.match(commandCss, /#command-dashboard \.cd-identity \{ display:none!important; \}/, 'mobile keeps Settings in Home → Account only');
+// Settings is in You (the profile) at every width and uses the existing
+// settings modal (one implementation); Home has no account controls.
+assert.match(read('profile.js'), /\$\("btn-profile-settings"\)\?\.addEventListener\("click", \(\) => window\.SettingsModal\?\.open\?\.\(\)\)/);
+assert.doesNotMatch(index, /id="cd-settings-btn"|id="cd-logout-btn"/);
+assert.doesNotMatch(commandJs, /_wireSettingsBtn|_wireLogoutBtn/);
+assert.doesNotMatch(read('assets/js/mobile-you.js'), /data-profile-action/);
 
 // Labels: Home, Explore, Network.
 assert.match(mobileNav, /isNetwork \? 'Network' : 'Explore'/);

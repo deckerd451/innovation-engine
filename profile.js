@@ -107,9 +107,21 @@
     modalEl.classList.remove("active");
   }
 
-  window.closeProfileModal = function closeProfileModal() {
+  // The profile is the You destination (app-nav.js). Leaving You hides it
+  // and keeps it as it was, including an unsaved Edit Profile; sign-out
+  // clears it.
+  window.hideProfileModal = function hideProfileModal() {
     closeModal(profileModal());
   };
+
+  // The close button (desktop) and older callers: leave You for the page it
+  // was opened from.
+  window.closeProfileModal = function closeProfileModal() {
+    if (window.AppNav?.exit) window.AppNav.exit("you");
+    else window.hideProfileModal();
+  };
+
+  const editorOpen = () => !!profileModalContent()?.querySelector("#edit-profile-form");
 
   function setHeaderAvatar(url, nameForAlt) {
     const host = elAvatar();
@@ -475,15 +487,37 @@
         </div>
 
         <div class="ch-profile-actions">
-          <button id="btn-open-profile-editor" class="btn btn-primary">
-            <i class="fas fa-user-edit"></i> Edit Profile
+          <button type="button" id="btn-open-profile-editor" class="btn btn-primary">
+            <i class="fas fa-user-edit" aria-hidden="true"></i> Edit Profile
           </button>
-          <button id="logout-btn" class="btn ch-btn-secondary">
-            <i class="fas fa-sign-out-alt"></i> Log out
+          <button type="button" id="btn-profile-settings" class="btn ch-btn-secondary">
+            <i class="fas fa-cog" aria-hidden="true"></i> Settings
+          </button>
+          <button type="button" id="btn-profile-logout" class="btn ch-btn-secondary">
+            <i class="fas fa-sign-out-alt" aria-hidden="true"></i> Log out
           </button>
         </div>
       </div>
     `;
+  }
+
+  // The profile view: Edit Profile, Settings and Log out (account controls
+  // live here, in You).
+  function showProfileView() {
+    const content = profileModalContent();
+    if (!content) return;
+    ensureStyles();
+    content.innerHTML = renderProfileView(state.profile, state.user);
+
+    $("btn-open-profile-editor")?.addEventListener("click", () => window.openProfileEditor?.(), { once: true });
+    $("btn-profile-settings")?.addEventListener("click", () => window.SettingsModal?.open?.());
+    $("btn-profile-logout")?.addEventListener("click", () => {
+      if (window.doLogout) window.doLogout();
+      else window.handleLogout?.();
+    });
+
+    _loadNearifyExperienceRow(content);
+    _loadCommunityIntents(content);
   }
 
   window.openProfileModal = function openProfileModal() {
@@ -491,14 +525,10 @@
     const content = profileModalContent();
     if (!modal || !content) return;
 
+    window.AppNav?.enter?.("you");
     ensureStyles();
-    content.innerHTML = renderProfileView(state.profile, state.user);
-
-    $("btn-open-profile-editor")?.addEventListener("click", () => window.openProfileEditor?.(), { once: true });
-    $("logout-btn")?.addEventListener("click", () => window.handleLogout?.(), { once: true });
-
-    _loadNearifyExperienceRow(content);
-    _loadCommunityIntents(content);
+    // Back in You with Edit Profile open: the unsaved changes are still there.
+    if (!editorOpen()) showProfileView();
 
     openModal(modal);
   };
@@ -904,6 +934,13 @@
     const content = profileModalContent();
     if (!modal || !content) return;
 
+    // Already editing (and maybe left for another tab): keep the changes.
+    if (editorOpen()) {
+      window.AppNav?.enter?.("you");
+      openModal(modal);
+      return;
+    }
+
     try {
       const supabase = ensureSupabase();
       const { data: { user } } = await supabase.auth.getUser();
@@ -993,7 +1030,8 @@
         setUploaderStatus("Photo will be removed on save.", "");
       });
 
-      $("edit-cancel")?.addEventListener("click", () => window.closeProfileModal?.(), { once: true });
+      // Cancel discards the changes and returns to the profile.
+      $("edit-cancel")?.addEventListener("click", () => showProfileView(), { once: true });
 
       $("edit-profile-form")?.addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -1086,7 +1124,7 @@ setUploaderStatus("Photo uploaded.", "ok");
           setHeaderUser(user, state.profile);
 
           toast("Profile updated successfully!");
-          window.closeProfileModal();
+          showProfileView();
 
           window.dispatchEvent(new CustomEvent("profile-loaded", { detail: { user, profile: state.profile } }));
         } catch (err) {
@@ -1097,6 +1135,7 @@ setUploaderStatus("Photo uploaded.", "ok");
         }
       });
 
+      window.AppNav?.enter?.("you");
       openModal(modal);
     } catch (err) {
       console.error("[PROFILE] open editor error:", err);
@@ -1118,9 +1157,19 @@ setUploaderStatus("Photo uploaded.", "ok");
   window.CHProfile.openEditor = () => window.openProfileEditor?.();
   window.CHProfile.normalizeIntentSubject = normalizeIntentSubject;
 
+  // A different account: the previous member's profile (or unsaved edit)
+  // does not carry over.
+  function forgetOtherAccount(user) {
+    if (!user?.id || !state.user?.id || user.id === state.user.id) return;
+    window.hideProfileModal();
+    const content = profileModalContent();
+    if (content) content.innerHTML = "";
+  }
+
   // Listen for auth events
   window.addEventListener("app-ready", (e) => {
     const d = e?.detail || {};
+    forgetOtherAccount(d.user);
     if (d.user) state.user = d.user;
     if (d.profile) {
       state.profile = d.profile;
@@ -1130,6 +1179,7 @@ setUploaderStatus("Photo uploaded.", "ok");
 
   window.addEventListener("profile-loaded", (e) => {
     const d = e?.detail || {};
+    forgetOtherAccount(d.user);
     if (d.user) state.user = d.user;
     if (d.profile) {
       state.profile = d.profile;
@@ -1146,10 +1196,15 @@ setUploaderStatus("Photo uploaded.", "ok");
     }
   });
 
+  // Sign-out: no profile (or unsaved edit) of the previous member stays on
+  // the page.
   window.addEventListener("user-logged-out", () => {
     state.user = null;
     state.profile = null;
     setHeaderAvatar("", "Profile");
+    window.hideProfileModal();
+    const content = profileModalContent();
+    if (content) content.innerHTML = "";
   });
 
   if (document.readyState === "loading") {

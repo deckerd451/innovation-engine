@@ -30,16 +30,16 @@
     })();
   </script>
 
- <link rel="stylesheet" href="assets/css/base.css?v=mobile-scroll-20261017" />
+ <link rel="stylesheet" href="assets/css/base.css?v=inbox-you-20261020" />
 <link rel="stylesheet" href="assets/css/design-system.css?v=logout-confirm-20261015" />
 <link rel="stylesheet" href="assets/css/engine.css" />
 <link rel="stylesheet" href="assets/css/overlays.css" />
 <link rel="stylesheet" href="assets/css/connections.css" />
-<link rel="stylesheet" href="assets/css/messaging.css?v=settings-refinement-20261020" />
+<link rel="stylesheet" href="assets/css/messaging.css?v=inbox-you-20261020" />
 <link rel="stylesheet" href="dashboard.css?v=shared-nav-20261016" />
 <link rel="stylesheet" href="assets/css/quiet-mode.css" />
-<link rel="stylesheet" href="assets/css/mobile-safe-area.css?v=settings-refinement-20261020" />
-  <link rel="stylesheet" href="assets/css/command-dashboard.css?v=settings-refinement-20261020" />
+<link rel="stylesheet" href="assets/css/mobile-safe-area.css?v=inbox-you-20261020" />
+  <link rel="stylesheet" href="assets/css/command-dashboard.css?v=inbox-you-20261020" />
   <link rel="stylesheet" href="assets/css/mobile-today-continuity.css?v=mobile-today-stabilization-20261013" />
 <link rel="stylesheet" href="assets/css/ui-enhancements.css" />
 <link rel="stylesheet" href="assets/css/synapse-filter.css" />
@@ -181,23 +181,7 @@
                   <span class="cd-notif-badge" id="cd-actions-badge" style="display:none;">0</span>
                 </button>
 
-                <button
-                  class="cd-icon-btn cd-settings-btn"
-                  id="cd-settings-btn"
-                  title="Settings"
-                  aria-label="Open settings"
-                >
-                  <i class="fas fa-cog"></i>
-                </button>
-                <button
-                  class="cd-icon-btn"
-                  id="cd-logout-btn"
-                  title="Logout"
-                  aria-label="Logout"
-                  style="color:#ff6b6b;"
-                >
-                  <i class="fas fa-sign-out-alt"></i>
-                </button>
+                <!-- Settings and Log out are in You (the profile). -->
               </div>
             </div>
 
@@ -355,8 +339,9 @@
     </aside>
   </div>
 
-  <div class="modal" id="profile-modal">
-    <div class="modal-content">
+  <!-- The You destination (app-nav.js): beside the navigation, never over it. -->
+  <div class="modal" id="profile-modal" data-app-screen="you">
+    <div class="modal-content" role="region" aria-label="You" tabindex="-1">
       <button class="modal-close" type="button" aria-label="Close profile" onclick="closeProfileModal()"><i class="fas fa-times" aria-hidden="true"></i></button>
       <div id="modal-profile-content"></div>
     </div>
@@ -457,8 +442,9 @@
     })();
   </script>
 
-  <div class="modal" id="messages-modal">
-    <div class="modal-content messages-modal-content" style="max-width:1000px; max-height:80vh;">
+  <!-- The Inbox destination (app-nav.js): beside the navigation, never over it. -->
+  <div class="modal" id="messages-modal" data-app-screen="inbox">
+    <div class="modal-content messages-modal-content" role="region" aria-label="Inbox" tabindex="-1" style="max-width:1000px; max-height:80vh;">
       <button class="modal-close" type="button" aria-label="Close messages" onclick="closeMessagesModal()"><i class="fas fa-times" aria-hidden="true"></i></button>
       <div id="messages-container"></div>
     </div>
@@ -722,7 +708,7 @@
   <script src="assets/js/onboarding.js?v=1"></script>
   <script src="assets/js/tooltips.js?v=1"></script>
   <script src="assets/js/enhanced-search.js?v=1"></script>
-  <script src="assets/js/keyboard-shortcuts.js?v=1"></script>
+  <script src="assets/js/keyboard-shortcuts.js?v=inbox-you-20261020"></script>
   <script src="assets/js/micro-interactions.js?v=profile-close-20261017"></script>
   <script src="assets/js/mobile-enhancements.js?v=shared-nav-20261016"></script>
 
@@ -752,20 +738,20 @@
        connectionRequests, network-filters, graph-legend are auth-only -->
   <script type="module" src="assets/js/onboarding.js?v=fc09b39b-1770146154f916933b2da"></script>
 
-  <script src="assets/js/messaging.js?v=settings-refinement-20261020" defer></script>
+  <script src="assets/js/messaging.js?v=inbox-you-20261020" defer></script>
 
   <script type="module" src="auth.js?v=session-recovery-20261010a"></script>
   <script type="module" src="assets/js/nearify-link.js?v=1"></script>
   <script type="module" src="assets/js/nearify-events-panel.js?v=network-dest-20261017"></script>
-  <script type="module" src="profile.js?v=profile-close-20261017"></script>
+  <script type="module" src="profile.js?v=inbox-you-20261020"></script>
 
   <script src="assets/js/comprehensive-fixes.js?v=server-notifications-20261013" defer></script>
   <script src="assets/js/critical-ux-fixes.js?v=fc09b39b-17701461543" defer></script>
 
-  <script src="assets/js/settings-modal.js?v=settings-refinement-20261020" defer></script>
+  <script src="assets/js/settings-modal.js?v=inbox-you-20261020" defer></script>
   <script src="assets/js/nearify-mobile-context.js?v=1" defer></script>
-  <script src="assets/js/mobile-nav.js?v=settings-refinement-20261020" defer></script>
-  <script src="assets/js/app-nav.js?v=network-dest-20261017" defer></script>
+  <script src="assets/js/mobile-nav.js?v=inbox-you-20261020" defer></script>
+  <script src="assets/js/app-nav.js?v=inbox-you-20261020" defer></script>
   <script src="assets/js/swipe-dismiss.js?v=1" defer></script>
   <script src="assets/js/cd-panel-collapse.js?v=2" defer></script>
 
@@ -776,16 +762,16 @@
   <link rel="stylesheet" href="assets/css/mobile-project-scroll.css?v=project-scroll-20261012">
   <script src="assets/js/project-tasks.js?v=1" defer></script>
   <script src="assets/js/capability-journey.js?v=1" defer></script>
-  <script src="assets/js/capability-memory.js?v=settings-refinement-20261020" defer></script>
-  <script src="assets/js/assistance-interventions.js?v=settings-refinement-20261020" defer></script>
-  <script src="assets/js/mobile-goal-discovery.js?v=settings-refinement-20261020" defer></script>
+  <script src="assets/js/capability-memory.js?v=inbox-you-20261020" defer></script>
+  <script src="assets/js/assistance-interventions.js?v=inbox-you-20261020" defer></script>
+  <script src="assets/js/mobile-goal-discovery.js?v=inbox-you-20261020" defer></script>
   <script src="assets/js/mobile-today-continuity.js?v=shared-nav-20261016" defer></script>
-  <link rel="stylesheet" href="assets/css/mobile-you.css?v=settings-refinement-20261020">
-  <link rel="stylesheet" href="assets/css/mobile-task-assistance.css?v=settings-refinement-20261020">
-  <link rel="stylesheet" href="assets/css/assistance-interventions.css?v=settings-refinement-20261020">
-  <script src="assets/js/mobile-you.js?v=settings-refinement-20261020" defer></script>
+  <link rel="stylesheet" href="assets/css/mobile-you.css?v=inbox-you-20261020">
+  <link rel="stylesheet" href="assets/css/mobile-task-assistance.css?v=inbox-you-20261020">
+  <link rel="stylesheet" href="assets/css/assistance-interventions.css?v=inbox-you-20261020">
+  <script src="assets/js/mobile-you.js?v=inbox-you-20261020" defer></script>
   <script type="module" src="assets/js/node-panel.js?v=shared-nav-20261016"></script>
-  <script src="assets/js/mobile-task-assistance.js?v=settings-refinement-20261020" defer></script>
+  <script src="assets/js/mobile-task-assistance.js?v=inbox-you-20261020" defer></script>
   <script src="assets/js/node-panel-fixes.js?v=fc09b39b-17701461543" defer></script>
   <script src="assets/js/dashboard-actions.js?v=membership-authz-xss-20261014" defer></script>
 
@@ -843,7 +829,7 @@
       // Opportunity Engine
       { src: 'assets/js/opportunities/opportunityEngine.js?v=no-deadline-final-20260304', module: false },
       // Unified Network Discovery
-      { src: 'assets/js/unified-network-integration.js?v=settings-refinement-20261020', module: true },
+      { src: 'assets/js/unified-network-integration.js?v=inbox-you-20261020', module: true },
       // Realtime Collaboration (use latest version from remote)
       { src: 'assets/js/realtime-collaboration.js?v=member-content-xss-20261014', module: true },
       { src: 'assets/js/collaboration-concierge.js?v=collaboration-concierge-20261010', module: true },
@@ -920,7 +906,7 @@
   </script>
 
   <!-- Dashboard controller -->
-  <script type="module" src="assets/js/dashboardPane.js?v=network-dest-20261017"></script>
+  <script type="module" src="assets/js/dashboardPane.js?v=inbox-you-20261020"></script>
 
   <!-- Enhanced project creation modal (DEFERRED UNTIL AUTH) -->
 
@@ -944,7 +930,7 @@
   <!-- Daily Suggestions Engine (DEFERRED UNTIL AUTH) -->
 
   <script src="assets/js/graph-controller.js" defer></script>
-  <script src="assets/js/command-dashboard.js?v=shared-nav-20261016" defer></script>
+  <script src="assets/js/command-dashboard.js?v=inbox-you-20261020" defer></script>
 
   <script>
     window.closeStartModal = function () {

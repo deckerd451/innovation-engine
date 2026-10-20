@@ -809,18 +809,23 @@ const messagesHeader = () => callInPage(function () {
 });
 
 const msgsLabel = { add: 'New message', close: 'Close messages' };
-function headerProblems(g, safeTop, { aligned = false, oneLine = false } = {}) {
+// Below 1024px Messages is the Inbox page (the bottom bar is the way out, so
+// there is no X); from 1024px it is a card with an X beside the side bar.
+function headerProblems(g, safeTop, { aligned = false, oneLine = false, closeShown = true } = {}) {
   const bad = [];
-  if (!g.heading || !g.add || !g.close || !g.search) return ['missing'];
-  if (Math.min(g.heading.top, g.add.top, g.close.top, g.badge ? g.badge.top : Infinity) < safeTop) bad.push('under the safe area');
-  if (g.add.w < 44 || g.add.h < 44 || g.close.w < 44 || g.close.h < 44) bad.push('target under 44px');
-  if (!g.addOwns || !g.closeOwns) bad.push('not clickable');
+  if (!g.heading || !g.add || !g.search) return ['missing'];
+  if (closeShown && !g.close) return ['no X'];
+  if (!closeShown && g.close) bad.push('X shown on the Inbox page');
+  const close = closeShown ? g.close : g.add;
+  if (Math.min(g.heading.top, g.add.top, close.top, g.badge ? g.badge.top : Infinity) < safeTop) bad.push('under the safe area');
+  if (g.add.w < 44 || g.add.h < 44 || close.w < 44 || close.h < 44) bad.push('target under 44px');
+  if (!g.addOwns || (closeShown && !g.closeOwns)) bad.push('not clickable');
   if (g.overlaps.length) bad.push('overlap ' + g.overlaps.join(','));
-  if (g.search.top < Math.max(g.heading.bottom, g.add.bottom, g.close.bottom)) bad.push('search not below the header');
-  if (g.close.right > g.vw || g.add.right > g.vw) bad.push('off screen');
-  if (g.addLabel !== msgsLabel.add || g.closeLabel !== msgsLabel.close) bad.push('labels');
-  // Full screen (below 1024px): the X shares the header row with New.
-  if (aligned && Math.abs(g.close.top - g.add.top) > 1) bad.push('X not in the header row');
+  if (g.search.top < Math.max(g.heading.bottom, g.add.bottom, close.bottom)) bad.push('search not below the header');
+  if (close.right > g.vw || g.add.right > g.vw) bad.push('off screen');
+  if (g.addLabel !== msgsLabel.add || (closeShown && g.closeLabel !== msgsLabel.close)) bad.push('labels');
+  // The header row ends at the screen edge once there is no X beside New.
+  if (aligned && !closeShown && g.vw - g.add.right > 24) bad.push('New not at the end of the header row');
   // "💬 Messages 3" stays on one line (New moves down instead of squeezing it).
   if (oneLine && g.heading.h > 1.8 * g.headingFont) bad.push('heading squeezed onto several lines');
   return bad;
@@ -829,15 +834,21 @@ const headerSummary = (g) => JSON.stringify({ safe: g.safe, heading: g.heading, 
 
 async function messagesHeaderChecks(P, safeTop) {
   const fullScreen = current.width < 1024;
+  const leave = async (page) => {
+    if (fullScreen) await press(NAV(page), page);
+    else await press('#messages-modal .modal-close', 'Messages X');
+    await waitFor(`!${isOpen.messages}`, 'messages to close', 4000);
+  };
+  const way = fullScreen ? 'the navigation' : 'X';
   for (const page of ['network', 'explore']) {
-    await step(`${P}: Inbox → Messages header, then X returns to ${page}`, async () => {
+    await step(`${P}: Inbox → Messages header, then ${way} returns to ${page}`, async () => {
       await go(page);
       await press(NAV('inbox'), 'Inbox');
       await waitFor(`${isOpen.messages} && document.querySelector('#messages-container .conversations-header .unread-badge')`, 'messages', 6000);
       await sleep(400);
       const g = await messagesHeader();
-      const bad = headerProblems(g, safeTop, { aligned: fullScreen, oneLine: true });
-      check(!bad.length, `${P}: Messages header (from ${page}) is below the safe area in one row; New and X are 44px, clickable and clear of the search`, bad.join('; ') + ' ' + headerSummary(g));
+      const bad = headerProblems(g, safeTop, { aligned: fullScreen, oneLine: true, closeShown: !fullScreen });
+      check(!bad.length, `${P}: Messages header (from ${page}) is below the safe area in one row; New${fullScreen ? '' : ' and X'} 44px, clickable and clear of the search`, bad.join('; ') + ' ' + headerSummary(g));
       // New opens the new-message picker.
       await press('#messages-container .new-message-btn', 'New');
       await waitFor(`document.getElementById('new-message-modal')?.classList.contains('active')`, 'new message', 4000);
@@ -848,24 +859,24 @@ async function messagesHeaderChecks(P, safeTop) {
       await waitFor(`document.querySelectorAll('#conversations-list .conversation-item').length === 1`, 'filtered', 4000);
       await evaluate(`(() => { const i = document.getElementById('conv-search-input'); i.value = ''; window.MessagingModule.filterConversations(''); i.blur(); return true; })()`);
       await waitFor(`document.querySelectorAll('#conversations-list .conversation-item').length === 20`, 'all conversations', 4000);
+      await sleep(400); // the bar returns once the search loses focus
       // The list scrolls under a header that stays put.
       const r = await scrollToReach(LAST.inbox, current.mobile ? 'touch' : 'wheel');
       const after = await messagesHeader();
-      check(r.ok && r.scrolled && after.close.top === g.close.top && after.add.top === g.add.top && after.closeOwns && after.addOwns,
-        `${P}: New works, search filters, and the list scrolls with the header in place (${page})`, JSON.stringify({ reached: r.ok, scrolled: r.scrolled, before: [g.add.top, g.close.top], after: [after.add.top, after.close.top] }));
-      await press('#messages-modal .modal-close', 'Messages X');
-      await waitFor(`!${isOpen.messages}`, 'messages to close', 4000);
-      check((await destination()) === page && (await current_()) === page, `${P}: Messages X returns to ${page}`, await destination());
-      // Reopen: the header and X are where they were, and X closes again.
+      const fixed = fullScreen ? after.heading.top === g.heading.top : (after.close.top === g.close.top && after.closeOwns);
+      check(r.ok && r.scrolled && fixed && after.add.top === g.add.top && after.addOwns,
+        `${P}: New works, search filters, and the list scrolls with the header in place (${page})`, JSON.stringify({ reached: r.ok, scrolled: r.scrolled, before: [g.add.top, g.heading.top], after: [after.add.top, after.heading.top] }));
+      await leave(page);
+      check((await destination()) === page && (await current_()) === page, `${P}: ${way} returns from Inbox to ${page}`, await destination());
+      // Reopen: the header is where it was, and the way out works again.
       await press(NAV('inbox'), 'Inbox');
       await waitFor(`${isOpen.messages} && document.querySelector('#messages-container .new-message-btn')`, 'messages', 6000);
       await sleep(400);
       const again = await messagesHeader();
-      check(!headerProblems(again, safeTop, { aligned: fullScreen }).length && again.close.top === g.close.top && again.close.left === g.close.left && again.add.top === g.add.top,
+      check(!headerProblems(again, safeTop, { aligned: fullScreen, closeShown: !fullScreen }).length && again.heading.top === g.heading.top && again.add.top === g.add.top && again.add.left === g.add.left,
         `${P}: reopened Messages has the same header (${page})`, headerSummary(again));
-      await press('#messages-modal .modal-close', 'Messages X');
-      await waitFor(`!${isOpen.messages}`, 'messages to close', 4000);
-      check((await destination()) === page, `${P}: reopened Messages X returns to ${page}`);
+      await leave(page);
+      check((await destination()) === page, `${P}: reopened Messages, ${way} returns to ${page}`);
     });
   }
   // Large text, a long heading and long unread counts: still no overlap.
@@ -884,7 +895,7 @@ async function messagesHeaderChecks(P, safeTop) {
         await evaluate(`${js}; true`);
         await sleep(250);
         const g = await messagesHeader();
-        const bad = headerProblems(g, safeTop, { oneLine: name === 'large text' });
+        const bad = headerProblems(g, safeTop, { oneLine: name === 'large text', closeShown: current.width >= 1024 });
         check(!bad.length, `${P}: Messages header with ${name} (and the variants before it) stays clear and clickable`, bad.join('; ') + ' ' + headerSummary(g));
       }
     } finally {
@@ -893,9 +904,10 @@ async function messagesHeaderChecks(P, safeTop) {
     }
   });
   // Inside a conversation (phones: the chat replaces the list) the chat
-  // header is the top row; a long name, email or context stays clear of the X.
+  // header is the top row, below the safe area; a long name, email or
+  // context wraps inside the screen; the composer sits above the bar.
   if (current.width <= 768) {
-    await step(`${P}: in a conversation, a long name, email and context stay clear of the X`, async () => {
+    await step(`${P}: in a conversation, a long name, email and context stay inside the header, above the composer and bar`, async () => {
       await go('home');
       await evaluate(`window.openMessagesModal(); true`);
       await waitFor(`${isOpen.messages} && document.querySelector('#conversations-list .conversation-item')`, 'messages', 6000);
@@ -914,25 +926,25 @@ async function messagesHeaderChecks(P, safeTop) {
           await evaluate(`document.documentElement.style.fontSize = '${size}'; true`);
           await sleep(250);
           const g = await callInPage(function () {
-            const x = document.querySelector('#messages-modal .modal-close');
-            const r = x.getBoundingClientRect();
-            const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-            const under = [...document.querySelectorAll('#chat-panel .chat-header > *, #chat-panel .chat-header-name, #chat-panel .chat-header-status')].filter(e => {
-              const q = e.getBoundingClientRect();
-              return q.width && q.height && q.left < r.right && q.right > r.left && q.top < r.bottom && q.bottom > r.top;
-            }).map(e => String(e.className));
-            const head = document.querySelector('#chat-panel .chat-header').getBoundingClientRect();
-            return { top: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height), owns: !!hit && (hit === x || x.contains(hit)), under, fits: head.right <= innerWidth + 1 };
+            const head = document.querySelector('#chat-panel .chat-header');
+            const h = head.getBoundingClientRect();
+            const parts = [...head.querySelectorAll(':scope > *, .chat-header-name, .chat-header-status')].map(e => e.getBoundingClientRect()).filter(q => q.width && q.height);
+            const composer = document.querySelector('#chat-panel .message-input-container').getBoundingClientRect();
+            const nav = document.getElementById('app-nav').getBoundingClientRect();
+            const back = document.querySelector('#chat-panel .mobile-back-btn');
+            const b = back?.getBoundingClientRect();
+            const hit = b && document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+            return { top: Math.round(Math.min(...[head.querySelector('.chat-header-name'), back].filter(Boolean).map(e => e.getBoundingClientRect().top))), fits: parts.every(q => q.right <= innerWidth + 1 && q.left >= -1), composerBottom: Math.round(composer.bottom), navTop: Math.round(nav.top), back: !!hit && back.contains(hit), x: !!document.querySelector('#messages-modal > .modal-content > .modal-close')?.getClientRects().length };
           });
-          check(g.top >= safeTop && g.w >= 44 && g.h >= 44 && g.owns && !g.under.length && g.fits,
-            `${P}: in a conversation${size ? ' with large text' : ''}, nothing in the chat header runs under the X`, JSON.stringify({ safeTop, ...g }));
+          check(g.top >= safeTop && g.fits && g.back && !g.x && g.composerBottom <= g.navTop + 1,
+            `${P}: in a conversation${size ? ' with large text' : ''}, the header fits with its back button and the composer sits above the bar`, JSON.stringify({ safeTop, ...g }));
         }
       } finally {
         await evaluate(`document.documentElement.style.fontSize = ''; true`);
       }
-      await press('#messages-modal .modal-close', 'Messages X');
+      await press(NAV('home'), 'Home');
       await waitFor(`!${isOpen.messages}`, 'messages to close', 4000);
-      check((await destination()) === 'home', `${P}: the X closes Messages from a conversation and returns to home`, await destination());
+      check((await destination()) === 'home', `${P}: Home in the bar leaves a conversation for Home`, await destination());
     });
   }
 }
@@ -952,34 +964,47 @@ const profileOpen = `(() => { const m = document.getElementById('profile-modal')
 async function closeDialogChecks(P, safeTop, safeBottom) {
   const safe = await safeTopNow();
   check(safe === safeTop, `${P}: safe area applied (${safeTop}px)`, `${safe}`);
+  const fullScreen = current.width < 1024;
   for (const page of ['network', 'explore']) {
-    await step(`${P}: You → tap X returns to ${page}`, async () => {
+    await step(`${P}: You, then ${fullScreen ? 'the navigation' : 'X'} returns to ${page}`, async () => {
       await go(page);
       await press(NAV('you'), 'You');
       await waitFor(profileOpen, 'profile', 6000);
       await sleep(400);
+      // Phones and tablets: the profile is the page above the bar, its
+      // content below the top safe area (the bar keeps the bottom one).
+      // Desktop: a card inside the window, with an X clear of the header.
+      const win = await evaluate(`(() => { const r = document.querySelector('#profile-modal .modal-content').getBoundingClientRect(); const h = document.querySelector('#profile-modal .ch-profile-header').getBoundingClientRect(); const n = document.getElementById('app-nav').getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(innerHeight - r.bottom), header: Math.round(h.top), toBar: Math.round(n.top - r.bottom) }; })()`);
       const g = await closeGeometry('#profile-modal .modal-close');
-      // The whole window sits inside the safe areas on phones.
-      const win = await evaluate(`(() => { const r = document.querySelector('#profile-modal .modal-content').getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(innerHeight - r.bottom) }; })()`);
-      check(win.top >= safeTop && win.bottom >= safeBottom, `${P}: the profile window sits inside the safe areas`, JSON.stringify({ safeTop, safeBottom, ...win }));
-      check(!g.missing && g.top >= safeTop && g.w >= 44 && g.h >= 44 && g.owns && g.onScreen && g.overlaps === 0 && g.label === 'Close profile',
-        `${P}: the profile X is below the top safe area, at least 44px and clear of the header`, JSON.stringify({ safeTop, ...g }));
-      // Scroll the profile; the X stays where it is and still works.
+      if (fullScreen) {
+        check(win.header >= safeTop && Math.abs(win.toBar) <= 1 && g.missing, `${P}: the profile fills the screen above the bar, below the top safe area, with no X`, JSON.stringify({ safeTop, safeBottom, ...win, x: !g.missing }));
+      } else {
+        check(win.top >= safeTop && win.bottom >= safeBottom, `${P}: the profile window sits inside the safe areas`, JSON.stringify({ safeTop, safeBottom, ...win }));
+        check(!g.missing && g.top >= safeTop && g.w >= 44 && g.h >= 44 && g.owns && g.onScreen && g.overlaps === 0 && g.label === 'Close profile',
+          `${P}: the profile X is below the top safe area, at least 44px and clear of the header`, JSON.stringify({ safeTop, ...g }));
+      }
+      // Scroll the profile; the header area and the way out stay in place.
       // The last section shown at every width ("Right now" is hidden on phones).
       const target = '#profile-modal #nearify-experience-row';
       const r = await scrollToReach(target, current.mobile ? 'touch' : 'wheel');
-      const after = await closeGeometry('#profile-modal .modal-close');
-      check(r.ok && after.top === g.top && after.owns, `${P}: the profile scrolls and the X stays in place`, JSON.stringify({ reached: r.ok, before: g.top, after: after.top, owns: after.owns }));
-      await press('#profile-modal .modal-close', 'profile X');
+      if (fullScreen) {
+        check(r.ok && await usable(NAV(page)), `${P}: the profile scrolls and the navigation stays usable`, JSON.stringify({ reached: r.ok }));
+        await press(NAV(page), page);
+      } else {
+        const after = await closeGeometry('#profile-modal .modal-close');
+        check(r.ok && after.top === g.top && after.owns, `${P}: the profile scrolls and the X stays in place`, JSON.stringify({ reached: r.ok, before: g.top, after: after.top, owns: after.owns }));
+        await press('#profile-modal .modal-close', 'profile X');
+      }
       await waitFor(`!${profileOpen}`, 'profile to close', 4000);
       check((await destination()) === page && (await current_()) === page && await usable(NAV(page)),
-        `${P}: You → tap X returns to ${page}`, `${await destination()}`);
+        `${P}: You, then ${fullScreen ? 'the navigation' : 'X'} returns to ${page}`, `${await destination()}`);
     });
   }
   // The other full-screen dialogs: their close control is below the top
   // safe area and a real tap closes them.
+  // (Messages has one only on desktop, where it is a card.)
   const others = [
-    ['Messages', `window.openMessagesModal(); true`, '#messages-modal .modal-close', isOpen.messages],
+    ...(fullScreen ? [] : [['Messages', `window.openMessagesModal(); true`, '#messages-modal .modal-close', isOpen.messages]]),
     ['Settings', `window.SettingsModal.open(); true`, '#settings-close-btn', isOpen.settings],
     ['Actions', `window.UnifiedNotifications.showPanel('actions'); true`, '#close-unified-panel', `!!document.getElementById('close-unified-panel')?.getClientRects().length`],
   ];
@@ -1159,22 +1184,17 @@ async function homeRefreshRuns() {
 // The setting is kept on this device and announced to the map. There is no
 // separate Discovery button or preferences dialog.
 const DISCOVERY_SWITCH = '#settings-discovery-suggestions';
+// Settings is in You (the profile) at every width.
+const SETTINGS_OPENER = '#btn-profile-settings';
+async function openYou() {
+  await go('home');
+  await press(NAV('you'), 'You');
+  await waitFor(`${profileOpen} && document.querySelector('#btn-profile-settings')`, 'profile', 6000);
+  await sleep(300);
+}
 async function openSettings() {
-  if (current.width >= 1024) {
-    await go('home');
-    await press('#cd-settings-btn', 'Settings');
-  } else {
-    await go('home');
-    await sleep(800);
-    const account = '#mobile-you-content > details.mobile-you-secondary:last-of-type';
-    for (let i = 0; i < 3; i++) {
-      await waitUntil(function (sel) { return !!document.querySelector(sel + ' > summary'); }, [account], 'Account', 6000);
-      if (await callInPage(function (sel) { return document.querySelector(sel).open; }, account)) break;
-      await press(`${account} > summary`, 'Account');
-      await sleep(300);
-    }
-    await press('[data-profile-action="settings"]', 'Settings');
-  }
+  await openYou();
+  await press(SETTINGS_OPENER, 'Settings');
   await waitFor(isOpen.settings, 'settings', 5000);
   await sleep(200);
 }
@@ -1284,8 +1304,32 @@ async function settingsLayoutChecks(P) {
     await sleep(150);
     const scrolled = await settingsLayout();
     const steady = Math.abs(scrolled.save.top - open.save.top) < 1 && Math.abs(scrolled.close.top - open.close.top) < 1;
-    check(scrolled.saveInView && scrolled.closeInView && steady && (!open.body.scrollable || end > 0) && await usable('#settings-debug-mode'),
-      `${P}: after scrolling to the last setting, the header and Save haven't moved and still work`, JSON.stringify({ end, open: open.save, scrolled: scrolled.save, steady }));
+    // Notices (toast.js) sit above every layer for a few seconds, and one can
+    // cover the last setting: the "BLE scanning isn't available" notice that
+    // desktop browsers without Web Bluetooth show after load lands on Debug
+    // Mode (and Save) in a 900px window, and stays while a pointer rests on
+    // it. A person closes it with its × or moves the pointer away and it
+    // closes by itself; then a real tap on the switch must toggle it. (The ×
+    // is an icon-font glyph the harness does not load, so the run moves the
+    // pointer away.)
+    const covered = () => callInPage(function () {
+      const r = document.getElementById('settings-debug-mode').getBoundingClientRect();
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      const toast = hit?.closest?.('#toast-container > *');
+      return toast ? toast.innerText.trim().slice(0, 60) : '';
+    });
+    const notice = await covered();
+    if (notice) {
+      if (!current.mobile) await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 5, y: 5 });
+      await waitUntil(function () { const r = document.getElementById('settings-debug-mode').getBoundingClientRect(); const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !hit?.closest?.('#toast-container'); }, [], 'the notice over Debug Mode to close by itself', 6000);
+    }
+    const before = await evaluate(`document.getElementById('settings-debug-mode').checked`);
+    await press('#settings-debug-mode', 'Debug Mode');
+    const toggled = await evaluate(`document.getElementById('settings-debug-mode').checked`);
+    await press('#settings-debug-mode', 'Debug Mode');
+    const restored = await evaluate(`document.getElementById('settings-debug-mode').checked`);
+    check(scrolled.saveInView && scrolled.closeInView && steady && (!open.body.scrollable || end > 0) && toggled === !before && restored === before,
+      `${P}: after scrolling to the last setting, the header and Save haven't moved and a tap toggles Debug Mode${notice ? ' (once the notice over it is closed)' : ''}`, JSON.stringify({ end, open: open.save, scrolled: scrolled.save, steady, notice, before, toggled, restored }));
     if (current.height < 700) await shot(`${current.name}-settings-scrolled`);
     // Comfortable targets: every row is tappable, and on touch screens close
     // and Save are at least 44px.
@@ -1357,8 +1401,7 @@ async function settingsLayoutChecks(P) {
   if (!current.mobile) {
     await step(`${P}: keyboard focus stays in Settings and returns to the Settings button`, async () => {
       await openSettings();
-      // Below 1024px Settings opens from Home → Account.
-      const opener = current.width >= 1024 ? '#cd-settings-btn' : '[data-profile-action="settings"]';
+      const opener = SETTINGS_OPENER;
       const tab = async (shift = false) => {
         const mod = shift ? 8 : 0;
         await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9, modifiers: mod });
@@ -1461,9 +1504,11 @@ async function conversationChecks(P) {
     const v2 = await msgPane();
     check(v2.chat && v2.name === other && (fullScreen ? !v2.list : v2.list), `${P}: tapping another conversation switches the chat`, JSON.stringify(v2));
 
-    await press('#messages-modal .modal-close', 'Messages X');
+    // The way out: the navigation on the Inbox page, X on the desktop card.
+    if (fullScreen) await press(NAV('home'), 'Home');
+    else await press('#messages-modal .modal-close', 'Messages X');
     await waitFor(`!${isOpen.messages}`, 'messages to close', 4000);
-    check((await destination()) === 'home', `${P}: the X closes Messages from a chat and returns to home`, await destination());
+    check((await destination()) === 'home', `${P}: ${fullScreen ? 'Home in the bar' : 'the X'} leaves Messages from a chat for Home`, await destination());
   });
 }
 
@@ -1572,10 +1617,334 @@ async function conversationRuns() {
     const next = await msgPane();
     check(next.chat && !next.list && next.back, 'conversation rotation: another conversation then opens full screen', JSON.stringify(next));
 
-    await press('#messages-modal .modal-close', 'Messages X');
+    await press(NAV('home'), 'Home');
     await waitFor(`!${isOpen.messages}`, 'messages to close', 4000);
-    check((await destination()) === 'home', 'conversation rotation: the X closes Messages and returns to home', await destination());
+    check((await destination()) === 'home', 'conversation rotation: Home in the bar leaves Messages for Home', await destination());
   });
+}
+
+// ── Inbox and You as destinations ────────────────────────────────────────
+// Leaving Inbox or You and coming back finds them as they were (open
+// conversation, unsent text, search, scroll, New Message, an unsaved Edit
+// Profile); messages that arrive while Inbox is out of view, or the app is in
+// the background, stay unread; a new-message notice says who, never what;
+// Escape never blanks them; sign-out clears them.
+const inboxScrolls = () => evaluate(`[...document.querySelectorAll('#messages-modal *')].filter(e => e.scrollHeight > e.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(e).overflowY) && e.getClientRects().length).map(e => Math.round(e.scrollTop)).join(',')`);
+const blurNow = async () => { await evaluate(`document.activeElement?.blur?.(); true`); await sleep(450); };
+const chatName = () => evaluate(`document.querySelector('#chat-panel .chat-header-name')?.getClientRects().length ? document.querySelector('#chat-panel .chat-header-name').textContent.trim() : ''`);
+const composerText = () => evaluate(`document.querySelector('#chat-panel .message-input')?.value ?? null`);
+const contactId = (n) => '51000000-0000-4000-8000-0000000000' + String(n).padStart(2, '0');
+const conversationId = (n) => '52000000-0000-4000-8000-0000000000' + String(n).padStart(2, '0');
+// A message from contact n arriving over the realtime channel Messages
+// subscribes to (captured as the page set it up; the fake client has none).
+const deliver = (n, text) => callInPage(async function (sender, conversation, text) {
+  const msg = { id: 'rt-' + Math.random().toString(36).slice(2), conversation_id: conversation, sender_id: sender, content: text, read: false, created_at: new Date().toISOString() };
+  (window.supabase.__db.messages = window.supabase.__db.messages || []).push(msg);
+  await window.__rtInsert({ new: msg });
+  return msg.id;
+}, contactId(n), conversationId(n), text);
+const isRead = (id) => callInPage(function (id) { return window.supabase.__db.messages.find(m => m.id === id)?.read; }, id);
+const keyEscape = async () => {
+  await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+  await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+  await sleep(300);
+};
+async function openInbox() {
+  await press(NAV('inbox'), 'Inbox');
+  await waitForPage('inbox');
+  await waitFor(`${isOpen.messages} && document.querySelectorAll('#conversations-list .conversation-item').length`, 'messages', 6000);
+  await sleep(300);
+}
+async function openChat(n) {
+  if (current.width < 1024 && (await chatName())) { await press('#chat-panel .mobile-back-btn', 'Back to conversations'); await sleep(200); }
+  // By name: new conversations (a Message button) move the others down.
+  const name = `Contact ${String(n).padStart(2, '0')}`;
+  await callInPage(function (name) {
+    document.querySelectorAll('[data-test-chat]').forEach(el => el.removeAttribute('data-test-chat'));
+    [...document.querySelectorAll('#conversations-list .conversation-item')].find(el => el.innerText.includes(name))?.setAttribute('data-test-chat', '');
+    return true;
+  }, name);
+  await press('#conversations-list [data-test-chat]', `conversation ${n}`);
+  await waitFor(`document.querySelector('#chat-panel .chat-header-name')?.textContent.trim() === 'Contact ${String(n).padStart(2, '0')}'`, `chat ${n}`, 6000);
+  await sleep(300);
+}
+
+async function destinationChecks(P) {
+  const fullScreen = current.width < 1024;
+  const touch = current.mobile && fullScreen;
+  // Capture the realtime handler Messages registers (before its first open).
+  await evaluate(`(() => { const m = window.realtimeManager; const orig = m.subscribeOnce; m.subscribeOnce = (key, fn) => { if (key === 'messaging') window.__msgBuilder = fn; return orig.call(m, key, fn); }; return true; })()`);
+
+  await step(`${P}: Inbox keeps search, scroll, the open conversation and unsent text across tabs`, async () => {
+    await go('home');
+    await openInbox();
+    await evaluate(`window.__msgBuilder && window.__msgBuilder({ channel: () => { const ch = { on(e, f, cb) { window.__rtInsert = cb; return ch; }, subscribe() { return ch; } }; return ch; } }, {}); true`);
+    // Search and scroll the list, then visit Explore and come back.
+    await press('#conv-search-input', 'search conversations');
+    await send('Input.insertText', { text: 'Contact' });
+    await blurNow();
+    const r = await scrollToReach(LAST.inbox, current.mobile ? 'touch' : 'wheel');
+    const before = await inboxScrolls();
+    await press(NAV('explore'), 'Explore');
+    await waitForPage('explore');
+    await openInbox();
+    const list = await evaluate(`({ search: document.getElementById('conv-search-input').value, items: document.querySelectorAll('#conversations-list .conversation-item').length })`);
+    const after = await inboxScrolls();
+    check(r.ok && list.search === 'Contact' && list.items === 20 && after === before && /[1-9]/.test(before),
+      `${P}: back in Inbox, the search and the list's scroll position are as left`, JSON.stringify({ reached: r.ok, list, before, after }));
+    // A conversation with unsent text, then Network and back.
+    await evaluate(`(() => { const i = document.getElementById('conv-search-input'); i.value = ''; window.MessagingModule.filterConversations(''); return true; })()`);
+    await openChat(2);
+    await press('#chat-panel .message-input', 'message input');
+    await send('Input.insertText', { text: 'Draft for later' });
+    if (touch) {
+      const typing = await screenGeometry('inbox');
+      check(!typing.navShown && Math.abs(typing.bottom - typing.vh) <= 1, `${P}: while typing (keyboard up) the bar steps aside and the composer reaches the bottom`, JSON.stringify(typing));
+    } else {
+      check((await screenGeometry('inbox')).navUsable, `${P}: typing with a physical keyboard keeps the navigation`);
+    }
+    await blurNow();
+    const settled = await screenGeometry('inbox');
+    check(!screenProblems(settled, 'inbox').length, `${P}: after typing, the bar is back and Inbox ends at it`, screenProblems(settled, 'inbox').join('; ') + ' ' + JSON.stringify(settled));
+    await press(NAV('network'), 'Network');
+    await waitForPage('network');
+    await openInbox();
+    check((await chatName()) === 'Contact 02' && (await composerText()) === 'Draft for later' && (!fullScreen || !(await msgPane()).list),
+      `${P}: back in Inbox, the same conversation is open with the unsent text`, JSON.stringify({ chat: await chatName(), text: await composerText() }));
+    // Another conversation and back again: the first one's text is kept.
+    await openChat(3);
+    check((await composerText()) === '', `${P}: another conversation has its own (empty) composer`, String(await composerText()));
+    await openChat(2);
+    check((await composerText()) === 'Draft for later', `${P}: the unsent text is still there in the first conversation`, String(await composerText()));
+    if (fullScreen) {
+      // Inbox again from a conversation: the list (the chat is kept).
+      await press(NAV('inbox'), 'Inbox');
+      await sleep(300);
+      const pane = await msgPane();
+      check(pane.list && !pane.chat && (await destination()) === 'inbox', `${P}: Inbox again from a conversation shows the list`, JSON.stringify(pane));
+      await openChat(2);
+      check((await composerText()) === 'Draft for later', `${P}: reopening the conversation from the list keeps its unsent text`);
+    }
+  });
+
+  await step(`${P}: New Message stays as it was across tabs; Escape closes it, not Inbox`, async () => {
+    if (fullScreen && (await chatName())) await press('#chat-panel .mobile-back-btn', 'Back to conversations');
+    await press('#messages-container .new-message-btn', 'New');
+    await waitFor(`document.getElementById('new-message-modal')?.classList.contains('active')`, 'new message', 4000);
+    await press('#new-message-modal .search-input', 'search people');
+    await send('Input.insertText', { text: 'Sam' });
+    await evaluate(`window.MessagingModule.filterUsers('Sam'); true`);
+    await blurNow();
+    const people = await evaluate(`document.querySelectorAll('#users-list .user-item').length`);
+    // New Message covers the bar (a temporary overlay); leave by code, as a
+    // notification link would.
+    await evaluate(`window.AppNav.go('home'); true`);
+    await waitForPage('home');
+    await openInbox();
+    const kept = await evaluate(`({ open: document.getElementById('new-message-modal').classList.contains('active'), query: document.querySelector('#new-message-modal .search-input').value, people: document.querySelectorAll('#users-list .user-item').length })`);
+    check(kept.open && kept.query === 'Sam' && kept.people === people, `${P}: back in Inbox, New Message is still open with its search`, JSON.stringify({ people, kept }));
+    await keyEscape();
+    const after = await evaluate(`({ open: document.getElementById('new-message-modal').classList.contains('active') })`);
+    const g = await screenGeometry('inbox');
+    check(!after.open && !screenProblems(g, 'inbox').length && (await destination()) === 'inbox', `${P}: Escape closes New Message and leaves Inbox showing`, JSON.stringify({ after, g }));
+  });
+
+  await step(`${P}: Escape and overlay cleanup never blank Inbox or You`, async () => {
+    for (const dest of ['inbox', 'you']) {
+      if (dest === 'you') { await press(NAV('you'), 'You'); await waitForPage('you'); await waitFor(profileOpen, 'profile', 6000); }
+      await evaluate(`document.querySelector('#${SCREEN_ID[dest]} > .modal-content').focus(); true`);
+      await keyEscape();
+      const g = await screenGeometry(dest);
+      check(!screenProblems(g, dest).length && (await destination()) === dest, `${P}: Escape leaves ${dest === 'inbox' ? 'Inbox' : 'You'} showing`, screenProblems(g, dest).join('; '));
+      // Leave and come back: still shows (Escape left no inline display:none).
+      await go('explore');
+      await press(NAV(dest), dest);
+      await waitForPage(dest);
+      await sleep(400);
+      check(!screenProblems(await screenGeometry(dest), dest).length, `${P}: after Escape, ${dest === 'inbox' ? 'Inbox' : 'You'} opens again`);
+    }
+  });
+
+  await step(`${P}: messages are read only while Inbox is in view and the app is in front`, async () => {
+    await openInbox();
+    await openChat(3);
+    const seen = await deliver(3, 'Visible hello');
+    check(await isRead(seen) === true && /Visible hello/.test(await visibleText('#messages-area')), `${P}: a message in the open conversation, in view, appears and is read`, String(await isRead(seen)));
+    // The same message arriving again (your own, echoed back after sending
+    // reloaded the thread) is not shown twice.
+    const shown = () => evaluate(`[...document.querySelectorAll('#messages-area .message-bubble')].filter(b => b.textContent.includes('Visible hello')).length`);
+    await callInPage(async function (id) { await window.__rtInsert({ new: window.supabase.__db.messages.find(m => m.id === id) }); return true; }, seen);
+    check(await shown() === 1, `${P}: a message delivered twice shows once`, String(await shown()));
+    // Out of view: Home.
+    await blurNow();
+    await press(NAV('home'), 'Home');
+    await waitForPage('home');
+    const away = await deliver(3, 'Secret plans for Friday');
+    await sleep(500); // the notice slides in
+    const toast = await evaluate(`(() => { const t = document.getElementById('msg-incoming-toast'); if (!t) return null; const r = t.getBoundingClientRect(); const n = document.getElementById('app-nav').getBoundingClientRect(); return { text: t.innerText, aboveBar: innerWidth >= 1024 || r.bottom <= n.top + 1, onScreen: r.left >= 0 && r.right <= innerWidth + 1 }; })()`);
+    check(await isRead(away) === false, `${P}: a message arriving while Inbox is out of view stays unread`, String(await isRead(away)));
+    check(!!toast && /New message/.test(toast.text) && /Contact 03/.test(toast.text) && !/Secret plans/.test(toast.text) && toast.aboveBar && toast.onScreen,
+      `${P}: a discreet notice says who wrote, never what, above the bar`, JSON.stringify(toast));
+    // Back to Inbox: now in view, it is read.
+    await openInbox();
+    await waitUntil(async function (id) { return window.supabase.__db.messages.find(m => m.id === id)?.read === true; }, [away], 'read on return', 4000).catch(() => {});
+    check(await isRead(away) === true && (await chatName()) === 'Contact 03', `${P}: back in Inbox, what arrived meanwhile in the open conversation is read`);
+    // In the background (another app, screen locked): unread until back.
+    await evaluate(`Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' }); document.dispatchEvent(new Event('visibilitychange')); true`);
+    const hidden = await deliver(3, 'While you were away');
+    const stillUnread = await isRead(hidden) === false;
+    await evaluate(`delete document.visibilityState; document.dispatchEvent(new Event('visibilitychange')); true`);
+    await waitUntil(async function (id) { return window.supabase.__db.messages.find(m => m.id === id)?.read === true; }, [hidden], 'read on return', 4000).catch(() => {});
+    check(stillUnread && await isRead(hidden) === true, `${P}: with the app in the background a message stays unread, and is read on return`, JSON.stringify({ stillUnread }));
+    // The notice opens that conversation in Inbox.
+    await press(NAV('home'), 'Home');
+    await waitForPage('home');
+    await evaluate(`document.getElementById('msg-incoming-toast')?.remove(); true`);
+    await deliver(5, 'Another one');
+    await waitFor(`document.getElementById('msg-incoming-toast')`, 'notice', 4000);
+    await sleep(500);
+    await press('#msg-incoming-toast', 'new message notice');
+    await waitFor(`document.querySelector('#chat-panel .chat-header-name')?.textContent.trim() === 'Contact 05'`, 'chat 5', 6000);
+    check((await destination()) === 'inbox' && !screenProblems(await screenGeometry('inbox'), 'inbox').length, `${P}: the notice opens that conversation in Inbox`);
+  });
+
+  await step(`${P}: message links land on Inbox with the conversation`, async () => {
+    for (const [name, js] of [
+      ['a notification', `window.openMessagingInterface('${conversationId(6)}'); true`],
+      ['a Message button on a person', `window.openMessageForUser(window.supabase.__db.community[1].id); true`],
+    ]) {
+      await go('explore');
+      await evaluate(js);
+      await waitForPage('inbox', 6000);
+      const want = name === 'a notification' ? 'Contact 06' : null;
+      await waitFor(`document.querySelector('#chat-panel .chat-header')?.getClientRects().length${want ? ` && document.querySelector('#chat-panel .chat-header-name').textContent.trim() === '${want}'` : ''}`, 'chat', 6000);
+      check(!screenProblems(await screenGeometry('inbox'), 'inbox').length, `${P}: ${name} lands on Inbox with the conversation open`);
+    }
+    // Leaving Inbox takes .active off Messages, which the project-request
+    // Message flow watches to restore its panel.
+    await go('home');
+    check(await evaluate(`!document.getElementById('messages-modal').classList.contains('active')`), `${P}: leaving Inbox closes Messages for the project-request flow`);
+    // Profile links land on You.
+    await evaluate(`window.openProfileModal(); true`);
+    await waitForPage('you');
+    await waitFor(profileOpen, 'profile', 6000);
+    check(!screenProblems(await screenGeometry('you'), 'you').length, `${P}: a profile link lands on You`);
+  });
+
+  await step(`${P}: You keeps an unsaved Edit Profile across tabs; Cancel discards, Save keeps`, async () => {
+    const name = () => evaluate(`document.querySelector('#profile-modal .ch-profile-name')?.textContent.trim() || ''`);
+    await go('home');
+    await press(NAV('you'), 'You');
+    await waitFor(`${profileOpen} && document.querySelector('#btn-open-profile-editor')`, 'profile', 6000);
+    const original = await name();
+    await press('#btn-open-profile-editor', 'Edit Profile');
+    await waitFor(`document.getElementById('edit-name')`, 'editor', 6000);
+    await press('#edit-name', 'name');
+    if (touch) check(!(await screenGeometry('you')).navShown, `${P}: while typing in Edit Profile the bar steps aside`);
+    await evaluate(`(() => { const i = document.getElementById('edit-name'); i.value = 'Unsaved Name'; return true; })()`);
+    await blurNow();
+    await press(NAV('network'), 'Network');
+    await waitForPage('network');
+    await press(NAV('you'), 'You');
+    await waitForPage('you');
+    await sleep(300);
+    const kept = await evaluate(`document.getElementById('edit-name')?.value ?? null`);
+    check(kept === 'Unsaved Name' && !screenProblems(await screenGeometry('you'), 'you').length, `${P}: back in You, Edit Profile is open with the unsaved change`, String(kept));
+    await press('#edit-cancel', 'Cancel');
+    await waitFor(`document.querySelector('#profile-modal .ch-profile-name')`, 'profile view', 4000);
+    check((await name()) === original && (await destination()) === 'you', `${P}: Cancel discards the change and returns to the profile`, await name());
+    await press('#btn-open-profile-editor', 'Edit Profile');
+    await waitFor(`document.getElementById('edit-name')`, 'editor', 6000);
+    check(await evaluate(`document.getElementById('edit-name').value`) === original, `${P}: Edit Profile again starts from the saved profile`);
+    await evaluate(`(() => { document.getElementById('edit-name').value = 'Saved Name'; return true; })()`);
+    await press('#btn-save-profile', 'Save Changes');
+    await waitFor(`document.querySelector('#profile-modal .ch-profile-name')?.textContent.trim() === 'Saved Name'`, 'saved profile', 6000);
+    check((await destination()) === 'you' && !screenProblems(await screenGeometry('you'), 'you').length, `${P}: Save keeps the change and returns to the profile`);
+  });
+
+  await step(`${P}: Settings and Log out in You open over it and return to it`, async () => {
+    await press(SETTINGS_OPENER, 'Settings');
+    await waitFor(isOpen.settings, 'settings', 5000);
+    check(await usable('#settings-close-btn'), `${P}: Settings opens over You`);
+    await press('#settings-close-btn', 'Close settings');
+    await waitFor(`!${isOpen.settings}`, 'settings to close', 3000);
+    check(!screenProblems(await screenGeometry('you'), 'you').length, `${P}: closing Settings returns to You`);
+    await evaluate(`window.__logoutCalls = 0; window.handleLogout = async () => { window.__logoutCalls += 1; }; true`);
+    await press('#btn-profile-logout', 'Log out');
+    await waitFor(isOpen.confirm, 'logout confirmation', 4000);
+    check(await usable('#ds-confirm-cancel'), `${P}: Log out in You asks first, above it`);
+    await press('#ds-confirm-cancel', 'Cancel');
+    await waitFor(`!${isOpen.confirm}`, 'confirmation to close', 3000);
+    check(await evaluate(`window.__logoutCalls === 0`) && (await destination()) === 'you', `${P}: Cancel stays signed in, in You`);
+    // Home has no account controls of its own.
+    check(await evaluate(`!document.querySelector('[data-profile-action], #cd-settings-btn, #cd-logout-btn')`), `${P}: Home has no duplicate account controls`);
+  });
+
+  await step(`${P}: sign-out clears conversations, drafts, the profile and the live subscription`, async () => {
+    // Leave something behind: a draft and an unsaved edit.
+    await openInbox();
+    await openChat(4);
+    await evaluate(`(() => { const i = document.querySelector('#chat-panel .message-input'); i.value = 'Private draft'; i.dispatchEvent(new Event('input')); return true; })()`);
+    await press(NAV('you'), 'You');
+    await waitForPage('you');
+    await press('#btn-open-profile-editor', 'Edit Profile');
+    await waitFor(`document.getElementById('edit-name')`, 'editor', 6000);
+    // As doLogout does after signing out.
+    await evaluate(`sessionStorage.clear(); window.dispatchEvent(new CustomEvent('user-logged-out')); true`);
+    await sleep(500);
+    const out = await evaluate(`(() => { const st = window.MessagingModule.getState(); return {
+      nav: document.getElementById('app-nav').hidden, messages: document.getElementById('messages-container').innerHTML.trim().length, profile: document.getElementById('modal-profile-content').innerHTML.trim().length,
+      shown: ['messages-modal', 'profile-modal'].filter(id => document.getElementById(id).classList.contains('active')).length,
+      state: [st.initialized, st.conversations.length, st.messages.length, Object.keys(st.drafts || {}).length, !!st.activeConversation, !!st.currentUser].join(','),
+      channel: !!window.realtimeManager?.isChannelActive?.('messaging'), destination: document.body.dataset.destination || '' };
+    })()`);
+    check(out.nav && out.messages === 0 && out.profile === 0 && out.shown === 0 && out.state === 'false,0,0,0,false,false' && !out.channel && !out.destination,
+      `${P}: sign-out leaves no conversation, draft, profile or subscription behind`, JSON.stringify(out));
+    // Signing in again starts on Home, with Inbox loaded afresh.
+    await evaluate(`window.dispatchEvent(new CustomEvent('profile-loaded', { detail: { user: { id: 'auth-me' }, profile: window.__fixtureProfile } })); true`);
+    await waitForPage('home', 6000);
+    await openInbox();
+    await openChat(4);
+    check((await composerText()) === '', `${P}: after signing in again, Home opens and Inbox has no earlier draft`, String(await composerText()));
+  });
+
+  if (current.mobile && current.width >= 800) {
+    // iPad rotation across 1024px with Inbox, then You, open.
+    await step(`${P}: rotating across 1024px keeps Inbox and You beside the navigation`, async () => {
+      const [w0, h0] = [current.width, current.height];
+      for (const dest of ['inbox', 'you']) {
+        await press(NAV(dest), dest);
+        await waitForPage(dest);
+        await sleep(400);
+        const seen = [];
+        for (const [width, height] of [[h0, w0], [w0, h0]]) {
+          await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: true });
+          await sleep(700);
+          const g = await screenGeometry(dest);
+          seen.push({ width, bad: screenProblems(g, dest) });
+        }
+        check(seen.every(v => !v.bad.length) && (await destination()) === dest, `${P}: ${dest === 'inbox' ? 'Inbox' : 'You'} stays a destination beside the navigation through rotation`, JSON.stringify(seen));
+      }
+    });
+  }
+}
+
+async function destinationRuns() {
+  const ipad = WIDTHS[1].ua;
+  for (const w of [
+    WIDTHS[0],                                                                  // iPhone
+    { ...WIDTHS[0], name: 'phone-small', width: 375, height: 667 },             // iPhone SE
+    { ...WIDTHS[0], name: 'phone-landscape', width: 844, height: 390 },         // iPhone on its side
+    { ...WIDTHS[1], name: 'ipad-portrait' },                                    // 820×1180
+    { name: 'ipad-landscape', width: 1180, height: 820, mobile: true, ua: ipad },
+    { ...WIDTHS[2], name: 'desktop-window-900', width: 900, height: 760 },
+    WIDTHS[2],                                                                  // 1366×900
+    { ...WIDTHS[2], name: 'laptop-short', width: 1280, height: 640 },
+  ]) {
+    await load(w);
+    console.log(`\ndestinations: ${w.name} (${w.width}×${w.height}${w.mobile ? ', touch' : ''})`);
+    await destinationChecks(`destinations ${w.name}`);
+  }
 }
 
 async function navChecks(P) {
@@ -1623,36 +1992,72 @@ async function pageChecks(P) {
   check((await evaluate(`history.length + ' ' + location.href`)) === historyBefore, `${P}: navigating adds no history entries and keeps the URL (Back behaves as before)`);
 }
 
+// Inbox and You are destinations: beside the navigation (above the bottom
+// bar on phones and tablets, right of the side bar on desktop), never over
+// it, with the page underneath out of reach.
+const SCREEN_ID = { inbox: 'messages-modal', you: 'profile-modal' };
+const screenGeometry = (dest) => callInPage(function (id) {
+  const m = document.getElementById(id);
+  const nav = document.getElementById('app-nav');
+  const r = m.getBoundingClientRect();
+  const n = nav.getBoundingClientRect();
+  const cs = getComputedStyle(m);
+  const buttons = [...nav.querySelectorAll('[data-destination]')].map(b => {
+    const q = b.getBoundingClientRect();
+    const hit = q.width && document.elementFromPoint(q.left + q.width / 2, q.top + q.height / 2);
+    return !!hit && b.contains(hit);
+  });
+  const x = m.querySelector(':scope > .modal-content > .modal-close');
+  return {
+    shown: cs.display !== 'none' && cs.visibility !== 'hidden' && r.height > 0,
+    top: Math.round(r.top), bottom: Math.round(r.bottom), left: Math.round(r.left), right: Math.round(r.right),
+    navTop: Math.round(n.top), navRight: Math.round(n.right), navShown: !nav.hidden && getComputedStyle(nav).display !== 'none' && n.height > 0,
+    navUsable: buttons.length === 5 && buttons.every(Boolean), x: (!!x && x.getClientRects().length > 0) || !!m.querySelector('.swipe-handle')?.getClientRects().length,
+    vw: innerWidth, vh: innerHeight, current: nav.querySelector('[aria-current="page"]')?.dataset.destination || '',
+    inert: ['main-content', 'mobile-header-actions'].every(i => document.getElementById(i)?.inert === true),
+    focusInside: m.contains(document.activeElement),
+  };
+}, SCREEN_ID[dest]);
+function screenProblems(g, dest) {
+  const bad = [];
+  if (!g.shown) bad.push('not shown');
+  if (g.current !== dest) bad.push(`tab ${g.current || 'none'} selected`);
+  if (!g.navShown || !g.navUsable) bad.push('navigation covered or hidden');
+  if (!g.inert) bad.push('page underneath reachable');
+  if (g.vw < 1024) {
+    if (Math.abs(g.bottom - g.navTop) > 1 || g.top !== 0 || g.left !== 0 || g.right !== g.vw) bad.push(`not full screen above the bar (${g.top}-${g.bottom}, bar ${g.navTop})`);
+    if (g.x) bad.push('close button or swipe-to-close handle shown');
+  } else {
+    if (g.left < g.navRight) bad.push(`over the side bar (${g.left} < ${g.navRight})`);
+    if (!g.x) bad.push('no close button');
+  }
+  return bad;
+}
+const pageReachable = () => evaluate(`['main-content', 'mobile-header-actions'].every(i => document.getElementById(i)?.inert !== true)`);
+
 async function inboxAndYou(P) {
   for (const page of ['home', 'explore', 'network']) {
-    await step(`${P} ${page}: Inbox opens Messages`, async () => {
-      await go(page);
-      await press(NAV('inbox'), 'Inbox');
-      await waitFor(isOpen.messages, 'messages', 6000);
-      check((await destination()) === page, `${P} ${page}: Inbox opens Messages over the current page`);
-      // Messages is a modal over the page (full screen on phones): its own
-      // close button must work.
-      await press('#messages-modal .modal-close', 'close Messages');
-      await waitFor(`!${isOpen.messages}`, 'messages to close', 4000);
-    });
+    for (const dest of ['inbox', 'you']) {
+      await step(`${P} ${page}: ${dest} is a destination beside the navigation`, async () => {
+        await go(page);
+        await press(NAV(dest), dest);
+        await waitForPage(dest);
+        await waitFor(dest === 'inbox' ? `${isOpen.messages} && document.querySelector('#conversations-list .conversation-item')` : profileOpen, dest, 6000);
+        await sleep(300);
+        const g = await screenGeometry(dest);
+        const bad = screenProblems(g, dest);
+        check(!bad.length && g.focusInside, `${P} ${page}: ${dest === 'inbox' ? 'Inbox' : 'You'} shows beside the navigation, selected, with focus inside and the page out of reach`, bad.join('; ') + ' ' + JSON.stringify(g));
+        if (page === 'home') await shot(`${P}-${dest}`);
+        // The navigation is the way back, to any page.
+        await press(NAV(page), page);
+        await waitForPage(page);
+        await sleep(300);
+        const back = await screenGeometry(dest);
+        check(!back.shown && back.current === page && await pageReachable() && !back.focusInside,
+          `${P} ${page}: leaving ${dest === 'inbox' ? 'Inbox' : 'You'} hides it and gives the page back`, JSON.stringify(back));
+      });
+    }
   }
-  await step(`${P}: You opens the profile`, async () => {
-    await press(NAV('you'), 'You');
-    await waitFor(`(() => { const m = document.getElementById('profile-modal'); return m && getComputedStyle(m).display !== 'none' && m.getClientRects().length; })()`, 'profile', 6000);
-    check(true, `${P}: You opens the profile`);
-    await shot(`${P}-you`);
-    await evaluate(`window.closeProfileModal?.(); true`);
-    await sleep(300);
-  });
-  await step(`${P}: switching pages closes Messages left open`, async () => {
-    await evaluate(`window.openMessagesModal(); true`);
-    await waitFor(isOpen.messages, 'messages', 6000);
-    // Messages covers the navigation (it is a modal), so the switch comes from
-    // code paths such as the welcome guide or a keyboard user.
-    await callInPage(function (sel) { document.querySelector(sel).click(); return true; }, NAV('home'));
-    await waitFor(`!${isOpen.messages}`, 'messages to close', 4000);
-    check(true, `${P}: switching pages closes Messages left open`);
-  });
   await step(`${P}: the Inbox badge shows unread messages`, async () => {
     await evaluate(`window.dispatchEvent(new CustomEvent('total-unread-messages-updated', { detail: { count: 3 } })); true`);
     const badge = await callInPage(function (sel) { const b = document.getElementById('app-nav-inbox-badge'); return [b.hidden, b.textContent, document.querySelector(sel).getAttribute('aria-label')].join('|'); }, NAV('inbox'));
@@ -1732,27 +2137,9 @@ async function run(w) {
   await exploreChecks(P);
   await searchChecks(P);
 
-  // Settings and Log out: Home → Account on phones and tablets, the identity
-  // bar on desktop (both move to You in a later change).
-  // Home renders again (asynchronously) each time it is shown, which closes
-  // Account; open it on the settled page, and again if a render closed it.
-  const openAccount = async () => {
-    await go('home');
-    await sleep(800);
-    for (let i = 0; i < 3; i++) {
-      await waitFor(`document.querySelector('#mobile-you-content details.mobile-you-secondary:last-of-type summary')`, 'Account', 6000);
-      if (await evaluate(`document.querySelector('#mobile-you-content details.mobile-you-secondary:last-of-type').open`)) return;
-      await press('#mobile-you-content details.mobile-you-secondary:last-of-type summary', 'Account');
-      await sleep(300);
-    }
-  };
-  if (current.mobile) {
-    await settingsCheck(P, async () => { await openAccount(); await press('[data-profile-action="settings"]', 'Settings'); });
-    await logoutChecks(P, async () => { await openAccount(); await press('[data-profile-action="logout"]', 'Log out'); });
-  } else {
-    await settingsCheck(P, async () => { await go('home'); await press('#cd-settings-btn', 'Settings'); });
-    await logoutChecks(P, async () => { await go('home'); await press('#cd-logout-btn', 'Log out'); });
-  }
+  // Settings and Log out are in You at every width.
+  await settingsCheck(P, async () => { await openYou(); await press(SETTINGS_OPENER, 'Settings'); });
+  await logoutChecks(P, async () => { await openYou(); await press('#btn-profile-logout', 'Log out'); });
 }
 
 async function resizeChecks() {
@@ -1820,14 +2207,27 @@ try {
   await send('Runtime.enable');
   await send('Fetch.enable', { patterns: [{ urlPattern: '*' }] });
   await send('Page.addScriptToEvaluateOnNewDocument', { source: boot });
-  for (const w of WIDTHS) await run(w);
-  await resizeChecks();
-  await scrollScenarioChecks();
-  await closeDialogRuns();
-  await conversationRuns();
-  await homeRefreshRuns();
-  await discoverySettingRuns();
-  await signedOutChecks();
+  // Each section reports when it ends, so a run stopped by a time limit
+  // still shows what passed.
+  const started = Date.now();
+  const section = async (name, fn) => {
+    const from = results.length;
+    const t = Date.now();
+    await fn();
+    const mine = results.slice(from);
+    const failed = mine.filter(r => !r.ok).length;
+    const total = results.filter(r => r.ok).length;
+    console.log(`\n== section ${name}: ${mine.length - failed}/${mine.length} passed${failed ? ` (${failed} FAILED)` : ''} in ${Math.round((Date.now() - t) / 1000)}s; so far ${total}/${results.length} passed after ${Math.round((Date.now() - started) / 1000)}s ==`);
+  };
+  await section('main sizes', async () => { for (const w of WIDTHS) await run(w); });
+  await section('resize', resizeChecks);
+  await section('scroll scenarios', scrollScenarioChecks);
+  await section('close and Messages header', closeDialogRuns);
+  await section('conversations', conversationRuns);
+  await section('Home refresh', homeRefreshRuns);
+  await section('Settings', discoverySettingRuns);
+  await section('Inbox and You destinations', destinationRuns);
+  await section('signed out', signedOutChecks);
   // The network map is never initialized against the fake client (it has no
   // graph data), so Network-view calls into UnifiedNetworkAPI report that.
   // Production initializes the map; that message is a harness limitation.

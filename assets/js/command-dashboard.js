@@ -173,9 +173,7 @@ window.CommandDashboard = (() => {
     _wireExploreToggle();
     _wireAvatarClick();
     _wireAdminBtn();
-    _wireSettingsBtn();
     _wireBellBtn();
-    _wireLogoutBtn();
     // The main navigation (app-nav.js) chooses Home or Network; until it has,
     // the dashboard shows Home.
     if (!window.AppNav?.current?.()) setWorkspaceView('today');
@@ -1942,14 +1940,6 @@ window.CommandDashboard = (() => {
     });
   }
 
-  /** Wire settings button → the shared settings modal (settings-modal.js),
-   *  the same one Home → Account opens on mobile. */
-  function _wireSettingsBtn() {
-    const btn = $id('cd-settings-btn');
-    if (!btn) return;
-    btn.addEventListener('click', () => window.SettingsModal?.open?.());
-  }
-
   /** Wire admin button → open admin panel (hidden until admin role confirmed) */
   function _wireAdminBtn() {
     const btn = $id('cd-admin-btn');
@@ -2119,15 +2109,6 @@ window.CommandDashboard = (() => {
         }
       });
     }
-  }
-
-  /** Wire logout button in command dashboard */
-  function _wireLogoutBtn() {
-    const btn = $id('cd-logout-btn');
-    if (!btn) return;
-    btn.addEventListener('click', () => {
-      if (window.doLogout) window.doLogout();
-    });
   }
 
   /** Close the form and reset button state */
