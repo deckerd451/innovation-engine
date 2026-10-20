@@ -36,9 +36,14 @@
 //   - Home during unread refreshes (every 30 seconds and when messages are
 //     read): expanded sections, unfinished text, focus and scroll stay, and
 //     the Inbox badge shows the new count
-//   - Settings → "Suggest people and projects on the map": one switch, on by
-//     default, saved on the device and announced to the map; no separate
-//     Discovery button or preferences dialog
+//   - Settings → "Map suggestions": one switch, on by default, saved on the
+//     device and announced to the map; no separate Discovery button or
+//     preferences dialog
+//   - Settings itself, from phones (portrait and landscape) through iPads to
+//     short laptop windows: header and Save stay in view while the body
+//     scrolls, comfortable touch targets, a labelled dialog that keeps
+//     keyboard focus and returns it, "Coming soon" email, push and language
+//     that can't be changed and keep what was stored, Save-only saving
 //   - Explore search: keyboard-safe input, suggestions on screen, opening a
 //     result, and Enter for full results
 //   - goal assistance on phones and tablets, closed by navigating away
@@ -1191,17 +1196,17 @@ const storedDiscovery = () => evaluate(`localStorage.getItem('discovery-suggesti
 const discoveryUI = () => evaluate(`document.querySelectorAll('.unified-network-preferences-btn, .unified-network-preferences, #discovery-frequency').length`);
 
 async function discoverySettingChecks(P, { legacy = false } = {}) {
-  await step(`${P}: Settings has one "Suggest people and projects on the map" switch, on by default, that saves`, async () => {
+  await step(`${P}: Settings has one "Map suggestions" switch, on by default, that saves`, async () => {
     await evaluate(`(() => { localStorage.removeItem('discovery-suggestions-enabled'); localStorage.removeItem('unified-network-preferences'); window.__discoveryEvents = []; if (!window.__discoveryListening) { window.__discoveryListening = true; window.addEventListener('discovery-suggestions-changed', (e) => window.__discoveryEvents.push(e.detail && e.detail.enabled)); } return true; })()`);
     check(await discoveryUI() === 0, `${P}: no separate Discovery button or preferences dialog`, String(await discoveryUI()));
     await openSettings();
     const before = await discoverySwitch();
-    check(!before.missing && before.title === 'Suggest people and projects on the map' && before.checked && before.contrast >= 4.5 && await usable(DISCOVERY_SWITCH),
+    check(!before.missing && before.title === 'Map suggestions' && before.checked && before.contrast >= 4.5 && await usable(DISCOVERY_SWITCH),
       `${P}: the switch is labelled, on by default, readable and usable`, JSON.stringify(before));
     await shot(`${current.name}-settings-discovery`);
 
     // Turn it off with a real tap or click, and save.
-    await press(DISCOVERY_SWITCH, 'Suggest people and projects switch');
+    await press(DISCOVERY_SWITCH, 'Map suggestions switch');
     await press('#settings-save-btn', 'Save');
     await waitFor(`!${isOpen.settings}`, 'settings to close', 3000);
     const events = await evaluate(`window.__discoveryEvents`);
@@ -1212,7 +1217,7 @@ async function discoverySettingChecks(P, { legacy = false } = {}) {
     await openSettings();
     const reloaded = await discoverySwitch();
     check(!reloaded.missing && !reloaded.checked, `${P}: off is kept after a reload`, JSON.stringify(reloaded));
-    await press(DISCOVERY_SWITCH, 'Suggest people and projects switch');
+    await press(DISCOVERY_SWITCH, 'Map suggestions switch');
     await press('#settings-save-btn', 'Save');
     await waitFor(`!${isOpen.settings}`, 'settings to close', 3000);
     check(await storedDiscovery() === 'true', `${P}: turning it back on saves it`, String(await storedDiscovery()));
@@ -1236,11 +1241,143 @@ async function discoverySettingChecks(P, { legacy = false } = {}) {
       const s = await discoverySwitch();
       check(!s.missing && !s.checked, `${P}: an earlier "off" in the old Discovery Preferences dialog is kept`, JSON.stringify(s));
       // Turning it on replaces the old dialog's value.
-      await press(DISCOVERY_SWITCH, 'Suggest people and projects switch');
+      await press(DISCOVERY_SWITCH, 'Map suggestions switch');
       await press('#settings-save-btn', 'Save');
       await waitFor(`!${isOpen.settings}`, 'settings to close', 3000);
       const after = await evaluate(`({ stored: localStorage.getItem('discovery-suggestions-enabled'), legacy: localStorage.getItem('unified-network-preferences') })`);
       check(after.stored === 'true' && after.legacy === null, `${P}: turning it on replaces the old dialog's value`, JSON.stringify(after));
+    });
+  }
+}
+
+// ── Settings layout, accessibility and saving ────────────────────────────
+// Measured where it opens, without scrolling anything.
+const settingsLayout = () => callInPage(function () {
+  const box = (el) => { if (!el) return null; const r = el.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, w: r.width, h: r.height }; };
+  const owns = (el) => { const r = el.getBoundingClientRect(); const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !!hit && (hit === el || el.contains(hit)); };
+  const inView = (el) => { const r = box(el); return !!r && r.h > 0 && r.top >= -1 && r.bottom <= innerHeight + 1 && owns(el); };
+  const modal = document.getElementById('settings-modal');
+  const body = document.getElementById('settings-modal-body');
+  const title = document.getElementById(modal.getAttribute('aria-labelledby') || '');
+  const save = document.getElementById('settings-save-btn');
+  const close = document.getElementById('settings-close-btn');
+  const rows = [...modal.querySelectorAll('#settings-modal-body label')].map(l => box(l).h);
+  return {
+    modal: box(modal), body: { scrollable: body.scrollHeight > body.clientHeight + 1, scrollTop: body.scrollTop },
+    pageScrolls: modal.scrollHeight > modal.clientHeight + 1,
+    saveInView: inView(save), closeInView: inView(close), titleInView: !!title && inView(title),
+    save: box(save), close: box(close), minRow: Math.min(...rows),
+    role: modal.getAttribute('role'), modalFlag: modal.getAttribute('aria-modal'), name: title ? title.textContent.trim() : '',
+    closeName: close.getAttribute('aria-label'), focusInside: modal.contains(document.activeElement),
+  };
+});
+
+async function settingsLayoutChecks(P) {
+  const touch = !!current.mobile;
+  await step(`${P}: header and Save stay in view while Settings scrolls`, async () => {
+    await openSettings();
+    const open = await settingsLayout();
+    check(open.saveInView && open.closeInView && open.titleInView && open.modal.top >= 0 && open.modal.bottom <= current.height + 1 && !open.pageScrolls,
+      `${P}: Settings fits the screen, with its title, close and Save in view without scrolling`, JSON.stringify(open));
+    // Scroll the body to the end (Debug Mode, the last control).
+    const end = await callInPage(function () { const b = document.getElementById('settings-modal-body'); b.scrollTop = b.scrollHeight; return b.scrollTop; });
+    await sleep(150);
+    const scrolled = await settingsLayout();
+    const steady = Math.abs(scrolled.save.top - open.save.top) < 1 && Math.abs(scrolled.close.top - open.close.top) < 1;
+    check(scrolled.saveInView && scrolled.closeInView && steady && (!open.body.scrollable || end > 0) && await usable('#settings-debug-mode'),
+      `${P}: after scrolling to the last setting, the header and Save haven't moved and still work`, JSON.stringify({ end, open: open.save, scrolled: scrolled.save, steady }));
+    if (current.height < 700) await shot(`${current.name}-settings-scrolled`);
+    // Comfortable targets: every row is tappable, and on touch screens close
+    // and Save are at least 44px.
+    const big = (b) => b.w >= 43.5 && b.h >= 43.5;
+    check(open.minRow >= 44 && (!touch || (big(open.close) && open.save.h >= 43.5)),
+      `${P}: touch targets are comfortable (rows ≥44px${touch ? ', close and Save ≥44px' : ''})`, JSON.stringify({ minRow: open.minRow, close: open.close, save: open.save }));
+    check(open.role === 'dialog' && open.modalFlag === 'true' && open.name === 'Settings' && open.closeName === 'Close settings' && open.focusInside,
+      `${P}: Settings is a labelled dialog with a labelled close button, and focus moves into it`, JSON.stringify(open));
+    await press('#settings-close-btn', 'Close settings');
+    await waitFor(`!${isOpen.settings}`, 'settings to close', 3000);
+  });
+
+  await step(`${P}: email, push and language are "Coming soon", can't be changed and keep what was stored`, async () => {
+    await evaluate(`(() => { localStorage.setItem('email-notifications-enabled', 'false'); localStorage.setItem('push-notifications-enabled', 'true'); localStorage.setItem('preferred_language', 'es'); return true; })()`);
+    await openSettings();
+    const ids = ['#settings-email-notif', '#settings-push-notif', '#settings-language'];
+    const state = () => callInPage(function (ids) {
+      return ids.map(sel => { const el = document.querySelector(sel); const row = el.closest('label') || el.parentElement; return { disabled: el.disabled, value: el.type === 'checkbox' ? el.checked : el.value, soon: /Coming soon/.test(row.textContent) }; });
+    }, ids);
+    const before = await state();
+    // Real taps on each one change nothing.
+    for (const sel of ids) {
+      const target = await callInPage(function (sel) { const el = document.querySelector(sel); return (el.closest('label') ? 'label' : 'select'); }, sel);
+      const info = await locate(sel);
+      if (info.missing || !info.onScreen) throw new Error(`Missing: ${sel}`);
+      if (current.mobile) {
+        await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: info.x, y: info.y }] });
+        await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      } else {
+        await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: info.x, y: info.y, button: 'left', clickCount: 1 });
+        await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: info.x, y: info.y, button: 'left', clickCount: 1 });
+        if (target === 'select') await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }).then(() => send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 })).catch(() => {});
+      }
+      await sleep(200);
+      if (!(await evaluate(isOpen.settings))) await openSettings();
+    }
+    const after = await state();
+    check(before.every(c => c.disabled && c.soon) && JSON.stringify(after) === JSON.stringify(before) && before[2].value === 'en',
+      `${P}: email, push and language show "Coming soon" and can't be changed`, JSON.stringify({ before, after }));
+    await press('#settings-save-btn', 'Save');
+    await waitFor(`!${isOpen.settings}`, 'settings to close', 3000);
+    const stored = await evaluate(`[localStorage.getItem('email-notifications-enabled'), localStorage.getItem('push-notifications-enabled'), localStorage.getItem('preferred_language')]`);
+    check(JSON.stringify(stored) === '["false","true","es"]', `${P}: saving leaves the stored email, push and language preferences as they were`, JSON.stringify(stored));
+  });
+
+  await step(`${P}: changes are saved only with Save, which confirms`, async () => {
+    await evaluate(`(() => { localStorage.removeItem('quiet-mode-enabled'); document.body.classList.remove('quiet-mode'); return true; })()`);
+    await waitUntil(function () { return ![...document.querySelectorAll('body *')].some(el => el.childElementCount === 0 && el.textContent.trim() === 'Settings saved' && el.getClientRects().length); }, [], 'the Settings saved toast to go', 10000);
+    await openSettings();
+    await press('#settings-quiet-mode', 'Quiet Mode');
+    await press('#settings-close-btn', 'Close settings');
+    await waitFor(`!${isOpen.settings}`, 'settings to close', 3000);
+    const discarded = await evaluate(`localStorage.getItem('quiet-mode-enabled')`);
+    await openSettings();
+    const reopened = await evaluate(`document.getElementById('settings-quiet-mode').checked`);
+    await press('#settings-quiet-mode', 'Quiet Mode');
+    await press('#settings-save-btn', 'Save');
+    await waitFor(`!${isOpen.settings}`, 'settings to close', 3000);
+    const saved = await evaluate(`localStorage.getItem('quiet-mode-enabled')`);
+    const toast = await callInPage(function () { return [...document.querySelectorAll('body *')].some(el => el.childElementCount === 0 && el.textContent.trim() === 'Settings saved' && el.getClientRects().length); });
+    check(discarded === null && reopened === false && saved === 'true' && toast,
+      `${P}: closing without Save discards a change; Save stores it and shows "Settings saved"`, JSON.stringify({ discarded, reopened, saved, toast }));
+    // Put Quiet Mode back, and let the toast (which sits over Account and
+    // Save for a few seconds) go, for the checks that follow.
+    await evaluate(`(() => { localStorage.removeItem('quiet-mode-enabled'); document.body.classList.remove('quiet-mode'); return true; })()`);
+    await waitUntil(function () { return ![...document.querySelectorAll('body *')].some(el => el.childElementCount === 0 && el.textContent.trim() === 'Settings saved' && el.getClientRects().length); }, [], 'the Settings saved toast to go', 10000);
+  });
+
+  if (!current.mobile) {
+    await step(`${P}: keyboard focus stays in Settings and returns to the Settings button`, async () => {
+      await openSettings();
+      // Below 1024px Settings opens from Home → Account.
+      const opener = current.width >= 1024 ? '#cd-settings-btn' : '[data-profile-action="settings"]';
+      const tab = async (shift = false) => {
+        const mod = shift ? 8 : 0;
+        await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9, modifiers: mod });
+        await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9, modifiers: mod });
+        await sleep(60);
+      };
+      const focused = () => evaluate(`(() => { const m = document.getElementById('settings-modal'); return { inside: !!m && m.contains(document.activeElement), id: document.activeElement?.id || document.activeElement?.tagName }; })()`);
+      const seen = [];
+      for (let i = 0; i < 9; i++) { await tab(); seen.push(await focused()); }
+      await tab(true);
+      const back = await focused();
+      check(seen.every(f => f.inside) && seen.some(f => f.id === 'settings-save-btn') && seen.filter(f => f.id === 'settings-close-btn').length >= 2 && back.inside
+        && !seen.some(f => ['settings-email-notif', 'settings-push-notif', 'settings-language'].includes(f.id)),
+        `${P}: Tab and Shift+Tab cycle through Settings only, skipping the Coming soon controls`, JSON.stringify(seen.map(f => f.id)));
+      await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+      await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+      await waitFor(`!${isOpen.settings}`, 'settings to close', 3000);
+      const returned = await callInPage(function (sel) { return document.activeElement === document.querySelector(sel); }, opener);
+      check(returned, `${P}: Escape closes Settings and focus returns to the Settings button`, String(returned));
     });
   }
 }
@@ -1250,13 +1387,16 @@ async function discoverySettingRuns() {
   for (const [w, opts] of [
     [WIDTHS[0], { legacy: true }],                                                           // iPhone
     [{ ...WIDTHS[0], name: 'phone-small', width: 375, height: 667 }, {}],                     // iPhone SE
+    [{ ...WIDTHS[0], name: 'phone-landscape', width: 844, height: 390 }, {}],                 // iPhone on its side
     [{ ...WIDTHS[1], name: 'ipad-portrait' }, {}],                                            // 820×1180
     [{ name: 'ipad-landscape', width: 1180, height: 820, mobile: true, ua: ipad }, {}],
     [{ ...WIDTHS[2], name: 'desktop-window-900', width: 900, height: 760 }, {}],
     [WIDTHS[2], { legacy: true }],                                                            // 1366×900
+    [{ ...WIDTHS[2], name: 'laptop-short', width: 1280, height: 640 }, {}],                   // short laptop window
   ]) {
     await load(w);
-    console.log(`\ndiscovery setting: ${w.name} (${w.width}×${w.height}${w.mobile ? ', touch' : ''})`);
+    console.log(`\nsettings: ${w.name} (${w.width}×${w.height}${w.mobile ? ', touch' : ''})`);
+    await settingsLayoutChecks(`settings ${w.name}`);
     await discoverySettingChecks(`discovery ${w.name}`, opts);
   }
 }

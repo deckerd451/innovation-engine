@@ -5,8 +5,7 @@
  * - First-time tooltip (one-time only)
  * - No admin-only restrictions
  *
- * Discovery on/off is in Settings ("Suggest people and projects on the
- * map"), not here.
+ * Discovery on/off is in Settings ("Map suggestions"), not here.
  * 
  * Requirements: 10.1, 10.2, 10.3, 10.5
  */

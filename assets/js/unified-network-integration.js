@@ -29,8 +29,8 @@ function getFeatureFlags() {
 }
 
 // ------------------------------------------------------------------
-// Discovery on/off comes from Settings ("Suggest people and projects on the
-// map"). The map starts with the saved value (state-manager.js reads it);
+// Discovery on/off comes from Settings ("Map suggestions"). The map starts
+// with the saved value (state-manager.js reads it);
 // a change is applied as soon as Settings is saved, also while the map is
 // still starting.
 // ------------------------------------------------------------------

@@ -229,8 +229,7 @@ export class StateManager {
   }
 
   /**
-   * Turn discovery suggestions on or off (Settings → "Suggest people and
-   * projects on the map")
+   * Turn discovery suggestions on or off (Settings → "Map suggestions")
    * @param {boolean} enabled
    */
   setDiscoveryEnabled(enabled) {

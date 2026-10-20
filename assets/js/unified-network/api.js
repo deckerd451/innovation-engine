@@ -688,8 +688,8 @@ try {
   }
 
   /**
-   * Set discovery preferences (Settings → "Suggest people and projects on
-   * the map"; unified-network-integration.js applies it)
+   * Set discovery preferences (Settings → "Map suggestions";
+   * unified-network-integration.js applies it)
    * @param {Object} preferences - Discovery preferences
    * @param {boolean} preferences.enabled - Turn discovery suggestions on or off
    */

@@ -81,7 +81,7 @@ Discovery activates automatically when:
 2. **No strong actions** - No highly relevant nodes (effectivePull > 0.7)
 3. **Relevant presence** - Someone interesting is online
 4. **Temporal opportunity** - Upcoming deadline or event
-5. **Your setting** - Settings → Network → "Suggest people and projects on the map" (on by default)
+5. **Your setting** - Settings → Network → "Map suggestions" (on by default)
 
 ### Discovery Nodes
 
@@ -170,9 +170,9 @@ The browser's own `Ctrl/Cmd + D`, `H` and `P` (bookmark, history, print) are lef
 
 ## Settings
 
-### Suggest people and projects on the map
+### Map suggestions
 
-Settings → Network → **Suggest people and projects on the map** turns
+Settings → Network → **Map suggestions** turns
 discovery suggestions on or off. It is on by default, saved on this device,
 and applies straight away. When it is off, no suggestions appear on the map.
 When it is on, discovery shows at most once every 2 minutes.
@@ -211,7 +211,7 @@ If you have motion sensitivity:
 ### Discovery Not Appearing
 
 **Check your settings:**
-- Settings → Network → "Suggest people and projects on the map" is on
+- Settings → Network → "Map suggestions" is on
 
 **Network conditions:**
 - You have connections and themes
@@ -223,7 +223,7 @@ If you have motion sensitivity:
 **Try these steps:**
 1. Close other browser tabs
 2. Disable debug mode
-3. Turn off "Suggest people and projects on the map" in Settings
+3. Turn off "Map suggestions" in Settings
 4. Clear browser cache
 5. Update your browser
 
@@ -315,10 +315,10 @@ Check system health anytime:
 ## Frequently Asked Questions
 
 **Q: Why don't I see any discovery suggestions?**
-A: Discovery requires calm network activity, relevant matches in the community, and "Suggest people and projects on the map" turned on in Settings.
+A: Discovery requires calm network activity, relevant matches in the community, and "Map suggestions" turned on in Settings.
 
 **Q: Can I disable discovery completely?**
-A: Yes, turn off "Suggest people and projects on the map" in Settings → Network. No suggestions appear while it is off.
+A: Yes, turn off "Map suggestions" in Settings → Network. No suggestions appear while it is off.
 
 **Q: How is relevance calculated?**
 A: Based on shared themes (20%), shared projects (30%), connection history (15%), interaction frequency (15%), and temporal opportunities (20%).
