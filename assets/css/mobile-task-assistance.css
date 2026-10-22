@@ -50,3 +50,5 @@ body.mta-open{overflow:hidden}
 /* The panel ends at the top of the bottom bar: anything scrolled into view
    (focus, links to a step) stops clear of it. */
 .mta-panel{scroll-padding-bottom:1rem}
+/* Desktop (goal help from Home): beside the side navigation, which stays usable. */
+@media (min-width:1024px){.mta-overlay{left:var(--app-nav-width,76px);bottom:0}}

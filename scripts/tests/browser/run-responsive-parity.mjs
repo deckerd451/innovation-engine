@@ -685,7 +685,8 @@ const phoneLayout = () => current.width < 1024;
 async function scrollChecks(P) {
   await step(`${P}: Home scrolls to its last item`, async () => {
     await go('home');
-    await expectReach(`${P}: Home scrolls to its last item`, phoneLayout() ? '#mobile-you-content > :last-child' : '#cd-focus-welcome');
+    await waitFor(`document.querySelector('${phoneLayout() ? '#mobile-you-content' : '#cd-home'} .home-explore')`, 'Home', 8000);
+    await expectReach(`${P}: Home scrolls to its last item`, `${phoneLayout() ? '#mobile-you-content' : '#cd-home'} .home-explore`);
   });
   await step(`${P}: Explore scrolls to the last Skill`, async () => {
     await go('explore');
@@ -767,7 +768,8 @@ async function scrollScenarioChecks() {
       await go('home');
       const e = await edges();
       check(e.navTop === 844 - 60 - 34 && e.home === e.navTop, 'safe area: Home ends at the bottom bar', JSON.stringify(e));
-      await expectReach('safe area: Home scrolls to its last item', '#mobile-you-content > :last-child');
+      await waitFor(`document.querySelector('#mobile-you-content .home-explore')`, 'Home', 8000);
+      await expectReach('safe area: Home scrolls to its last item', '#mobile-you-content .home-explore');
     });
     await step('safe area: Explore ends at the bottom bar', async () => {
       await go('explore');
@@ -1062,20 +1064,27 @@ async function closeDialogRuns() {
 // ── Home during background unread refreshes ──────────────────────────────
 // The unread count refreshes every 30 seconds (and when messages are read).
 // Home keeps what the person is doing: expanded sections, unfinished text in
-// "Something else to accomplish?", focus and scroll; the Inbox badge still
-// shows the new count. (Each refresh once rebuilt Home from scratch.)
+// "Have something in mind?", focus and scroll; the Inbox badge still shows
+// the new count, and "Waiting on you" follows it. (Each refresh once rebuilt
+// Home from scratch.)
 const homeState = () => callInPage(function () {
   const phone = !!document.getElementById('mobile-you-content')?.getClientRects().length;
-  const input = phone ? document.getElementById('mgd-goal-input') : document.getElementById('global-search');
+  const root = document.getElementById(phone ? 'mobile-you-content' : 'cd-home');
+  const input = document.getElementById('mgd-goal-input');
   const scroller = phone ? document.querySelector('#mobile-you-screen .mobile-you-scroll') : document.querySelector('#command-dashboard .cd-scroll-area');
   const badge = document.getElementById('app-nav-inbox-badge');
+  const waiting = root?.querySelector('[data-home="attention"]');
   return {
     phone,
-    open: [...document.querySelectorAll(phone ? '#mobile-you-content > details' : '#command-dashboard details')].filter(d => d.open && d.getClientRects().length).map(d => d.querySelector('summary')?.textContent.trim()),
+    waiting: waiting && !waiting.hidden ? waiting.innerText.replace(/\s+/g, ' ').trim() : '',
+    open: [...root.querySelectorAll('details')].filter(d => d.open && d.getClientRects().length).map(d => d.querySelector('summary')?.textContent.trim()),
     value: input?.value ?? null,
     focused: !!input && document.activeElement === input,
     sameInput: !!input?.__homeRefreshMarker,
     scrollTop: Math.round(scroller?.scrollTop || 0),
+    // Where the field being typed in sits on screen: a row added above it
+    // (scroll anchoring) must not move it.
+    inputTop: input && input.getClientRects().length ? Math.round(input.getBoundingClientRect().top) : null,
     badge: badge && !badge.hidden ? badge.textContent : '0',
   };
 });
@@ -1099,20 +1108,31 @@ async function homeRefreshChecks(P, { realTimer = false } = {}) {
   await step(`${P}: background unread refreshes keep Home as it is`, async () => {
     await go('home');
     const phone = current.width < 1024;
-    const input = phone ? '#mgd-goal-input' : '#global-search';
+    const root = phone ? '#mobile-you-content' : '#cd-home';
+    const input = '#mgd-goal-input';
     await waitUntil(function (sel) { return !!document.querySelector(sel); }, [input], 'Home input', 10000);
+    await waitUntil(function (sel) { return document.querySelectorAll(sel + ' details').length >= 3; }, [root], 'Home sections', 10000);
     await sleep(800);
-    // Open every collapsed section on Home with a real tap or click.
-    let opened = [];
-    if (phone) {
-      const count = await evaluate(`document.querySelectorAll('#mobile-you-content > details').length`);
-      for (let i = 1; i <= count; i++) {
-        const summary = `#mobile-you-content > details:nth-of-type(${i}) > summary`;
-        if (!(await callInPage(function (sel) { const el = document.querySelector(sel); return !!el && !el.parentElement.open; }, summary))) continue;
-        await press(summary, `Home section ${i}`);
-      }
-      opened = (await homeState()).open;
-      check(opened.length >= 2, `${P}: Home sections open with a tap`, JSON.stringify(opened));
+    // Open every collapsed section on Home (goal help, other tasks, projects)
+    // with a real tap or click.
+    const count = await callInPage(function (sel) { const all = [...document.querySelectorAll(sel + ' details > summary')]; all.forEach((s, i) => { s.dataset.homeSection = String(i); }); return all.length; }, root);
+    for (let i = 0; i < count; i++) {
+      const summary = `${root} summary[data-home-section="${i}"]`;
+      if (!(await callInPage(function (sel) { const el = document.querySelector(sel); return !!el && !el.parentElement.open; }, summary))) continue;
+      await press(summary, `Home section ${i + 1}`);
+    }
+    const opened = (await homeState()).open;
+    check(opened.length >= 3, `${P}: Home sections open with a ${phone ? 'tap' : 'click'}`, JSON.stringify(opened));
+    // A message arriving while Home is just being read shows in "Waiting on
+    // you" straight away.
+    {
+      const base = Number((await homeState()).badge);
+      await addUnread(0);
+      await evaluate(`window.dispatchEvent(new CustomEvent('messages-updated')); true`);
+      await waitUntil(function (n) { const b = document.getElementById('app-nav-inbox-badge'); return !b.hidden && b.textContent === n; }, [String(base + 1)], 'unread refresh', 8000);
+      await sleep(300);
+      const waiting = (await homeState()).waiting;
+      check(new RegExp(`${base + 1 === 1 ? 'Someone is' : `${base + 1} people are`} waiting on your reply`).test(waiting), `${P}: "Waiting on you" shows a new unread message`, waiting);
     }
     // Type an unfinished goal (not submitted) and scroll Home a little.
     const text = 'Find a co-founder for my harbor sensor';
@@ -1144,9 +1164,10 @@ async function homeRefreshChecks(P, { realTimer = false } = {}) {
     const after = await homeState();
     check(after.badge === expected, `${P}: the Inbox badge shows the new unread count after the ${realTimer ? '30-second ' : ''}refresh`, JSON.stringify({ before: before.badge, after: after.badge }));
     check(after.sameInput && after.value === text && after.focused,
-      `${P}: unfinished text in the Home ${phone ? '"Something else to accomplish?"' : 'search'} field stays, still focused`, JSON.stringify({ before, after }));
-    check(JSON.stringify(after.open) === JSON.stringify(before.open) && Math.abs(after.scrollTop - before.scrollTop) <= 1,
-      `${P}: ${phone ? 'expanded sections and ' : ''}the scroll position stay${phone ? '' : ' (the desktop Home has no collapsible sections)'}`, JSON.stringify({ before: [before.open, before.scrollTop], after: [after.open, after.scrollTop] }));
+      `${P}: unfinished text in the Home "Have something in mind?" field stays, still focused`, JSON.stringify({ before, after }));
+    check(JSON.stringify(after.open) === JSON.stringify(before.open) && Math.abs(after.inputTop - before.inputTop) <= 1,
+      `${P}: expanded sections stay, and what is on screen does not move`, JSON.stringify({ before: [before.open, before.scrollTop, before.inputTop], after: [after.open, after.scrollTop, after.inputTop] }));
+    check(after.waiting === before.waiting, `${P}: while typing, "Waiting on you" waits rather than move the field`, JSON.stringify([before.waiting, after.waiting]));
 
     // More refreshes in a row change nothing either, and typing continues.
     for (let i = 0; i < 3; i++) await evaluate(`window.dispatchEvent(new CustomEvent('messages-updated')); true`);
@@ -1160,9 +1181,13 @@ async function homeRefreshChecks(P, { realTimer = false } = {}) {
     await evaluate(`(async () => { await window.supabase.from('messages').update({ read: true }).eq('read', false); window.dispatchEvent(new CustomEvent('messages-updated')); return true; })()`);
     await waitFor(`document.getElementById('app-nav-inbox-badge').hidden`, 'badge cleared', 8000);
     const read = await homeState();
-    check(read.badge === '0' && read.sameInput && read.value === `${text} network`, `${P}: reading the messages clears the badge and Home stays`, JSON.stringify(read));
+    check(read.badge === '0' && read.sameInput && read.value === `${text} network`,
+      `${P}: reading the messages clears the badge and Home stays`, JSON.stringify(read));
     await shot(`${current.name}-home-after-refresh`);
     await callInPage(function (sel) { const i = document.querySelector(sel); i.value = ''; i.blur(); return true; }, input);
+    await sleep(300);
+    const done = await homeState();
+    check(!/waiting on your reply/.test(done.waiting), `${P}: after typing, "Waiting on you" catches up (nothing unread)`, done.waiting);
   });
 }
 
@@ -2143,6 +2168,157 @@ async function accessChecks(P) {
   });
 }
 
+// ── Home (home-view.js): one set of sections at every width ─────────────
+// People and possibilities first, then the member's work and goal help.
+// Someone to meet is a new introduction only: never the member, an existing
+// connection or someone with a request waiting.
+async function homeChecks(P) {
+  const root = current.width < 1024 ? '#mobile-you-content' : '#cd-home';
+  const order = ['attention', 'profile', 'meet', 'join', 'quiet', 'work', 'goal'];
+  const homeLayout = () => callInPage(function (sel) {
+    const host = document.querySelector(sel);
+    const shown = (el) => !!el && !el.hidden && el.getClientRects().length > 0;
+    const rect = (el) => el.getBoundingClientRect();
+    const main = host?.querySelector('.home-main');
+    const side = host?.querySelector('.home-side');
+    const rail = document.getElementById('network-reflection');
+    return {
+      sections: [...(host?.querySelectorAll('[data-home]') || [])].filter(shown).map(el => el.dataset.home),
+      text: host ? host.innerText : '',
+      meet: host?.querySelector('[data-home="meet"] .network-reflection-concierge-title')?.textContent || '',
+      columns: main && side ? Math.round(rect(side).left) >= Math.round(rect(main).right) : false,
+      rail: shown(rail) && getComputedStyle(rail).display !== 'none',
+      goalFields: document.querySelectorAll('#mgd-goal-input').length,
+    };
+  }, root);
+
+  await step(`${P}: Home shows people, possibilities and work in order`, async () => {
+    await go('home');
+    // Give the member a skill in common with Riley (new), Dana (connected)
+    // and Jordan (request pending), then let the brief run again.
+    await evaluate(`(async () => {
+      const skills = ['Python', 'Public speaking'];
+      window.supabase.__db.community.find(row => row.id === window.__fixtureProfile.id).skills = skills;
+      window.currentUserProfile.skills = skills;
+      await window.StartDailyDigest.renderNetworkReflection(window.currentUserProfile);
+      return true;
+    })()`);
+    await waitFor(`/Meet /.test(document.querySelector('${root} [data-home="meet"]')?.innerText || '')`, 'someone to meet', 10000);
+    const h = await homeLayout();
+    check(/^Meet Riley \(fixture\)$/.test(h.meet), `${P}: Home suggests someone new to meet`, h.meet);
+    check(!/Meet (Dana|Jordan|Sam|Test Member)/.test(h.text), `${P}: never the member, a connection or a pending request`, h.text.slice(0, 300));
+    const expected = order.filter(name => h.sections.includes(name));
+    check(JSON.stringify(h.sections) === JSON.stringify(expected) && ['meet', 'join', 'work', 'goal'].every(name => h.sections.includes(name)),
+      `${P}: sections in order: people and possibilities, then work and goal help`, JSON.stringify(h.sections));
+    check(h.goalFields === 1, `${P}: one goal field on the page`, String(h.goalFields));
+    if (current.width >= 1024) {
+      check(h.columns && !h.rail, `${P}: desktop Home uses the width in two columns, without the Next steps rail`, JSON.stringify({ columns: h.columns, rail: h.rail }));
+    }
+    await shot(`${current.name}-home-meet`);
+    await press(`${root} [data-home="meet"] .network-reflection-concierge-link`, 'Not now');
+    await sleep(300);
+    check(!/Meet Riley/.test((await homeLayout()).text), `${P}: Not now sets the suggestion aside`);
+    await evaluate(`Object.keys(localStorage).filter(key => key.startsWith('ie:collaboration-concierge:')).forEach(key => localStorage.removeItem(key)); true`);
+  });
+
+  // A thin profile gets an optional, curiosity-first invitation; it still
+  // opens Edit Profile, and Cancel returns without changing anything.
+  await step(`${P}: the interests invitation is optional and opens Edit Profile`, async () => {
+    await go('home');
+    const text = await evaluate(`document.querySelector('${root} [data-home="profile"]')?.innerText || ''`);
+    check(/What are you curious about\?/.test(text) && /optional/.test(text) && !/Add a few details/.test(text), `${P}: a thin profile gets a curiosity-first invitation`, text);
+    await press(`${root} [data-home-action="edit-profile"]`, 'Share your interests');
+    await waitFor(`document.getElementById('edit-name')?.getClientRects().length`, 'Edit Profile', 6000);
+    check((await destination()) === 'you', `${P}: Share your interests opens Edit Profile`);
+    await press('#edit-cancel', 'Cancel');
+    await waitFor(`document.querySelector('#btn-open-profile-editor')?.getClientRects().length`, 'profile view', 6000);
+    await go('home');
+  });
+
+  await step(`${P}: a way to join in opens its details`, async () => {
+    await press(`${root} [data-join="0"]`, 'Take a look');
+    await waitFor(`${isOpen.panel} && /Mentor first-time founders/.test(document.getElementById('node-side-panel').innerText)`, 'opportunity panel', 6000);
+    check((await destination()) === 'home', `${P}: a way to join in opens its details over Home`);
+    await closePanel();
+  });
+
+  await step(`${P}: goal help opens from Home and closes when navigating away`, async () => {
+    await go('home');
+    await press(`${root} [data-home="goal"] > summary`, 'Have something in mind?');
+    await press('#mgd-goal-input', 'goal field');
+    await send('Input.insertText', { text: 'Plan a neighborhood hackathon' });
+    await press('.mgd-goal-form button[type="submit"]', 'Get help');
+    await waitFor(`document.querySelector('#mobile-task-assistance #mta-title')`, 'assistance', 8000);
+    check(await usable(NAV('explore')), `${P}: the navigation stays usable while goal help is open`);
+    await press(NAV('explore'), 'Explore');
+    await waitFor(`!document.getElementById('mobile-task-assistance')`, 'assistance to close', 4000);
+    check((await destination()) === 'explore', `${P}: goal help closes when navigating away`);
+  });
+
+  // Codex review: the report (and tasks, suggestions) arriving late while the
+  // member types must not push the field down; it shows once they leave it.
+  await step(`${P}: updates that arrive while typing wait until the field is left`, async () => {
+    await evaluate(`(() => {
+      window.__realStartData = window.getStartSequenceData;
+      const gate = new Promise(resolve => { window.__releaseStartData = resolve; });
+      window.getStartSequenceData = async () => { await gate; return { has_profile: true, immediate_actions: { pending_requests: { count: 2 } } }; };
+      return true;
+    })()`);
+    await go('home');
+    if (await evaluate(`!document.querySelector('${root} [data-home="goal"]').open`)) await press(`${root} [data-home="goal"] > summary`, 'Have something in mind?');
+    await press('#mgd-goal-input', 'goal field');
+    await send('Input.insertText', { text: 'Start a robotics club' });
+    const fieldTop = () => evaluate(`Math.round(document.getElementById('mgd-goal-input').getBoundingClientRect().top)`);
+    const waitingText = () => evaluate(`(() => { const el = document.querySelector('${root} [data-home="attention"]'); return el && !el.hidden ? el.innerText : ''; })()`);
+    const before = await fieldTop();
+    await evaluate(`window.__releaseStartData(); window.dispatchEvent(new CustomEvent('project-task-updated')); window.dispatchEvent(new CustomEvent('daily-brief-updated')); true`);
+    await sleep(800);
+    const during = { top: await fieldTop(), waiting: await waitingText(), focused: await evaluate(`document.activeElement?.id === 'mgd-goal-input'`) };
+    check(during.top === before && !during.waiting && during.focused, `${P}: while typing, late updates do not move the field`, JSON.stringify({ before, during }));
+    await evaluate(`document.getElementById('mgd-goal-input').blur(); true`);
+    await sleep(400);
+    const after = await waitingText();
+    check(/2 people want to connect with you/.test(after), `${P}: after typing, "Waiting on you" shows what arrived`, after);
+    await evaluate(`window.getStartSequenceData = window.__realStartData; document.getElementById('mgd-goal-input').value = ''; true`);
+  });
+
+  await step(`${P}: Home leads on to Explore`, async () => {
+    await go('home');
+    await press(`${root} .home-explore button`, 'Browse everyone in Explore');
+    await waitForPage('explore');
+    check(true, `${P}: Home leads on to Explore`);
+  });
+}
+
+// With nothing waiting, no one to suggest and no work, Home says so plainly
+// and offers one small step (it changes the fixture, so it runs last).
+async function homeQuietChecks(P) {
+  const root = current.width < 1024 ? '#mobile-you-content' : '#cd-home';
+  await step(`${P}: a quiet Home says so and offers one small step`, async () => {
+    await evaluate(`(async () => {
+      const db = window.supabase.__db;
+      const me = window.__fixtureProfile.id;
+      db.projects = db.projects.filter(p => p.creator_id !== me);
+      db.project_members = db.project_members.filter(m => m.user_id !== me);
+      db.opportunities = [];
+      db.community.find(row => row.id === me).skills = [];
+      window.currentUserProfile.skills = [];
+      window.dispatchEvent(new CustomEvent('total-unread-messages-updated', { detail: { count: 0 } }));
+      await window.StartDailyDigest.renderNetworkReflection(window.currentUserProfile);
+      return true;
+    })()`);
+    await go('explore');
+    await go('home');
+    await waitFor(`!document.querySelector('${root} [data-home="quiet"]')?.hidden`, 'quiet Home', 10000);
+    const sections = await callInPage(function (sel) { return [...document.querySelectorAll(sel + ' [data-home]')].filter(el => !el.hidden && el.getClientRects().length).map(el => el.dataset.home); }, root);
+    check(JSON.stringify(sections.filter(name => name !== 'attention' && name !== 'profile')) === '["quiet","goal"]', `${P}: a quiet Home shows the getting-started step and goal help`, JSON.stringify(sections));
+    await press(`${root} [data-home-action="share"]`, 'Share what you’re looking for');
+    await waitForPage('you');
+    check(true, `${P}: the getting-started step opens You (Right now)`);
+    await go('home');
+  });
+}
+
 async function assistanceChecks(P) {
   if (!current.mobile) {
     await step(`${P}: a task link still opens the project's tasks`, async () => {
@@ -2173,6 +2349,7 @@ async function run(w) {
   await pageChecks(P);
   await inboxAndYou(P);
   await accessChecks(P);
+  await homeChecks(P);
   await assistanceChecks(P);
   await contentChecks(P);
   await networkSearchChecks(P);
@@ -2183,6 +2360,8 @@ async function run(w) {
   await go('explore');
   await exploreChecks(P);
   await searchChecks(P);
+
+  await homeQuietChecks(P);
 
   // Settings and Log out are in You at every width.
   await settingsCheck(P, async () => { await openYou(); await press(SETTINGS_OPENER, 'Settings'); });
@@ -2203,6 +2382,21 @@ async function resizeChecks() {
     await send('Emulation.setTouchEmulationEnabled', { enabled: false });
     await waitFor(`document.body.classList.contains('buildspace-view-network')`, 'desktop Network', 5000);
     check(phone && (await destination()) === 'network' && (await current_()) === 'network', 'resize: the current page survives crossing the desktop breakpoint');
+  });
+  await step('resize: Home moves with the layout and is on the page once', async () => {
+    await go('home');
+    await waitFor(`document.querySelector('#cd-home .home-view')`, 'desktop Home', 8000);
+    current = WIDTHS[0];
+    await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+    await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+    await waitFor(`document.querySelector('#mobile-you-content .home-view')`, 'phone Home', 8000);
+    const phone = await evaluate(`[document.querySelectorAll('.home-view').length, document.querySelectorAll('#mgd-goal-input').length, !!document.querySelector('#cd-home .home-view')].join()`);
+    current = WIDTHS[2];
+    await send('Emulation.setDeviceMetricsOverride', { width: 1366, height: 900, deviceScaleFactor: 1, mobile: false });
+    await send('Emulation.setTouchEmulationEnabled', { enabled: false });
+    await waitFor(`document.querySelector('#cd-home .home-view')`, 'desktop Home again', 8000);
+    const desktop = await evaluate(`[document.querySelectorAll('.home-view').length, document.querySelectorAll('#mgd-goal-input').length, !!document.querySelector('#mobile-you-content .home-view')].join()`);
+    check(phone === '1,1,false' && desktop === '1,1,false', 'resize: Home moves with the layout and is on the page once', JSON.stringify({ phone, desktop }));
   });
   // Every page keeps only its own content through phone, tablet, iPad
   // landscape (1180px, the desktop layout) and back.

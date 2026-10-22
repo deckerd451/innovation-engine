@@ -409,97 +409,9 @@ window.CommandDashboard = (() => {
     _renderCompactStatus(tier);
     _renderResources(tier);
 
-    // Messages banner (fast, in-memory)
-    _renderMessages();
-
-    // Orient established members inside the existing Focus surface. This is
-    // deliberately not a second dashboard or a forced onboarding flow.
-    _renderWelcomeGuide();
-
+    // Home's sections (#cd-home) are home-view.js, the same at every width.
     // Network intelligence is rendered by the persistent right-rail
     // Network Reflection surface.
-  }
-
-  function _renderWelcomeGuide() {
-    const welcome = $id('cd-focus-welcome');
-    const focus = $id('cd-focus');
-    if (!welcome || !_profile?.id) return;
-    const key = `ie:synapse-next-move:${_profile.id}`;
-    let dismissed = false;
-    try { dismissed = localStorage.getItem(key) === 'dismissed'; } catch (_) {}
-    if (dismissed && window.innerWidth >= 1024) {
-      welcome.innerHTML = '';
-      if (!_unreadMessages) focus.style.display = 'none';
-      return;
-    }
-    if (welcome.children.length) {
-      focus.style.display = '';
-      return;
-    }
-    const profileFields = [
-      _profile.name || _profile.full_name || _profile.username,
-      _profile.bio,
-      _profile.skills,
-      _profile.interests,
-      _profile.image_url || _profile.avatar_storage_path,
-    ];
-    const profileComplete = profileFields.filter(Boolean).length >= 4;
-    const isMobile = window.innerWidth < 1024;
-    const title = _unreadMessages > 0
-      ? 'You have a conversation waiting.'
-      : !profileComplete
-        ? 'Add the details people need to find you.'
-        : isMobile
-          ? 'Meet one useful person.'
-          : '';
-    const copy = _unreadMessages > 0
-      ? 'Reply while the context is fresh.'
-      : !profileComplete
-        ? 'Your bio, skills, or interests are missing, so recommendations may stay broad.'
-        : isMobile
-          ? 'See people connected to your skills and interests, then choose one conversation to start.'
-          : '';
-    const primaryAction = _unreadMessages > 0 ? 'messages' : !profileComplete ? 'profile' : isMobile ? 'explore' : null;
-    const primaryLabel = _unreadMessages > 0 ? 'Reply now' : !profileComplete ? 'Improve profile' : isMobile ? 'See people' : '';
-    if (!primaryAction) {
-      welcome.innerHTML = '';
-      focus.style.display = _unreadMessages ? '' : 'none';
-      return;
-    }
-    welcome.innerHTML = `
-      <section class="cd-next-move" aria-labelledby="cd-next-move-title">
-        <div class="cd-next-move-copy">
-          <div class="cd-focus-primary-label">Next move</div>
-          <h3 id="cd-next-move-title">${title}</h3>
-          <p>${copy}</p>
-        </div>
-        ${isMobile ? '' : `<div class="cd-next-move-actions">
-          <button type="button" class="cd-focus-cta" data-welcome-action="${primaryAction}">${primaryLabel}</button>
-          ${primaryAction === 'explore' ? '' : '<button type="button" class="cd-next-move-dismiss" data-welcome-action="dismiss" aria-label="Dismiss next move">×</button>'}
-        </div>`}
-      </section>`;
-    focus.style.display = '';
-    welcome.querySelectorAll('[data-welcome-action]').forEach((button) => {
-      button.addEventListener('click', async (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        const action = button.dataset.welcomeAction;
-        if (action === 'dismiss') {
-          try { localStorage.setItem(key, 'dismissed'); } catch (_) {}
-          welcome.innerHTML = '';
-          if (!_unreadMessages) focus.style.display = 'none';
-        } else if (action === 'people') {
-          _switchResourceTab('people');
-          document.getElementById('cd-explore')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        } else if (action === 'messages') {
-          window.AppNav?.go?.('inbox');
-        } else if (action === 'profile') {
-          document.getElementById('cd-avatar')?.click();
-        } else if (action === 'explore') {
-          window.AppNav?.go?.('explore');
-        }
-      });
-    });
   }
 
   /* ================================================================
@@ -1217,17 +1129,6 @@ window.CommandDashboard = (() => {
     _closeAddForm();
     _updateAddButtonVisibility(resourceType);
     _renderResources(_currentTier);
-  }
-
-  /* ================================================================
-     SECTION 2A: MESSAGES BANNER
-     Shows an unread-message alert strip above the insights section.
-     Hidden when no unread messages.
-     ================================================================ */
-
-  function _renderMessages() {
-    const messagesEl = $id('cd-focus-messages');
-    if (messagesEl) messagesEl.innerHTML = '';
   }
 
   /* ================================================================
@@ -2365,8 +2266,6 @@ window.CommandDashboard = (() => {
     /** Called by the notification system to update unread message count */
     setUnreadMessages(n) {
       _unreadMessages = Math.max(0, parseInt(n, 10) || 0);
-      _renderMessages();
-      _renderWelcomeGuide();
       // Drive the Inbox badge in the main navigation
       window.AppNav?.setUnread?.(_unreadMessages);
     },

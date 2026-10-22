@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const js = fs.readFileSync('assets/js/mobile-task-assistance.js', 'utf8');
 const css = fs.readFileSync('assets/css/mobile-task-assistance.css', 'utf8');
 const nav = fs.readFileSync('assets/js/mobile-nav.js', 'utf8');
-const you = fs.readFileSync('assets/js/mobile-you.js', 'utf8');
+const home = fs.readFileSync('assets/js/home-view.js', 'utf8');
 const discover = fs.readFileSync('assets/js/mobile-goal-discovery.js', 'utf8');
 
 // One assistance path: tasks and typed objectives open the same surface.
@@ -15,7 +15,7 @@ assert.match(js, /window\.viewProjectTask = open/);
 assert.match(js, /openObjective/);
 assert.match(discover, /MobileTaskAssistance\?\.openObjective\(goal\)/);
 assert.doesNotMatch(discover, /searchGoal|renderPackageCard/, 'objective entry must not run a separate assistance flow');
-assert.match(you, /viewProjectTask\(target\.dataset\.nextProject, target\.dataset\.nextTask\)/);
+assert.match(home, /viewProjectTask\(target\.dataset\.nextProject, target\.dataset\.nextTask\)/);
 assert.match(js, /AssistanceEngine/);
 
 // Data access stays inside existing tables and RLS; the client narrows only.

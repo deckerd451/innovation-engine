@@ -34,6 +34,13 @@ let _conciergeRelatedLoadedFor = null;
 let _accountGeneration = 0;
 let _reflectionRenderId = 0;
 
+// Home (home-view.js) follows the brief: 'loading', 'ready' or 'unavailable'.
+let _briefStatus = 'loading';
+function _setBriefStatus(status) {
+  _briefStatus = status;
+  window.dispatchEvent(new CustomEvent('daily-brief-updated', { detail: { status } }));
+}
+
 // A brief is shown only to the member it was generated for.
 function _briefIsCurrent(brief) {
   const memberId = window.currentUserProfile?.id;
@@ -125,7 +132,10 @@ function _conciergeCandidates(brief) {
       } : null;
     })
     .filter(Boolean)
-    .sort((a, b) => (b.score - a.score) || (b.priority - a.priority));
+    .sort((a, b) => (b.score - a.score) || (b.priority - a.priority))
+    // One suggestion per thing: an opportunity can come both "for you" and as
+    // a recent signal; the strongest reason is kept.
+    .filter((item, index, all) => all.findIndex(other => other.id === item.id) === index);
 }
 
 function _getConciergeCandidate(brief, profile) {
@@ -772,6 +782,7 @@ class StartDailyDigest {
       } catch (engineErr) {
         if (stale()) return;
         _lastDailyBrief = null;
+        _setBriefStatus('unavailable');
         root.textContent = '';
         const el = document.createElement('div');
         el.style.cssText = 'color:rgba(255,255,255,0.38);font-size:0.84rem;padding:0.28rem 0;';
@@ -795,6 +806,7 @@ class StartDailyDigest {
       _lastDailyBrief = brief;
       await _loadConciergeRelatedConnections(window.currentUserProfile);
       if (stale()) return;
+      _setBriefStatus('ready');
       const concierge = _getConciergeCandidate(brief, window.currentUserProfile);
       root.textContent = '';
       const renderedBrief = renderDailyBriefBlock(brief, concierge?.id || null);
@@ -803,6 +815,7 @@ class StartDailyDigest {
     } catch (err) {
       if (stale()) return;
       _lastDailyBrief = null;
+      _setBriefStatus('unavailable');
       console.warn('[DailyBrief] Unexpected error:', err);
       root.textContent = '';
       const el = document.createElement('div');
@@ -1659,15 +1672,31 @@ async function _renderReflectionSupportContent(renderId = _reflectionRenderId) {
   }
 }
 
-function _renderCollaborationConcierge(root, candidate) {
+// options: eyebrow (null for none), next() for the candidate shown after
+// "Not now", onEmpty() when there is none. Home passes its own (home-view.js).
+function _renderCollaborationConcierge(root, candidate, options = {}) {
+  const {
+    eyebrow: eyebrowText = 'ONE MOVE',
+    next: nextCandidate = () => _getConciergeCandidate(_lastDailyBrief, window.currentUserProfile),
+    onEmpty = () => { if (root.closest('.network-reflection-section')) root.closest('.network-reflection-section').hidden = true; },
+  } = options;
+  const advance = () => {
+    _conciergeDismissed.add(candidate.id);
+    _saveConciergeState(window.currentUserProfile);
+    const next = nextCandidate();
+    if (next) _renderCollaborationConcierge(root, next, options);
+    else onEmpty();
+  };
   root.textContent = '';
   const card = document.createElement('div');
   card.className = 'network-reflection-concierge';
 
-  const eyebrow = document.createElement('span');
-  eyebrow.className = 'network-reflection-concierge-eyebrow';
-  eyebrow.textContent = 'ONE MOVE';
-  card.appendChild(eyebrow);
+  if (eyebrowText) {
+    const eyebrow = document.createElement('span');
+    eyebrow.className = 'network-reflection-concierge-eyebrow';
+    eyebrow.textContent = eyebrowText;
+    card.appendChild(eyebrow);
+  }
 
   const title = document.createElement('strong');
   title.className = 'network-reflection-concierge-title';
@@ -1691,7 +1720,7 @@ function _renderCollaborationConcierge(root, candidate) {
   const outcome = document.createElement('span');
   outcome.className = 'network-reflection-concierge-outcome';
   outcome.textContent = candidate.type === 'person'
-    ? 'If they accept, your conversation will appear in Messages.'
+    ? 'If they accept, your conversation will appear in Inbox.'
     : 'Buildspace chose this from your profile and recent activity.';
   card.appendChild(outcome);
 
@@ -1723,7 +1752,7 @@ function _renderCollaborationConcierge(root, candidate) {
       _conciergeSaved = true;
       _saveConciergeState(window.currentUserProfile);
       invite.textContent = 'Request sent';
-      outcome.textContent = 'Request sent — you’ll see their reply in Messages.';
+      outcome.textContent = 'Request sent — you’ll see their reply in Inbox.';
     } else {
       invite.disabled = false;
     }
@@ -1734,13 +1763,7 @@ function _renderCollaborationConcierge(root, candidate) {
   skip.type = 'button';
   skip.className = 'network-reflection-concierge-link';
   skip.textContent = 'Not now';
-  skip.addEventListener('click', () => {
-    _conciergeDismissed.add(candidate.id);
-    _saveConciergeState(window.currentUserProfile);
-    const next = _getConciergeCandidate(_lastDailyBrief, window.currentUserProfile);
-    if (next) _renderCollaborationConcierge(root, next);
-    else if (root.closest('.network-reflection-section')) root.closest('.network-reflection-section').hidden = true;
-  });
+  skip.addEventListener('click', advance);
   card.appendChild(actions);
 
   const profile = document.createElement('button');
@@ -1749,13 +1772,7 @@ function _renderCollaborationConcierge(root, candidate) {
   profile.textContent = candidate.type === 'person' ? 'View profile' : 'See details';
   profile.addEventListener('click', () => {
     if (candidate.type === 'person') selectReflectionEntity('person', candidate.entityId, candidate.name);
-    else {
-      _conciergeDismissed.add(candidate.id);
-      _saveConciergeState(window.currentUserProfile);
-      const next = _getConciergeCandidate(_lastDailyBrief, window.currentUserProfile);
-      if (next) _renderCollaborationConcierge(root, next);
-      else if (root.closest('.network-reflection-section')) root.closest('.network-reflection-section').hidden = true;
-    }
+    else advance();
   });
   actions.appendChild(profile);
   actions.appendChild(skip);
@@ -1787,6 +1804,37 @@ window.StartDailyDigest.renderNetworkReflection = function (profile) {
   });
 };
 
+// What Home shows from the brief: one person to meet (a new introduction)
+// and up to two ways to join in, never anything the member set aside today.
+function _homeSuggestions() {
+  const brief = _lastDailyBrief;
+  if (!_briefIsCurrent(brief)) {
+    return { status: _briefStatus === 'unavailable' ? 'unavailable' : 'loading', person: null, joinIn: [] };
+  }
+  const profile = window.currentUserProfile;
+  _loadConciergeState(profile);
+  const selfId = String(profile?.id ?? '');
+  const open = _conciergeCandidates(brief).filter(item => (
+    !_conciergeDismissed.has(item.id)
+    && (item.type !== 'person' || (item.entityId !== selfId && !_conciergeRelatedIds.has(String(item.entityId))))
+  ));
+  return {
+    status: 'ready',
+    person: open.find(item => item.type === 'person') || null,
+    joinIn: open.filter(item => item.type !== 'person').slice(0, 2),
+  };
+}
+
+window.StartDailyDigest.homeSuggestions = _homeSuggestions;
+window.StartDailyDigest.inboundAttention = data => _reflectionAttentionActions(data?.immediate_actions || {});
+window.StartDailyDigest.renderIntroduction = function (root, candidate, onEmpty) {
+  _renderCollaborationConcierge(root, candidate, {
+    eyebrow: null,
+    next: () => _homeSuggestions().person,
+    onEmpty,
+  });
+};
+
 window.addEventListener('profile-loaded', function (event) {
   window.StartDailyDigest.renderNetworkReflection(event?.detail?.profile);
 });
@@ -1803,6 +1851,7 @@ window.addEventListener('user-logged-out', function () {
   _conciergeDismissed = new Set();
   _conciergeRelatedIds = new Set();
   _conciergeRelatedLoadedFor = null;
+  _setBriefStatus('loading');
   ['network-reflection-brief', 'ie-brief-root', 'network-reflection-focus', 'network-reflection-attention',
     'network-reflection-summary', 'network-reflection-next-moves'].forEach(function (id) {
     const el = document.getElementById(id);

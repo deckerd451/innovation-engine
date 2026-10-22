@@ -4,11 +4,13 @@ const fs = require('node:fs');
 const read = (file) => fs.readFileSync(file, 'utf8');
 const html = read('index.html');
 const discover = read('assets/js/mobile-goal-discovery.js');
-const space = read('assets/js/mobile-you.js');
+const home = read('assets/js/home-view.js');
 const memory = read('assets/js/capability-memory.js');
 const css = read('assets/css/mobile-goal-discovery.css');
 
-assert.match(space, /id="mobile-you-goal-discovery"/);
+// Home offers goal help, collapsed, at every width (home-view.js).
+assert.match(home, /<summary>Have something in mind\?<\/summary>/);
+assert.match(home, /window\.MobileGoalDiscovery\.mount\(target\)/);
 assert.match(html, /Browse the community/);
 assert.match(html, /mobile-goal-discovery\.js/);
 assert.match(discover, /What are you trying to accomplish\?/);

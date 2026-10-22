@@ -141,15 +141,6 @@ body.reflection-resizing #network-reflection { transition:none; }
 .synapse-guidance { position:absolute; top:3.25rem; left:1rem; z-index:5; max-width:32ch; padding:.45rem .65rem; border:1px solid rgba(255,255,255,.12); border-radius:7px; background:rgba(5,7,15,.72); color:rgba(224,232,255,.64); font-size:.72rem; line-height:1.35; pointer-events:none; }
 @media (max-width:1023px) { .synapse-guidance { top:2.7rem; left:.7rem; max-width:26ch; font-size:.68rem; } }
 
-/* Returning-member orientation lives in the existing Focus surface. */
-.cd-next-move { display:flex; align-items:center; justify-content:space-between; gap:.75rem; margin:.65rem .75rem .2rem; padding:.8rem; border:1px solid rgba(0,224,255,.25); border-radius:9px; background:linear-gradient(145deg,rgba(0,224,255,.1),rgba(10,14,39,.65)); }
-.cd-next-move-copy { min-width:0; }
-.cd-next-move-copy h3 { margin:.18rem 0 .35rem; color:#fff; font-size:.88rem; line-height:1.25; }
-.cd-next-move-copy p { margin:0; color:rgba(224,232,255,.62); font-size:.74rem; line-height:1.45; }
-.cd-next-move-actions { display:flex; align-items:center; gap:.4rem; flex:none; }
-.cd-next-move-actions .cd-focus-cta { padding:.38rem .55rem; font-size:.7rem; }
-.cd-next-move-dismiss { width:30px; height:30px; padding:0; border:0; background:transparent; color:rgba(224,232,255,.45); font-size:1.2rem; line-height:1; cursor:pointer; }
-.cd-next-move-dismiss:hover,.cd-next-move-dismiss:focus-visible { color:#fff; }
 
 @media (min-width:1024px) {
   #network-reflection-more-toggle { display:none; }
@@ -176,7 +167,6 @@ body.reflection-resizing #network-reflection { transition:none; }
     min-height:calc(100dvh - 60px - env(safe-area-inset-bottom,0px));
     display:flex; flex-direction:column; justify-content:center; padding:1rem .75rem 2rem;
   }
-  body.buildspace-view-today #command-dashboard:not(.cd-mobile-panel) #cd-focus-welcome:empty { display:none; }
   .cd-mobile-context-card { margin:.65rem 0 0; padding:.85rem .9rem; border:1px solid rgba(142,92,255,.34); border-radius:13px; background:linear-gradient(145deg,rgba(142,92,255,.14),rgba(10,14,39,.72)); }
   .cd-mobile-context-eyebrow { color:#d7c6ff; font-size:.72rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
   .cd-mobile-greeting { margin-top:.18rem; color:#fff; font-size:1.05rem; font-weight:800; letter-spacing:-.01em; }
@@ -255,14 +245,10 @@ body.reflection-resizing #network-reflection { transition:none; }
   }
 
   #command-dashboard .cd-admin-btn { display: none !important; }
-  #command-dashboard .cd-network-status,
-  #command-dashboard .cd-focus-messages { display: none !important; }
+  #command-dashboard .cd-network-status { display: none !important; }
   .synapse-guidance { display: none !important; }
   #network-reflection { position:fixed; z-index:450; left:0; right:0; bottom:calc(60px + env(safe-area-inset-bottom,0px)); height:var(--reflection-mobile-height); border-top:1px solid rgba(0,224,255,.25); border-radius:14px 14px 0 0; }
   #synapse-main-view { bottom:calc(var(--reflection-mobile-height) + 60px + env(safe-area-inset-bottom,0px))!important; }
-  .cd-next-move { align-items:flex-start; margin:.55rem .6rem .15rem; }
-  .cd-next-move-actions { flex-direction:column; align-items:stretch; }
-  .cd-next-move-actions .cd-focus-cta { min-height:38px; }
   #network-reflection-resizer { top:-8px; left:0; right:0; height:16px; cursor:row-resize; }
   body.reflection-resizing { cursor:row-resize; }
   body.reflection-collapsed #network-reflection { height:55px; }
@@ -355,12 +341,17 @@ body.reflection-resizing #network-reflection { transition:none; }
   body.buildspace-view-today #command-dashboard .cd-scroll-area { width:min(760px,100%); margin:0 auto; }
   body.buildspace-view-today #cd-panel-tab { display:none!important; }
   /* Each destination (app-nav.js) shows its own part of the dashboard:
-     Home the focus cards, Explore the Explore list, Network the people list
+     Home its sections, Explore the Explore list, Network the people list
      (with "People you met") beside the map. */
   body[data-destination="home"] #command-dashboard #cd-explore { display:none!important; }
   body[data-destination="explore"] #command-dashboard #cd-focus { display:none!important; }
   body[data-destination="network"] #command-dashboard #cd-focus { display:none!important; }
   body[data-destination="network"] #command-dashboard .udc-resource-tab:not([data-resource="people"]) { display:none!important; }
+  /* Home is one wide page (home-view.css lays it out); the Next steps rail
+     belongs to Explore and Network. */
+  body[data-destination="home"] #network-reflection { display:none!important; }
+  body.buildspace-view-today[data-destination="home"] #command-dashboard { width:100%!important; }
+  body.buildspace-view-today[data-destination="home"] #command-dashboard .cd-scroll-area { width:min(1080px,100%); }
 
   /* ── Node side panel: slides from right of viewport ── */
   /* Panel already uses position:fixed; right:-450px → right:0 */
@@ -2104,8 +2095,7 @@ body.reflection-resizing #network-reflection { transition:none; }
 .cd-focus-card,
 .network-reflection-focus-card,
 .network-reflection-move { box-shadow:none; }
-.cd-focus-cta,
-  .cd-next-move { box-shadow:none; }
+.cd-focus-cta { box-shadow:none; }
 @media (max-width:1023px) {
   .udc-resource-label-web { display:none; }
   .udc-resource-label-mobile { display:inline; }

@@ -6,7 +6,7 @@
 // each destination onto the existing screens.
 //
 //   Home, Explore, Network  pages. Desktop uses CommandDashboard's Home and
-//                           Network views (Home shows the focus cards,
+//                           Network views (Home shows home-view.js's sections,
 //                           Explore the Explore list, Network the people list
 //                           beside the map); mobile uses MobileNav surfaces.
 //                           Network adds "People you met" at every width.
@@ -147,6 +147,7 @@
       } else if (scroller) {
         scroller.scrollTop = 0;
       }
+      if (page === 'home') window.HomeView?.show?.();
     } else {
       window.MobileNav?.show?.(page);
     }
