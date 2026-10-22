@@ -33,6 +33,7 @@ function emptyMemberships() {
     userOrgIds: new Set(),
     orgMemberIds: new Map(),
     connectedCommunityIds: new Set(),
+    pendingCommunityIds: new Set(),
   };
 }
 
@@ -100,6 +101,47 @@ function emptyMemberships() {
     const ids = candidates.map(c => c.primary_refs[0].nodeId);
     assert.ok(ids.includes('unlinked-person'), 'A person with no auth user_id must still be eligible');
   }
+
+  // --- Existing relationships: people the member already knows are never
+  //     presented as new introductions.
+  {
+    const userProfile = { id: 'me', user_id: 'auth-me', name: 'Ada', skills: 'python,react', interests: 'ai' };
+    const shared = { skills: 'python,react', interests: 'ai' };
+    const memberships = emptyMemberships();
+    memberships.connectedCommunityIds.add('connected');
+    memberships.pendingCommunityIds.add('asked-by-me');
+    memberships.pendingCommunityIds.add('asked-me');
+    memberships.userProjectIds.add('proj-1');
+    memberships.projectMemberIds.set('proj-1', new Set(['me', 'teammate-only', 'teammate-plus']));
+    const community = [
+      { id: 'me', user_id: 'auth-me', name: 'Ada', ...shared },
+      { id: 'connected', user_id: 'auth-c', name: 'Connie', ...shared },
+      { id: 'asked-by-me', user_id: 'auth-o', name: 'Otto', ...shared },
+      { id: 'asked-me', user_id: 'auth-i', name: 'Ingrid', ...shared },
+      { id: 'teammate-only', user_id: 'auth-t', name: 'Tom', skills: 'cooking', interests: 'gardening' },
+      { id: 'teammate-plus', user_id: 'auth-p', name: 'Pat', ...shared },
+      { id: 'newcomer', user_id: 'auth-n', name: 'Nia', skills: 'python', interests: '' },
+    ];
+    const projects = [{ id: 'proj-1', title: 'HarborHack' }];
+    const candidates = build({ ...baseArgs, userProfile, community, memberships, projects });
+    const byId = new Map(candidates.map(c => [c.primary_refs[0].nodeId, c]));
+    assert.ok(!byId.has('asked-by-me'), 'someone the member already asked to connect is not suggested');
+    assert.ok(!byId.has('asked-me'), 'someone who already asked to connect with the member is not suggested');
+    assert.ok(!byId.has('teammate-only'), 'a teammate whose only evidence is the shared project is not suggested');
+    assert.equal(byId.get('newcomer')?.relationship, null, 'a new person is a new introduction');
+    assert.equal(byId.get('connected')?.relationship, 'connected', 'an existing connection is marked as one');
+    assert.match(byId.get('connected').subhead, /^Already connected/);
+    assert.equal(byId.get('teammate-plus')?.relationship, 'teammate', 'a teammate with more in common is marked as a teammate');
+    assert.match(byId.get('teammate-plus').subhead, /^Already working together/);
+    const order = candidates.map(c => c.primary_refs[0].nodeId);
+    assert.ok(order.indexOf('newcomer') < order.indexOf('connected') && order.indexOf('newcomer') < order.indexOf('teammate-plus'),
+      'new introductions come before people the member already knows, whatever their score');
+  }
+
+  // The brief loads pending requests in both directions for these checks.
+  const engineSource = require('node:fs').readFileSync(path.join(root, 'assets/js/intelligence/daily-brief-engine.js'), 'utf8');
+  assert.match(engineSource, /_safe\('pending_connections'[\s\S]{0,260}from_user_id\.eq\.\$\{communityId\},to_user_id\.eq\.\$\{communityId\}[\s\S]{0,40}\.eq\('status', 'pending'\)/);
+  assert.match(engineSource, /pendingConnections: graph\.pendingConnections/);
 
   console.log('People Worth Knowing self-exclusion + dedup: all checks passed');
 })().catch(error => {

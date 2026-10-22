@@ -478,12 +478,19 @@ function _combinationScore({ alignment, momentum, proximity, scarcity, intersect
  * Call once per brief generation and pass ctx to scoring functions.
  * This avoids O(n²) scans per entity.
  */
-function _buildMembershipMaps({ communityId, connections, projectMembers, orgMembers, themeParticipants }) {
+function _buildMembershipMaps({ communityId, connections, pendingConnections, projectMembers, orgMembers, themeParticipants }) {
   // Connected community ids (accepted connections, both directions)
   const connectedCommunityIds = new Set();
   for (const c of (connections || [])) {
     if (c.from_user_id === communityId) connectedCommunityIds.add(String(c.to_user_id));
     if (c.to_user_id   === communityId) connectedCommunityIds.add(String(c.from_user_id));
+  }
+
+  // Community ids with a connection request waiting in either direction
+  const pendingCommunityIds = new Set();
+  for (const c of (pendingConnections || [])) {
+    if (c.from_user_id === communityId) pendingCommunityIds.add(String(c.to_user_id));
+    if (c.to_user_id   === communityId) pendingCommunityIds.add(String(c.from_user_id));
   }
 
   // projectId -> Set<community_id> of members
@@ -529,6 +536,7 @@ function _buildMembershipMaps({ communityId, connections, projectMembers, orgMem
 
   return {
     connectedCommunityIds,
+    pendingCommunityIds,
     projectMemberIds,
     orgMemberIds,
     themeMemberIds,
@@ -638,6 +646,7 @@ async function _fetchCoreGraph(supabase, { communityId, windowDays, now, debug }
   // Run in parallel batches (independent queries)
   const [
     connections,
+    pendingConnections,
     projects,
     organizations,
     themeCircles,
@@ -655,6 +664,13 @@ async function _fetchCoreGraph(supabase, { communityId, windowDays, now, debug }
       .select('from_user_id, to_user_id, status, created_at')
       .or(`from_user_id.eq.${communityId},to_user_id.eq.${communityId}`)
       .eq('status', 'accepted')
+      .limit(500)
+    ),
+    _safe('pending_connections', () => supabase
+      .from('connections')
+      .select('from_user_id, to_user_id, status')
+      .or(`from_user_id.eq.${communityId},to_user_id.eq.${communityId}`)
+      .eq('status', 'pending')
       .limit(500)
     ),
     _safe('projects', () => supabase
@@ -778,6 +794,7 @@ async function _fetchCoreGraph(supabase, { communityId, windowDays, now, debug }
 
   return {
     connections,
+    pendingConnections,
     projects,
     organizations,
     themeCircles,  // already a mix of active_themes_summary + fallback
@@ -1285,6 +1302,9 @@ function _buildPeopleWorthKnowing({ userProfile, community, projects, organizati
     const personAuthId = person.user_id != null ? String(person.user_id) : null;
     const isSelf = personId === userId || (userAuthId != null && personAuthId === userAuthId);
     if (isSelf) continue;
+    // A request already waits between you (either direction): it is answered
+    // or awaited, not an introduction.
+    if (memberships.pendingCommunityIds?.has(personId)) continue;
     const sharedProjectIds = [...(memberships.userProjectIds || [])]
       .filter(projectId => memberships.projectMemberIds.get(projectId)?.has(personId));
     const sharedOrgIds = [...(memberships.userOrgIds || [])]
@@ -1322,6 +1342,12 @@ function _buildPeopleWorthKnowing({ userProfile, community, projects, organizati
     }
 
     if (!meaningful.length) continue;
+    // Teammates whose only evidence is the project you share already work
+    // together: nothing new to suggest.
+    if (sharedProjects.length && meaningful.every(reason => reason.category === 'shared_project')) continue;
+    // Existing relationships stay (the reasons can still be useful) but are
+    // marked, so no surface offers them as a new introduction.
+    const relationship = connectionStatus === 'accepted' ? 'connected' : sharedProjects.length ? 'teammate' : null;
 
     // Surface the highest-weight reasons first (e.g. a live shared event
     // ahead of a static shared skill), so the explanation leads with the
@@ -1345,9 +1371,11 @@ function _buildPeopleWorthKnowing({ userProfile, community, projects, organizati
       signals: { evidenceCount: meaningful.length, directConnection: connectionStatus === 'accepted' },
       scores: { evidence: _clamp01(score / 10) },
     });
+    if (relationship) summaries.unshift(relationship === 'connected' ? 'Already connected' : 'Already working together');
     candidates.push({
       id: _itemId('person', personId),
       category: 'person',
+      relationship,
       headline: label,
       subhead: summaries.join(' · '),
       confidence: _clamp01(0.45 + Math.min(score, 10) * 0.05),
@@ -1374,7 +1402,8 @@ function _buildPeopleWorthKnowing({ userProfile, community, projects, organizati
 
   return [...bestByIdentity.values()]
     .map(({ _dedupeKey, ...candidate }) => candidate)
-    .sort((a, b) => b.score - a.score || a.headline.localeCompare(b.headline))
+    // New introductions before people the member already knows.
+    .sort((a, b) => Number(!!a.relationship) - Number(!!b.relationship) || b.score - a.score || a.headline.localeCompare(b.headline))
     .slice(0, maxItems);
 }
 
@@ -1582,6 +1611,7 @@ export async function generateDailyBrief({
   const memberships = _buildMembershipMaps({
     communityId,
     connections:       graph.connections,
+    pendingConnections: graph.pendingConnections,
     projectMembers:    graph.projectMembers,
     orgMembers:        graph.orgMembers,
     themeParticipants: graph.themeParticipants,

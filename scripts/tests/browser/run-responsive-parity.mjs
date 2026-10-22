@@ -469,6 +469,11 @@ async function expectPage(P, page, label = `${P}: ${page} shows only its own con
     want(desktop ? c.focus : c.homeScreen, 'Home content');
     want(!c.explore, 'no Explore list');
     want(!c.map, 'no map');
+    if (desktop) {
+      // Home is headed by a welcome, never "You" (the profile destination).
+      const heading = await evaluate(`(() => { const h = document.getElementById('cd-user-name'); return h && h.getClientRects().length ? h.tagName + ':' + h.textContent.trim() : ''; })()`);
+      want(heading === `H1:Welcome, ${await evaluate(`window.__fixtureProfile.name`)}`, `a welcome heading (${heading})`);
+    }
   } else if (page === 'explore') {
     want(c.search && c.explore, 'search and Explore list');
     want(c.tabs.join() === 'people,projects,themes,organizations,opportunities', `all five categories (${c.tabs})`);
