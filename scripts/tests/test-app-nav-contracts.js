@@ -157,7 +157,11 @@ assert.match(read('assets/js/dashboardPane.js'), /if \(mode && mode !== 'people'
 
 // Callers that used the old tabs go through the router.
 assert.match(read('assets/js/mobile-task-assistance.js'), /window\.AppNav\?\.go\?\.\('home'\)/);
-assert.match(read('assets/js/command-dashboard.js'), /window\.AppNav\?\.go\?\.\('inbox'\)[\s\S]*window\.AppNav\?\.go\?\.\('explore'\)/);
-assert.match(read('assets/js/mobile-today-continuity.js'), /document\.body\.dataset\.destination !== 'home'/);
+assert.match(read('assets/js/home-view.js'), /window\.AppNav\?\.go\?\.\('inbox'\)[\s\S]*window\.AppNav\?\.go\?\.\('explore'\)/);
+// Home's sections (home-view.js) at every width: desktop Home shows them in
+// the dashboard, phones and tablets in the Home screen.
+assert.match(read('assets/js/home-view.js'), /document\.body\.dataset\.destination === 'home'/);
+assert.match(appNav, /if \(page === 'home'\) window\.HomeView\?\.show\?\.\(\);/);
+assert.match(read('assets/js/mobile-you.js'), /window\.HomeView\.show\(\)/);
 
 console.log('shared navigation contracts passed');

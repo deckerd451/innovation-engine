@@ -8,8 +8,7 @@ const dashboardCss = read('assets/css/command-dashboard.css');
 const youCss = read('assets/css/mobile-you.css');
 const panel = read('assets/js/node-panel.js');
 const projectCss = read('assets/css/mobile-project-scroll.css');
-const today = read('assets/js/mobile-today-continuity.js');
-const you = read('assets/js/mobile-you.js');
+const home = read('assets/js/home-view.js');
 const index = read('index.html');
 const sw = read('sw.js');
 
@@ -34,21 +33,19 @@ assert.match(panel, /data-tab-focus="activity"/);
 assert.match(panel, /Continue your work/);
 assert.match(panel, /updateWorkNext/);
 
-// Today chooses one task first and keeps community suggestions secondary.
-assert.match(today, /focus\.prepend\(card\)/);
-assert.match(today, /data-continuity-tab="tasks"/);
+// Home picks one task to continue (home-view.js, every width).
+assert.match(home, /const task = chooseNextTask\(work\.tasks\)/);
+assert.match(home, /data-next-task="\$\{esc\(task\.id\)\}">Continue</);
 assert.match(nav, /cd-mobile-secondary-links/);
 assert.match(nav, /unread > 0/);
 
-// My Space leads with one next move and objective entry; the profile
-// biography/intent is never presented as the member's objective.
-assert.match(you, /Your projects/);
-assert.match(you, /mobile-you-goal-discovery/);
-assert.match(you, /data-next-project/);
-assert.match(you, /Pick up where you left off/);
-assert.match(you, /What do you want to accomplish\?/);
-assert.match(you, /Get help with this/);
-assert.doesNotMatch(you, /profile\.(bio|intent)/);
+// Home keeps the member's work and goal help; the profile biography/intent
+// is never presented as the member's objective.
+assert.match(home, /Your projects/);
+assert.match(home, /data-next-project/);
+assert.match(home, /Pick up where you left off/);
+assert.match(home, /Have something in mind\?/);
+assert.doesNotMatch(home, /profile\.(bio|intent)|p\?\.(bio|intent) *\?/);
 assert.match(youCss, /z-index: 700/);
 
 // The project overlay retains safe-area and dynamic viewport clearance.
@@ -60,7 +57,7 @@ assert.match(projectCss, /scroll-padding-bottom/);
 // production failure mode that allowed the pre-fix shell to remain visible.
 const shellTag = (sw.match(/const VERSION = "v\d+-([^"]+)"/) || [])[1];
 assert.ok(shellTag, 'service worker must declare a versioned shell');
-for (const asset of ['command-dashboard.css', 'mobile-nav.js', 'mobile-you.css', 'mobile-you.js', 'mobile-goal-discovery.js', 'mobile-task-assistance.js', 'mobile-task-assistance.css', 'assistance-interventions.js', 'assistance-interventions.css', 'capability-memory.js']) {
+for (const asset of ['command-dashboard.css', 'mobile-nav.js', 'mobile-you.css', 'mobile-you.js', 'home-view.js', 'home-view.css', 'mobile-goal-discovery.js', 'mobile-task-assistance.js', 'mobile-task-assistance.css', 'assistance-interventions.js', 'assistance-interventions.css', 'capability-memory.js']) {
   assert.match(index, new RegExp(`${asset.replace('.', '\\.')}\\?v=${shellTag}`), `${asset} must be cache-busted with the current shell version`);
 }
 // One vocabulary at every width: Home, Explore, Network, Inbox, You.

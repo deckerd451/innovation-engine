@@ -302,6 +302,46 @@ function deferredEngine(page) {
     assert.match(page.elements['network-reflection-next-moves'].textContent, /3 projects match your skills/);
   }
 
+  // --- 5. What Home takes from the brief ---------------------------------
+  {
+    const page = createPage();
+    page.currentUserProfile = { id: 'me' };
+    page.supabase = fakeSupabase({ authId: () => 'auth-me', tables: { connections: [{ from_user_id: 'me', to_user_id: 'friend', status: 'accepted' }] } });
+    const item = (type, id, name, score) => ({ id: `${type}:${id}`, category: type, headline: name, subhead: `Why ${name}`, score,
+      primary_refs: [{ nodeType: type, nodeId: id, label: name }] });
+    page.__brief = brief('me', [
+      person('friend', 'Friend', { score: 9 }),
+      person('ana', 'Ana', { score: 8 }),
+      person('bo', 'Bo', { score: 7 }),
+    ]);
+    page.__brief.sections.opportunities_for_you = [item('opportunity', 'o1', 'Mentor founders', 6), item('opportunity', 'o2', 'Judge a pitch', 5), item('opportunity', 'o3', 'Host a table', 4)];
+    vm.runInContext(`_lastDailyBrief = window.__brief`, page);
+    await vm.runInContext(`_loadConciergeRelatedConnections(window.currentUserProfile)`, page);
+    const first = page.StartDailyDigest.homeSuggestions();
+    assert.equal(first.status, 'ready');
+    assert.equal(first.person?.name, 'Ana', 'one new introduction (an existing connection is skipped)');
+    assert.equal(JSON.stringify(first.joinIn.map(entry => entry.name)), '["Mentor founders","Judge a pitch"]', 'up to two ways to join in');
+
+    // "Not now" on Home moves to the next person, never to an opportunity.
+    const root = new FakeElement();
+    let emptied = 0;
+    page.StartDailyDigest.renderIntroduction(root, first.person, () => { emptied += 1; });
+    assert.match(root.textContent, /Meet Ana/);
+    assert.doesNotMatch(root.textContent, /ONE MOVE/, 'Home shows no rail eyebrow');
+    const notNow = (el) => el.className === 'network-reflection-concierge-link' ? el : el.children.map(notNow).find(Boolean);
+    notNow(root).listeners.click[0]();
+    assert.match(root.textContent, /Meet Bo/);
+    notNow(root).listeners.click[0]();
+    assert.equal(emptied, 1, 'with no one left, Home is told so');
+    assert.equal(page.StartDailyDigest.homeSuggestions().person, null, 'set-aside people stay set aside');
+
+    vm.runInContext(`_lastDailyBrief = null; _setBriefStatus('loading')`, page);
+    assert.equal(page.StartDailyDigest.homeSuggestions().status, 'loading');
+    page.__brief = brief('someone-else', [person('zed', 'Zed')]);
+    vm.runInContext(`_lastDailyBrief = window.__brief`, page);
+    assert.equal(page.StartDailyDigest.homeSuggestions().person, null, 'never another member\'s suggestions');
+  }
+
   // --- 4. Desktop Home's heading welcomes the member (You is the profile) ---
   {
     const html = read('index.html');

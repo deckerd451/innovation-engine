@@ -89,6 +89,12 @@ async function shot(name) {
 }
 // Tap at the element's centre after scrolling it into view. Fails if a
 // different surface owns that point (ghost screens, tab bar overlap).
+async function openGoalHelp() {
+  if (await evaluate(`!document.querySelector('#mobile-you-content [data-home="goal"]')?.open`)) {
+    await tap('#mobile-you-content [data-home="goal"] > summary', 'Have something in mind?');
+  }
+}
+
 async function tap(selector, label = selector) {
   const info = await evaluate(`(() => {
     const el = document.querySelector(${JSON.stringify(selector)});
@@ -161,7 +167,7 @@ try {
   let s = await surfaceReport();
   check(s.youVisible && s.centreOwner === 'my-space', 'My Space owns the viewport', JSON.stringify(s));
   check(s.goalForms === 1, 'Exactly one objective entry is mounted', `forms=${s.goalForms}`);
-  const nextTitle = await evaluate(`document.querySelector('#mobile-you-next-title')?.textContent`);
+  const nextTitle = await evaluate(`document.querySelector('#mobile-you-content .home-next .home-title')?.textContent`);
   check(nextTitle === 'select speaker(s)', 'Scenario A: My Space surfaces the existing next step', nextTitle);
   check(!(await evaluate(`/Python/.test(document.getElementById('mobile-you-content').textContent)`)), 'Profile details are not shown as the objective');
 
@@ -249,6 +255,8 @@ try {
   check(s.overlays === 0 && s.goalForms === 1 && s.centreOwner === 'my-space', 'Repeated navigation leaves exactly one surface and one objective entry', JSON.stringify(s));
 
   // Scenario H / C: unfamiliar objective, no community knowledge.
+  // Goal help is collapsed on Home until wanted.
+  await openGoalHelp();
   await type('#mgd-goal-input', 'Learn conversational Spanish before my trip in May');
   await tap('.mgd-goal-form button', 'Get help');
   await waitFor(`document.querySelector('#mta-title')`, 'objective assistance');
@@ -269,6 +277,7 @@ try {
   await tap('[data-mta-close]', 'Close');
 
   // Scenario B: business idea validation, demo method labelled.
+  await openGoalHelp();
   await evaluate(`document.getElementById('mgd-goal-input').value = ''`);
   await type('#mgd-goal-input', 'Validate my business idea for a campus food app');
   await tap('.mgd-goal-form button', 'Get help');

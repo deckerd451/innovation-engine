@@ -522,7 +522,7 @@
     if (target.closest('[data-mta-own-objective]')) {
       close();
       if (!document.body.classList.contains('mobile-surface-you')) window.AppNav?.go?.('home');
-      window.setTimeout(() => document.getElementById('mgd-goal-input')?.focus(), 300);
+      window.setTimeout(() => (window.HomeView?.focusGoal ? window.HomeView.focusGoal() : document.getElementById('mgd-goal-input')?.focus()), 300);
       return;
     }
     if (!session) return;
