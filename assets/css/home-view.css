@@ -24,6 +24,8 @@
 .home-action:focus-visible, .home-primary:focus-visible, .home-link:focus-visible, .home-section summary:focus-visible, .home-project:focus-visible { outline:2px solid #00e0ff; outline-offset:2px; }
 .home-attention { border-color:rgba(255,170,90,.45); background:rgba(255,170,90,.06); }
 .home-profile { display:flex; align-items:center; justify-content:space-between; gap:.25rem .75rem; flex-wrap:wrap; }
+.home-profile > div { min-width:0; flex:1 1 18rem; }
+.home-profile .home-heading { margin-bottom:.3rem; }
 .home-profile p { margin:0; color:#c7cfdd; font-size:.88rem; line-height:1.45; }
 .home-quiet { border-style:dashed; }
 

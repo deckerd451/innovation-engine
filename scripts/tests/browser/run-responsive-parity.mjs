@@ -2221,6 +2221,20 @@ async function homeChecks(P) {
     await evaluate(`Object.keys(localStorage).filter(key => key.startsWith('ie:collaboration-concierge:')).forEach(key => localStorage.removeItem(key)); true`);
   });
 
+  // A thin profile gets an optional, curiosity-first invitation; it still
+  // opens Edit Profile, and Cancel returns without changing anything.
+  await step(`${P}: the interests invitation is optional and opens Edit Profile`, async () => {
+    await go('home');
+    const text = await evaluate(`document.querySelector('${root} [data-home="profile"]')?.innerText || ''`);
+    check(/What are you curious about\?/.test(text) && /optional/.test(text) && !/Add a few details/.test(text), `${P}: a thin profile gets a curiosity-first invitation`, text);
+    await press(`${root} [data-home-action="edit-profile"]`, 'Share your interests');
+    await waitFor(`document.getElementById('edit-name')?.getClientRects().length`, 'Edit Profile', 6000);
+    check((await destination()) === 'you', `${P}: Share your interests opens Edit Profile`);
+    await press('#edit-cancel', 'Cancel');
+    await waitFor(`document.querySelector('#btn-open-profile-editor')?.getClientRects().length`, 'profile view', 6000);
+    await go('home');
+  });
+
   await step(`${P}: a way to join in opens its details`, async () => {
     await press(`${root} [data-join="0"]`, 'Take a look');
     await waitFor(`${isOpen.panel} && /Mentor first-time founders/.test(document.getElementById('node-side-panel').innerText)`, 'opportunity panel', 6000);

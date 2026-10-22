@@ -123,8 +123,10 @@
     const p = profile();
     const filled = [displayName(p), p?.bio, p?.skills, p?.interests, p?.image_url || p?.avatar_storage_path]
       .filter(value => Array.isArray(value) ? value.length : !!value).length;
-    setSection('profile', p && filled < 4 ? `<p>Add a few details, like your interests and skills, so suggestions fit you.</p>
-      <button type="button" class="home-link" data-home-action="edit-profile">Add details</button>` : '');
+    // An invitation, not a setup step: interests are optional.
+    setSection('profile', p && filled < 4 ? `<div><h2 class="home-heading" id="home-curious-title">What are you curious about?</h2>
+      <p>Share a few interests and Home will point you to people and projects you might enjoy. It’s optional, and you can skip it.</p></div>
+      <button type="button" class="home-link" data-home-action="edit-profile">Share your interests</button>` : '');
     part('profile')?.querySelector('[data-home-action="edit-profile"]')?.addEventListener('click', () => window.openProfileEditor?.());
   }
 
@@ -277,7 +279,7 @@
       <div class="home-grid">
         <div class="home-main">
           <section class="home-section home-attention" data-home="attention" aria-labelledby="home-attention-title" hidden></section>
-          <section class="home-section home-profile" data-home="profile" aria-label="Your profile" hidden></section>
+          <section class="home-section home-profile" data-home="profile" aria-labelledby="home-curious-title" hidden></section>
           <section class="home-section" data-home="meet" aria-labelledby="home-meet-title" hidden></section>
           <section class="home-section" data-home="join" aria-label="Ways to join in" hidden></section>
           <section class="home-section home-quiet" data-home="quiet" aria-label="Getting started" hidden></section>
