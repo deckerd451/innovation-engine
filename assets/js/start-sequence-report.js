@@ -11,6 +11,9 @@ class StartSequenceReport {
     };
     
     this.isLoading = false;
+    // Bumped by clearCache(): a load still running for the previous member
+    // neither fills the cache nor holds up the next one.
+    this.generation = 0;
   }
 
   /**
@@ -28,13 +31,16 @@ class StartSequenceReport {
     }
 
     this.isLoading = true;
+    const generation = this.generation;
 
     try {
       const data = await this.fetchFromDatabase();
       
       // Cache the result
-      this.cache.data = data;
-      this.cache.timestamp = Date.now();
+      if (generation === this.generation) {
+        this.cache.data = data;
+        this.cache.timestamp = Date.now();
+      }
       
       return data;
       
@@ -43,7 +49,7 @@ class StartSequenceReport {
       throw error;
       
     } finally {
-      this.isLoading = false;
+      if (generation === this.generation) this.isLoading = false;
     }
   }
 
@@ -170,8 +176,10 @@ class StartSequenceReport {
    * Clear cache (useful after user actions)
    */
   clearCache() {
+    this.generation += 1;
     this.cache.data = null;
     this.cache.timestamp = null;
+    this.isLoading = false;
   }
 }
 
@@ -505,6 +513,8 @@ class StartSequenceFormatter {
 
 // Create global instance
 window.StartSequenceReport = new StartSequenceReport();
+// The cached report belongs to one member: sign-out drops it.
+window.addEventListener('user-logged-out', () => window.StartSequenceReport.clearCache());
 window.StartSequenceFormatter = StartSequenceFormatter;
 
 // ================================================================

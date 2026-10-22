@@ -27,8 +27,18 @@ let _briefEnginePromise = null;
 let _lastDailyBrief = null;
 let _conciergeSaved = false;
 let _conciergeDismissed = new Set();
-let _conciergePendingIds = new Set();
-let _conciergePendingLoadedFor = null;
+let _conciergeRelatedIds = new Set();
+let _conciergeRelatedLoadedFor = null;
+// Bumped on sign-out: a brief or Reflection render still running for the
+// previous member writes nothing.
+let _accountGeneration = 0;
+let _reflectionRenderId = 0;
+
+// A brief is shown only to the member it was generated for.
+function _briefIsCurrent(brief) {
+  const memberId = window.currentUserProfile?.id;
+  return !!brief && memberId != null && String(brief.user?.community_id) === String(memberId);
+}
 
 function _conciergeStorageKey(profile) {
   const id = profile?.id || profile?.user_id || window.currentUserProfile?.id || 'anonymous';
@@ -46,38 +56,38 @@ function _loadConciergeState(profile) {
   } catch (_) { /* local storage is optional */ }
 }
 
-// One Move must never suggest someone who already has an outbound request
-// waiting. Keep this state scoped to the current community profile and reuse
-// it for the Daily Brief and the desktop Reflection card so the two surfaces
-// cannot disagree.
-async function _loadConciergePendingConnections(profile) {
+// One Move is a new introduction: never someone with a request waiting in
+// either direction or an existing connection. Keep this state scoped to the
+// current community profile and reuse it for the Daily Brief and the desktop
+// Reflection card so the two surfaces cannot disagree.
+async function _loadConciergeRelatedConnections(profile) {
   const communityId = profile?.id || profile?.community_id;
   const client = window.supabase;
   if (!client || !communityId) {
-    _conciergePendingIds = new Set();
-    _conciergePendingLoadedFor = null;
-    return _conciergePendingIds;
+    _conciergeRelatedIds = new Set();
+    _conciergeRelatedLoadedFor = null;
+    return _conciergeRelatedIds;
   }
-  if (_conciergePendingLoadedFor === String(communityId)) return _conciergePendingIds;
+  if (_conciergeRelatedLoadedFor === String(communityId)) return _conciergeRelatedIds;
   try {
     const { data, error } = await client
       .from('connections')
       .select('from_user_id, to_user_id')
-      .eq('status', 'pending')
+      .in('status', ['pending', 'accepted'])
       .or(`from_user_id.eq.${communityId},to_user_id.eq.${communityId}`);
     if (error) throw error;
-    _conciergePendingIds = new Set((data || [])
-      .filter(row => String(row.from_user_id) === String(communityId))
-      .map(row => String(row.to_user_id)));
-    _conciergePendingLoadedFor = String(communityId);
+    _conciergeRelatedIds = new Set((data || [])
+      .map(row => String(String(row.from_user_id) === String(communityId) ? row.to_user_id : row.from_user_id)));
+    _conciergeRelatedLoadedFor = String(communityId);
   } catch (error) {
     // Suggestions remain available if the optional status check cannot load;
-    // the send action still performs its own authoritative duplicate check.
-    _conciergePendingIds = new Set();
-    _conciergePendingLoadedFor = String(communityId);
-    console.info('[NetworkReflection] Pending connection filter unavailable:', error?.message || error);
+    // the brief already leaves these people out, and the send action performs
+    // its own authoritative duplicate check.
+    _conciergeRelatedIds = new Set();
+    _conciergeRelatedLoadedFor = String(communityId);
+    console.info('[NetworkReflection] Connection status filter unavailable:', error?.message || error);
   }
-  return _conciergePendingIds;
+  return _conciergeRelatedIds;
 }
 
 function _saveConciergeState(profile) {
@@ -95,7 +105,10 @@ function _conciergeCandidates(brief) {
     ...(brief?.sections?.opportunities_for_you || []).map(item => ({ item, type: 'opportunity', priority: 2 })),
     ...(brief?.sections?.signals_moving || []).map(item => ({ item, type: null, priority: 1 })),
   ];
-  return sections.map(({ item, type, priority }) => {
+  return sections
+    // People the member already knows are never offered as an introduction.
+    .filter(({ item, type }) => !(type === 'person' && item.relationship))
+    .map(({ item, type, priority }) => {
       const refs = item.primary_refs || [];
       const ref = type
         ? refs.find(value => String(value?.nodeType || '').toLowerCase() === type)
@@ -116,10 +129,12 @@ function _conciergeCandidates(brief) {
 }
 
 function _getConciergeCandidate(brief, profile) {
+  if (!_briefIsCurrent(brief)) return null;
   _loadConciergeState(profile);
+  const selfId = String(profile?.id ?? '');
   return _conciergeCandidates(brief).find(item => (
     !_conciergeDismissed.has(item.id)
-    && (item.type !== 'person' || !_conciergePendingIds.has(String(item.entityId)))
+    && (item.type !== 'person' || (item.entityId !== selfId && !_conciergeRelatedIds.has(String(item.entityId))))
   )) || null;
 }
 
@@ -129,7 +144,7 @@ function _getConciergeCandidate(brief, profile) {
  */
 async function _loadBriefEngine() {
   if (!_briefEnginePromise) {
-    const url = _SCRIPT_BASE + 'intelligence/daily-brief-engine.js?v=synapse-retention-20260818d';
+    const url = _SCRIPT_BASE + 'intelligence/daily-brief-engine.js?v=home-trust-20261022';
     _briefEnginePromise = import(url).catch(err => {
       _briefEnginePromise = null;   // allow retry
       throw err;
@@ -714,6 +729,12 @@ class StartDailyDigest {
   async _generateAndRenderBrief(rootOverride) {
     const root = rootOverride || document.getElementById('ie-brief-root');
     if (!root) return;
+    // Only the latest render into this element, for the member still signed
+    // in, may write to it.
+    const renderId = (root.__briefRenderId || 0) + 1;
+    root.__briefRenderId = renderId;
+    const account = _accountGeneration;
+    const stale = () => root.__briefRenderId !== renderId || account !== _accountGeneration;
 
     // Loading indicator
     root.textContent = '';
@@ -724,6 +745,7 @@ class StartDailyDigest {
 
     try {
       const { generateDailyBrief } = await _loadBriefEngine();
+      if (stale()) return;
 
       // Get auth user — prefer event detail, fall back to supabase.auth.getUser()
       var uid = null;
@@ -733,6 +755,7 @@ class StartDailyDigest {
           uid = authRes && authRes.data && authRes.data.user && authRes.data.user.id || null;
         } catch (_) { /* supabase not ready */ }
       }
+      if (stale()) return;
 
       if (!uid) {
         root.textContent = '';
@@ -747,6 +770,7 @@ class StartDailyDigest {
       try {
         brief = await generateDailyBrief({ userAuthId: uid, debug: false });
       } catch (engineErr) {
+        if (stale()) return;
         _lastDailyBrief = null;
         root.textContent = '';
         const el = document.createElement('div');
@@ -762,14 +786,22 @@ class StartDailyDigest {
         return;
       }
 
+      if (stale()) return;
+      if (!_briefIsCurrent(brief)) {
+        // Not for the member now signed in: show nothing rather than theirs.
+        root.textContent = '';
+        return;
+      }
       _lastDailyBrief = brief;
-      await _loadConciergePendingConnections(window.currentUserProfile);
+      await _loadConciergeRelatedConnections(window.currentUserProfile);
+      if (stale()) return;
       const concierge = _getConciergeCandidate(brief, window.currentUserProfile);
       root.textContent = '';
       const renderedBrief = renderDailyBriefBlock(brief, concierge?.id || null);
       if (renderedBrief) root.appendChild(renderedBrief);
 
     } catch (err) {
+      if (stale()) return;
       _lastDailyBrief = null;
       console.warn('[DailyBrief] Unexpected error:', err);
       root.textContent = '';
@@ -1318,28 +1350,24 @@ async function _renderReflectionNetworkSummary(data) {
   root.replaceChildren(...[grid, growthEl].filter(Boolean));
 }
 
-// Attention rows the reader has already acted on this visit.  Keyed by each
-// row's own `key` (not its handler -- inbound and outbound message rows share
-// openMessaging) so the "start here" focus can move on to the next thing
+// Attention rows the reader has already acted on this visit, keyed by each
+// row's own `key`, so the "start here" focus can move on to the next thing
 // instead of pinning the same row forever.  Reset on page reload; a row also
 // just disappears once fresh data drops its count to 0.
 const _clearedAttention = new Set();
 let _lastReflectionData = null;
 
-// Every row is a plain sentence about what needs the reader next, tagged with
-// a `direction` -- the distinction people miss when the rows all look alike:
-//   inbound     -> someone is waiting on a reply or a decision from you now
-//   outbound    -> you already did your part and are waiting to hear back
-//   opportunity -> nobody is waiting, but there's an opening worth acting on
-// Colour and ordering follow from `direction` (inbound = warm red, first;
-// opportunities sit last so a real person waiting always outranks them).
-function _reflectionAttentionActions(immediate, opportunities) {
+// "Needs attention" is only what someone is waiting on the reader for: a
+// reply, a request to connect, an offer to review. What the reader sent and
+// is waiting to hear back on is not their work to do, so it is not listed
+// (Inbox still shows those conversations); projects matching their skills are
+// an opening, shown calmly under Moves.
+function _reflectionAttentionActions(immediate) {
   const countOf = value => Number(value?.count ?? value ?? 0);
   return [
     {
       key: 'pending_requests',
       count: countOf(immediate.pending_requests),
-      direction: 'inbound',
       message: n => `${n} ${n === 1 ? 'person wants' : 'people want'} to connect with you`,
       action: 'See who',
       handler: 'openConnectionRequests',
@@ -1347,7 +1375,6 @@ function _reflectionAttentionActions(immediate, opportunities) {
     {
       key: 'unread_messages',
       count: countOf(immediate.unread_messages),
-      direction: 'inbound',
       message: n => `${n === 1 ? 'Someone is' : `${n} people are`} waiting on your reply`,
       action: 'Reply',
       handler: 'openMessaging',
@@ -1355,34 +1382,9 @@ function _reflectionAttentionActions(immediate, opportunities) {
     {
       key: 'bids_to_review',
       count: countOf(immediate.bids_to_review),
-      direction: 'inbound',
       message: n => `${n} ${n === 1 ? 'person offered' : 'people offered'} to help on your projects`,
       action: 'Review offers',
       handler: 'openProjectBids',
-    },
-    {
-      key: 'messages_awaiting_reply',
-      count: countOf(immediate.messages_awaiting_reply),
-      direction: 'outbound',
-      message: n => `You're waiting to hear back on ${n} ${n === 1 ? 'message' : 'messages'} you sent`,
-      action: 'Open messages',
-      handler: 'openMessaging',
-    },
-    {
-      key: 'pending_bids',
-      count: countOf(immediate.pending_bids),
-      direction: 'outbound',
-      message: n => `You're waiting to hear back on ${n} ${n === 1 ? 'offer' : 'offers'} you sent`,
-      action: 'Check status',
-      handler: 'openProjectBids',
-    },
-    {
-      key: 'skill_matched_projects',
-      count: countOf(opportunities?.skill_matched_projects),
-      direction: 'opportunity',
-      message: n => `${n} open ${n === 1 ? 'project matches' : 'projects match'} your skills`,
-      action: 'Take a look',
-      handler: 'openSkillMatchedProjects',
     },
   ].filter(item => item.count > 0);
 }
@@ -1393,77 +1395,35 @@ function _renderReflectionAttention(data) {
   if (!root) return;
   _lastReflectionData = data;
   root.textContent = '';
-  const immediate = data?.immediate_actions || {};
-  const actions = _reflectionAttentionActions(immediate, data?.opportunities || {});
+  const actions = _reflectionAttentionActions(data?.immediate_actions || {});
   if (!actions.length) {
     if (section) section.hidden = true;
     return;
   }
   if (section) section.hidden = false;
 
-  // Inbound (someone is waiting on you) before outbound (you're waiting on
-  // them) before opportunities (nobody waiting, just worth a look); within
-  // that, rows already acted on this visit sink to the bottom so the next
+  // Rows already acted on this visit sink to the bottom so the next
   // unactioned row reads as the focus.
-  const directionRank = { inbound: 0, outbound: 1 };
-  const rankOf = direction => direction === 'opportunity' ? 2 : (directionRank[direction] ?? 9);
-  actions.sort((a, b) =>
-    (Number(_clearedAttention.has(a.key)) - Number(_clearedAttention.has(b.key)))
-    || rankOf(a.direction) - rankOf(b.direction));
-
-  // The first row the reader has not acted on yet is the one to "start
-  // here" -- message, offer to review, or opportunity alike; acting on it
-  // hands the focus to whatever comes next.
+  actions.sort((a, b) => Number(_clearedAttention.has(a.key)) - Number(_clearedAttention.has(b.key)));
   const focus = actions.find(item => !_clearedAttention.has(item.key)) || null;
 
   const lead = document.createElement('p');
   lead.className = 'network-reflection-attention-lead';
-  if (!focus) {
-    lead.textContent = "You've worked through everything here. Nice.";
-  } else if (focus.direction === 'inbound') {
-    lead.textContent = 'Start with the people waiting on you; the rest can hold.';
-  } else if (focus.direction === 'opportunity') {
-    lead.textContent = "Nobody's waiting on you — here's an opening worth a look.";
-  } else {
-    lead.textContent = 'Nothing urgent — just a few threads to follow up on.';
-  }
+  lead.textContent = focus
+    ? 'Start with the people waiting on you.'
+    : "You've worked through everything here. Nice.";
   root.appendChild(lead);
 
-  const groups = [
-    { direction: 'inbound', title: 'Waiting on your reply' },
-    { direction: 'outbound', title: "You're waiting to hear back" },
-    { direction: 'opportunity', title: 'Worth a look' },
-  ].filter(group => actions.some(item => item.direction === group.direction));
-  const showTitles = groups.length > 1;
-
-  groups.forEach(group => {
-    const groupEl = document.createElement('div');
-    groupEl.className = 'network-reflection-attention-group';
-    if (showTitles) {
-      const title = document.createElement('p');
-      title.className = 'network-reflection-attention-group-title';
-      title.textContent = group.title;
-      groupEl.appendChild(title);
-    }
-    const list = document.createElement('div');
-    list.className = 'network-reflection-attention-list';
-    actions
-      .filter(item => item.direction === group.direction)
-      .forEach(item => list.appendChild(_buildAttentionRow(item, item === focus)));
-    groupEl.appendChild(list);
-    root.appendChild(groupEl);
-  });
+  const list = document.createElement('div');
+  list.className = 'network-reflection-attention-list';
+  actions.forEach(item => list.appendChild(_buildAttentionRow(item, item === focus)));
+  root.appendChild(list);
 }
 
 function _buildAttentionRow(item, isFocus) {
-  // inbound = a person waiting on you now (red), outbound = a follow-up soon
-  // (amber); opportunities are the calmer "when you have a minute" tier (blue)
-  // so they read as distinct from the two waiting states.
-  const urgency = item.direction === 'inbound' ? 'now' : 'soon';
-  const tone = item.direction === 'opportunity' ? 'later' : urgency;
   const done = _clearedAttention.has(item.key);
   const row = document.createElement('div');
-  row.className = `network-reflection-attention-row network-reflection-attention-row--${tone}`;
+  row.className = 'network-reflection-attention-row network-reflection-attention-row--now';
   if (isFocus) row.classList.add('network-reflection-attention-row--focus');
   if (done) row.classList.add('network-reflection-attention-row--done');
 
@@ -1509,7 +1469,6 @@ function _isAttentionHandler(handler) {
     'openConnectionRequests',
     'openMessaging',
     'openProjectBids',
-    'openSkillMatchedProjects',
   ]).has(handler);
 }
 
@@ -1522,7 +1481,8 @@ function _renderReflectionNextMoves(data) {
   const insights = window.StartSequenceFormatter?.generateInsights?.(data) || [];
   const actionable = insights
     .filter(item => item?.action && item?.handler)
-    .filter(item => !_isGenericReflectionNavigation(item.action))
+    // Projects matching the member's skills are personal, not generic browsing.
+    .filter(item => item.handler === 'openSkillMatchedProjects' || !_isGenericReflectionNavigation(item.action))
     .filter(item => !_isAttentionHandler(item.handler))
     .slice(0, 3);
   if (!actionable.length) {
@@ -1639,10 +1599,13 @@ async function _recordReflectionWatermark(profile) {
   }
 }
 
-async function _renderReflectionSupportContent() {
+async function _renderReflectionSupportContent(renderId = _reflectionRenderId) {
+  const account = _accountGeneration;
+  const stale = () => renderId !== _reflectionRenderId || account !== _accountGeneration;
   const focus = document.getElementById('network-reflection-focus');
   if (focus) {
-    await _loadConciergePendingConnections(window.currentUserProfile);
+    await _loadConciergeRelatedConnections(window.currentUserProfile);
+    if (stale()) return;
     const concierge = _getConciergeCandidate(_lastDailyBrief, window.currentUserProfile);
     const focusTitle = focus.closest('.network-reflection-section')?.querySelector('h2');
     if (concierge) {
@@ -1650,11 +1613,17 @@ async function _renderReflectionSupportContent() {
       _renderCollaborationConcierge(focus, concierge);
     } else if (window.MentorGuide?.renderFocusInto) {
       if (focusTitle) focusTitle.textContent = 'Start here';
+      // Rendered off the page, so a render for a member who has since signed
+      // out never lands.
+      const card = document.createElement('div');
       try {
-        await window.MentorGuide.renderFocusInto(focus);
+        await window.MentorGuide.renderFocusInto(card);
       } catch (_) {
-        focus.textContent = '';
+        card.textContent = '';
       }
+      if (stale()) return;
+      if (card.className) focus.className = card.className;
+      focus.replaceChildren(...card.childNodes);
     } else {
       if (focusTitle) focusTitle.textContent = 'Start here';
       focus.textContent = '';
@@ -1665,11 +1634,19 @@ async function _renderReflectionSupportContent() {
 
   if (typeof window.getStartSequenceData !== 'function') return;
   try {
-    const data = await window.getStartSequenceData(false);
+    let data = await window.getStartSequenceData(false);
+    if (stale()) return;
+    // A report cached for another member is fetched again for this one.
+    const memberId = window.currentUserProfile?.id;
+    if (data?.profile?.id && memberId != null && String(data.profile.id) !== String(memberId)) {
+      data = await window.getStartSequenceData(true);
+      if (stale()) return;
+    }
     _renderReflectionAttention(data);
     await _renderReflectionNetworkSummary(data);
     _renderReflectionNextMoves(data);
   } catch (error) {
+    if (stale()) return;
     console.warn('[NetworkReflection] Summary data unavailable:', error?.message || error);
     const summary = document.getElementById('network-reflection-summary');
     if (summary && !summary.textContent.trim()) {
@@ -1742,7 +1719,7 @@ function _renderCollaborationConcierge(root, candidate) {
       ? await window.CollaborationConcierge.sendInvite(candidate.entityId, candidate.name, candidate.reason)
       : await window.sendConnectionRequest(candidate.entityId, candidate.name, 'collaborator');
     if (result?.success) {
-      _conciergePendingIds.add(String(candidate.entityId));
+      _conciergeRelatedIds.add(String(candidate.entityId));
       _conciergeSaved = true;
       _saveConciergeState(window.currentUserProfile);
       invite.textContent = 'Request sent';
@@ -1789,6 +1766,7 @@ function _renderCollaborationConcierge(root, candidate) {
 // Reflection rail. Entity panels layer over this surface and reveal it again
 // when closed; no second insight state is created.
 window.StartDailyDigest.renderNetworkReflection = function (profile) {
+  const renderId = ++_reflectionRenderId;
   const root = document.getElementById('network-reflection-brief');
   const briefPromise = root
     ? window.StartDailyDigest._generateAndRenderBrief(root)
@@ -1802,7 +1780,8 @@ window.StartDailyDigest.renderNetworkReflection = function (profile) {
       });
     });
   }
-  return briefPromise.then(() => _renderReflectionSupportContent()).then(result => {
+  return briefPromise.then(() => _renderReflectionSupportContent(renderId)).then(result => {
+    if (renderId !== _reflectionRenderId) return result;
     _recordReflectionWatermark(profile);
     return result;
   });
@@ -1810,6 +1789,28 @@ window.StartDailyDigest.renderNetworkReflection = function (profile) {
 
 window.addEventListener('profile-loaded', function (event) {
   window.StartDailyDigest.renderNetworkReflection(event?.detail?.profile);
+});
+
+// Sign-out: nothing of the previous member's brief, suggestions or attention
+// stays in memory or on the page, and renders still running for them stop.
+window.addEventListener('user-logged-out', function () {
+  _accountGeneration += 1;
+  _reflectionRenderId += 1;
+  _lastDailyBrief = null;
+  _lastReflectionData = null;
+  _clearedAttention.clear();
+  _conciergeSaved = false;
+  _conciergeDismissed = new Set();
+  _conciergeRelatedIds = new Set();
+  _conciergeRelatedLoadedFor = null;
+  ['network-reflection-brief', 'ie-brief-root', 'network-reflection-focus', 'network-reflection-attention',
+    'network-reflection-summary', 'network-reflection-next-moves'].forEach(function (id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = '';
+    const section = el.closest?.('.network-reflection-section');
+    if (section && id !== 'network-reflection-brief' && id !== 'network-reflection-summary') section.hidden = true;
+  });
 });
 
 window.addEventListener('load', function () {

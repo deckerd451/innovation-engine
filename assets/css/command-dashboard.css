@@ -1335,6 +1335,7 @@ body.reflection-resizing #network-reflection { transition:none; }
 }
 
 .cd-identity-name {
+  margin: 0;
   font-size: 0.88rem;
   font-weight: 700;
   color: var(--cd-text);

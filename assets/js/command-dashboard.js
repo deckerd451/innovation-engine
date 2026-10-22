@@ -92,7 +92,7 @@ window.CommandDashboard = (() => {
       return Promise.resolve({ generateDailyBrief: window.generateDailyBrief });
     }
     if (!_briefEnginePromise) {
-      const url = _CD_SCRIPT_BASE + 'intelligence/daily-brief-engine.js?v=synapse-retention-20260818d';
+      const url = _CD_SCRIPT_BASE + 'intelligence/daily-brief-engine.js?v=home-trust-20261022';
       _briefEnginePromise = import(url).catch(err => {
         _briefEnginePromise = null;
         throw err;
@@ -264,6 +264,10 @@ window.CommandDashboard = (() => {
      IDENTITY LAYER
      ================================================================ */
 
+  function _displayName(profile) {
+    return String(profile?.name || profile?.full_name || profile?.username || '').trim();
+  }
+
   function _renderIdentity(profile) {
     if (!profile) return;
     _profile = profile;
@@ -283,7 +287,7 @@ window.CommandDashboard = (() => {
       img.style.display = '';
       if (initials) initials.style.display = 'none';
     } else if (initials) {
-      const name  = profile.full_name || profile.username || '';
+      const name  = _displayName(profile);
       const parts = name.trim().split(/\s+/);
       const abbr  = parts.length >= 2
         ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
@@ -292,9 +296,9 @@ window.CommandDashboard = (() => {
       if (img) img.style.display = 'none';
     }
 
-    // Name
+    // Home's heading greets the member by name (You is the profile tab).
     const nameEl = $id('cd-user-name');
-    if (nameEl) nameEl.textContent = 'You';
+    if (nameEl) nameEl.textContent = _displayName(profile) ? `Welcome, ${_displayName(profile)}` : 'Welcome';
 
     // Level badge with title
     const levelEl = $id('cd-level-badge');
