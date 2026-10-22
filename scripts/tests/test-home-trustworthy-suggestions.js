@@ -315,6 +315,8 @@ function deferredEngine(page) {
       person('bo', 'Bo', { score: 7 }),
     ]);
     page.__brief.sections.opportunities_for_you = [item('opportunity', 'o1', 'Mentor founders', 6), item('opportunity', 'o2', 'Judge a pitch', 5), item('opportunity', 'o3', 'Host a table', 4)];
+    // The same opportunity as a recent signal too: it is suggested once.
+    page.__brief.sections.signals_moving = [item('opportunity', 'o1', 'Mentor founders', 5.5)];
     vm.runInContext(`_lastDailyBrief = window.__brief`, page);
     await vm.runInContext(`_loadConciergeRelatedConnections(window.currentUserProfile)`, page);
     const first = page.StartDailyDigest.homeSuggestions();

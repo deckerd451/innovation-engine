@@ -132,7 +132,10 @@ function _conciergeCandidates(brief) {
       } : null;
     })
     .filter(Boolean)
-    .sort((a, b) => (b.score - a.score) || (b.priority - a.priority));
+    .sort((a, b) => (b.score - a.score) || (b.priority - a.priority))
+    // One suggestion per thing: an opportunity can come both "for you" and as
+    // a recent signal; the strongest reason is kept.
+    .filter((item, index, all) => all.findIndex(other => other.id === item.id) === index);
 }
 
 function _getConciergeCandidate(brief, profile) {
