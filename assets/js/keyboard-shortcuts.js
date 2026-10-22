@@ -34,10 +34,18 @@ function focusSearch() {
   if (search) search.focus();
 }
 
+// Inbox and You ([data-app-screen]) are destinations, not modals: Escape
+// leaves them (and New Message inside Inbox, which handles its own Escape)
+// showing. A .modal is shown by its .active class, so it closes by losing
+// it; an inline display:none would keep it hidden for good (the Log out
+// confirmation, for one, could then never show again).
 function closeModals() {
   const modals = document.querySelectorAll('.modal, .onboarding-modal, [id$="-modal"]');
   modals.forEach(modal => {
-    if (modal.style.display !== 'none') {
+    if (modal.closest('[data-app-screen]')) return;
+    if (modal.classList.contains('modal')) {
+      modal.classList.remove('active');
+    } else if (modal.style.display !== 'none') {
       modal.style.display = 'none';
     }
   });

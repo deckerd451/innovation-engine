@@ -6,7 +6,7 @@
 // Serves this repository locally and opens a harness page in headless Google
 // Chrome built from the real index.html: every stylesheet and inline style it
 // loads, the shared confirmation dialog, window.dsConfirm, window.doLogout and
-// the mobile My Space screen (mobile-you.js). Supabase is a stub and
+// You, the profile (profile.js), where Log out lives. Supabase is a stub and
 // window.handleLogout is a recorder, so nothing leaves the machine.
 //
 // Clicks are real mouse events at screen coordinates (CDP Input), so a dialog
@@ -39,7 +39,7 @@ const stylesheets = [...index.matchAll(/<link\s+rel="stylesheet"\s+href="([^"]+)
 const inlineStyles = [...index.matchAll(/<style[^>]*>[\s\S]*?<\/style>/g)].map(m => m[0]).join('\n');
 const confirmDialog = extract(/<!-- Reusable confirmation dialog[\s\S]*?<\/script>/, 'the confirmation dialog and window.dsConfirm');
 const doLogout = extract(/<script>\s*window\.doLogout = [\s\S]*?<\/script>/, 'window.doLogout');
-const youScreen = extract(/<main id="mobile-you-screen"[\s\S]*?<\/main>/, 'the My Space screen');
+const youScreen = extract(/<div class="modal" id="profile-modal"[\s\S]*?<div id="modal-profile-content"><\/div>\s*<\/div>\s*<\/div>/, 'You (the profile)');
 // The profile side panel's container styles, taken from node-panel.js.
 const panelStyle = (nodePanel.match(/panelElement\.id = 'node-side-panel';\s*panelElement\.style\.cssText = `([\s\S]*?)`;/) || [])[1];
 if (!panelStyle) throw new Error('node-panel.js: could not find the side panel styles');
@@ -67,7 +67,7 @@ ${inlineStyles}
     } });
     return q;
   };
-  window.supabase = { from: rows, auth: { signOut: async () => ({ error: null }) } };
+  window.supabase = { from: rows, rpc: async () => ({ data: null, error: null }), auth: { signOut: async () => ({ error: null }) } };
   window.currentUserProfile = { id: '10000000-0000-4000-8000-0000000000ff', name: 'Tester' };
 </script>
 ${confirmDialog}
@@ -80,7 +80,7 @@ ${youScreen}
     </div>
   </div>
 </template>
-<script src="/assets/js/mobile-you.js"></script>
+<script src="/profile.js"></script>
 </body>
 </html>`;
 
@@ -165,7 +165,7 @@ async function load(width, height, mobile) {
   await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile });
   await send('Emulation.setTouchEmulationEnabled', { enabled: mobile });
   await send('Page.navigate', { url: `${base}/__logout-harness.html` });
-  if (!await waitFor(`document.readyState === 'complete' && !!window.MobileYou && !!window.doLogout`, 'harness')) throw new Error('harness did not load');
+  if (!await waitFor(`document.readyState === 'complete' && !!window.openProfileModal && !!window.doLogout`, 'harness')) throw new Error('harness did not load');
   await evaluate(`localStorage.removeItem('__logoutCalls'); true`);
 }
 const calls = () => evaluate(`Number(localStorage.getItem('__logoutCalls') || 0)`);
@@ -192,21 +192,15 @@ try {
   await send('Page.enable');
   await send('Runtime.enable');
 
-  const openMySpace = async () => {
-    await evaluate(`(async () => {
-      document.body.classList.add('mobile-surface-you');
-      await window.MobileYou.show();
-      const account = [...document.querySelectorAll('#mobile-you-content details')].find(d => d.querySelector('summary')?.textContent === 'Account');
-      if (account) account.open = true;
-      return true;
-    })()`);
-    await waitFor(`!!document.querySelector('[data-profile-action="logout"]')`, 'My Space Account section');
+  const openYou = async () => {
+    await evaluate(`window.openProfileModal(); true`);
+    await waitFor(`!!document.querySelector('#profile-modal.active #btn-profile-logout')`, 'You');
   };
   const openProfilePanel = () => evaluate(`document.body.append(document.getElementById('node-side-panel-template').content.cloneNode(true)); true`);
 
-  // 1. Mobile My Space → Account → Log out → "Log out" signs out and reloads.
+  // 1. Mobile You → Log out → "Log out" signs out and reloads.
   await load(390, 844, true);
-  if (await scenario('Mobile: My Space → Account → Log out → confirm', openMySpace, '[data-profile-action="logout"]')) {
+  if (await scenario('Mobile: You → Log out → confirm', openYou, '#btn-profile-logout')) {
     await evaluate(`window.__marker = 1`);
     await clickAt('#ds-confirm-ok');
     const signedOut = await waitFor(`Number(localStorage.getItem('__logoutCalls') || 0) === 1`, 'sign-out');
@@ -216,7 +210,7 @@ try {
 
   // 2. Same button, "Stay signed in" keeps the session.
   await load(390, 844, true);
-  if (await scenario('Mobile: My Space → Account → Log out → cancel', openMySpace, '[data-profile-action="logout"]')) {
+  if (await scenario('Mobile: You → Log out → cancel', openYou, '#btn-profile-logout')) {
     await clickAt('#ds-confirm-cancel');
     check(await waitFor(`!document.getElementById('ds-confirm-modal').classList.contains('active')`, 'close'), 'cancelling closes the dialog');
     await sleep(300);

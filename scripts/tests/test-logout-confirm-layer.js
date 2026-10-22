@@ -33,9 +33,11 @@ for (const [name, z] of Object.entries(layers)) {
 assert.match(index, /assets\/css\/design-system\.css\?v=logout-confirm-20261015/);
 
 // The Log out buttons that use the dialog.
-assert.match(read('assets/js/mobile-you.js'), /\[data-profile-action="logout"\]'\)\?\.addEventListener\('click', \(\) => window\.doLogout\?\.\(\)\)/);
+// You (the profile) holds Log out at every width; Home has none.
+assert.match(read('profile.js'), /\$\("btn-profile-logout"\)\?\.addEventListener\("click", \(\) => \{\s*if \(window\.doLogout\) window\.doLogout\(\);/);
 assert.match(nodePanel, /id="profile-logout-btn"[^>]*onclick="window\.doLogout\?\.\(\);"/);
-assert.match(read('assets/js/command-dashboard.js'), /\$id\('cd-logout-btn'\)[\s\S]{0,200}window\.doLogout\(\)/);
+assert.doesNotMatch(read('assets/js/mobile-you.js'), /data-profile-action="logout"/);
+assert.doesNotMatch(read('index.html'), /id="cd-logout-btn"/);
 // doLogout confirms, then signs out of Buildspace (Supabase) only.
 assert.match(index, /window\.doLogout = async function doLogout\(\)[\s\S]*?window\.dsConfirm\(\{[\s\S]*?title: "Log out\?"[\s\S]*?window\.handleLogout\(\)/);
 assert.match(read('auth.js'), /window\.handleLogout = async function handleLogout\(\)[\s\S]*?window\.supabase\.auth\.signOut\(\)/);

@@ -1,5 +1,6 @@
-// Persistent mobile You destination. It reuses the canonical profile modal
-// for editing/settings and the existing project/task records for summaries.
+// The mobile Home screen (named "You" before the shared navigation; the You
+// destination is the profile, profile.js). It summarises the existing
+// project/task records.
 (function () {
   'use strict';
   if (window.MobileYou) return;
@@ -99,11 +100,8 @@
       ${next}
       <section class="mobile-you-card mobile-you-goal" aria-labelledby="mobile-you-goal-title"><h2 id="mobile-you-goal-title">${task ? 'Something else to accomplish?' : 'What do you want to accomplish?'}</h2><p class="mobile-you-muted">Describe it in your own words. Buildspace prepares something you can use right away — no project needed first.</p><div id="mobile-you-goal-discovery"></div>${resume}</section>
       ${others.length ? `<details class="mobile-you-secondary"><summary>Your other open tasks (${others.length})</summary><div class="mobile-you-secondary-body">${others.map(item => `<button type="button" class="mobile-you-project" data-next-project="${esc(item.project_id)}" data-next-task="${esc(item.id)}"><strong>${esc(item.title)}</strong><span>${esc(item.project?.title || 'Project')}</span></button>`).join('')}</div></details>` : ''}
-      <details class="mobile-you-secondary"><summary>Your projects (${data.projects.length})</summary><div class="mobile-you-secondary-body">${projects || '<p class="mobile-you-muted">Projects you join or create will appear here.</p>'}${completedAttempts ? `<p class="mobile-you-muted">${completedAttempts} method result${completedAttempts === 1 ? '' : 's'} recorded.</p>` : ''}</div></details>
-      <details class="mobile-you-secondary"><summary>Account</summary><div class="mobile-you-secondary-body mobile-you-actions"><button type="button" class="mobile-you-secondary" data-profile-action="open">Edit profile</button><button type="button" class="mobile-you-secondary" data-profile-action="settings">Settings</button><button type="button" class="mobile-you-logout" data-profile-action="logout">Log out</button></div></details>`;
-    el.querySelectorAll('[data-profile-action="open"]').forEach(btn => btn.addEventListener('click', () => window.openProfileModal?.()));
-    el.querySelector('[data-profile-action="settings"]')?.addEventListener('click', () => window.SettingsModal?.open?.());
-    el.querySelector('[data-profile-action="logout"]')?.addEventListener('click', () => window.doLogout?.());
+      <details class="mobile-you-secondary"><summary>Your projects (${data.projects.length})</summary><div class="mobile-you-secondary-body">${projects || '<p class="mobile-you-muted">Projects you join or create will appear here.</p>'}${completedAttempts ? `<p class="mobile-you-muted">${completedAttempts} method result${completedAttempts === 1 ? '' : 's'} recorded.</p>` : ''}</div></details>`;
+    // Edit Profile, Settings and Log out are in You (profile.js).
     el.querySelector('[data-resume-objective]')?.addEventListener('click', () => window.MobileTaskAssistance?.openObjective?.(draft.objective));
     el.querySelectorAll('[data-next-project]').forEach(button => button.addEventListener('click', (event) => {
       const target = event.currentTarget;

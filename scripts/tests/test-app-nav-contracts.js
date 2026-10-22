@@ -55,6 +55,45 @@ for (const page of ['home', 'explore', 'network', "'event-mode'", 'suggestions',
 assert.match(appNav, /window\.MobileTaskAssistance\?\.close\?\.\(\)/);
 assert.match(appNav, /closeMessagesModal/);
 
+// Inbox and You are destinations: their open functions enter them (so every
+// entry point selects the tab), leaving hides them without clearing them,
+// and their close functions leave for the page underneath.
+const pane = read('assets/js/dashboardPane.js');
+const profile = read('profile.js');
+const messaging = read('assets/js/messaging.js');
+assert.match(appNav, /const SCREENS = \{ inbox: 'messages-modal', you: 'profile-modal' \};/);
+assert.match(appNav, /window\.AppNav = \{\s*go,\s*enter,\s*exit,/);
+assert.match(pane, /window\.openMessagesModal = async \(\) => \{\s*window\.AppNav\?\.enter\?\.\("inbox"\);/);
+assert.match(pane, /window\.hideMessagesModal = \(\) => \{\s*closeModal\("messages-modal"\);\s*document\.body\.classList\.remove\("messages-open"\);\s*\};/);
+assert.match(pane, /window\.closeMessagesModal = \(\) => \{\s*if \(window\.AppNav\?\.exit\) window\.AppNav\.exit\("inbox"\);/);
+assert.doesNotMatch(pane.slice(pane.indexOf('window.hideMessagesModal'), pane.indexOf('window.openProjectsModal')), /cleanup\(/, 'leaving Inbox keeps Messages');
+assert.match(profile, /window\.openProfileModal = function openProfileModal\(\) \{[\s\S]*?window\.AppNav\?\.enter\?\.\("you"\);[\s\S]*?if \(!editorOpen\(\)\) showProfileView\(\);/);
+assert.match(profile, /window\.closeProfileModal = function closeProfileModal\(\) \{\s*if \(window\.AppNav\?\.exit\) window\.AppNav\.exit\("you"\);/);
+assert.match(profile, /\$\("edit-cancel"\)\?\.addEventListener\("click", \(\) => showProfileView\(\)/, 'Cancel returns to the profile');
+assert.match(profile, /toast\("Profile updated successfully!"\);\s*showProfileView\(\);/, 'Save returns to the profile');
+for (const id of ['messages-modal" data-app-screen="inbox"', 'profile-modal" data-app-screen="you"']) assert.ok(index.includes(id), id);
+// The page underneath is out of reach while they show, and is given back as it was.
+assert.match(appNav, /const PAGE_CONTENT = \['main-content', 'mobile-you-screen', 'mobile-header-actions'\];/);
+assert.match(appNav, /if \(!\(id in pageInert\)\) pageInert\[id\] = el\.inert;/);
+// Beside the navigation, never over it; no X below 1024px; the bar steps
+// aside only while typing on a touch screen.
+assert.match(base, /body\.app-nav-visible #profile-modal\.modal \{\s*top: 0 !important;[\s\S]*?bottom: var\(--mobile-tab-bar-height\) !important;/);
+assert.match(base, /body\.app-nav-visible #messages-modal > \.modal-content > \.modal-close,\s*body\.app-nav-visible #profile-modal > \.modal-content > \.modal-close \{ display: none !important; \}/);
+assert.match(base, /@media \(max-width: 1023px\) and \(pointer: coarse\) \{\s*body\.app-nav-typing #app-nav \{ display: none !important; \}/);
+assert.match(base, /body\.app-nav-visible #profile-modal \.swipe-handle \{ display: none !important; \}/, 'no swipe-to-close on the You page');
+assert.match(base, /@media \(min-width: 1024px\) \{[\s\S]*?#profile-modal\.modal \{ left: var\(--app-nav-width\) !important; \}/);
+// Messages: kept while away; read only in view; discreet notices; cleared on sign-out.
+assert.match(messaging, /function isViewing\(\) \{\s*return !!document\.getElementById\("messages-modal"\)\?\.classList\.contains\("active"\) &&\s*document\.visibilityState !== "hidden";/);
+assert.match(messaging, /if \(isViewing\(\)\) \{\s*await markMessagesAsRead\(conversationId\);/);
+assert.match(messaging, /if \(isViewing\(\)\) \{\s*await markMessagesAsRead\(state\.activeConversation\.id\);/);
+assert.equal((messaging.match(/markMessagesAsRead\(/g) || []).length, 4, 'every read is guarded (definition, load, realtime, onShown)');
+assert.match(messaging, /function showIncomingToast\(senderName, convId\)/);
+assert.doesNotMatch(messaging.slice(messaging.indexOf('function showIncomingToast'), messaging.indexOf('// REALTIME')), /preview|content/, 'the notice never shows the message');
+assert.match(messaging, /function cleanup\(\) \{[\s\S]*?realtimeManager\.unsubscribe\("messaging"\)[\s\S]*?state\.drafts = \{\};[\s\S]*?container\.innerHTML = "";/);
+assert.match(profile, /window\.addEventListener\("user-logged-out", \(\) => \{[\s\S]*?window\.hideProfileModal\(\);[\s\S]*?content\.innerHTML = "";/);
+// Escape never closes or blanks them.
+assert.match(read('assets/js/keyboard-shortcuts.js'), /if \(modal\.closest\('\[data-app-screen\]'\)\) return;\s*if \(modal\.classList\.contains\('modal'\)\) \{\s*modal\.classList\.remove\('active'\);/);
+
 // History and deep links: the router never touches history or the URL.
 assert.doesNotMatch(appNav, /pushState|replaceState|location\.(hash|href|search)\s*=/);
 

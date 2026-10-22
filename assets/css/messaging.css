@@ -898,6 +898,18 @@
     min-width: 0;
     overflow-wrap: anywhere;
   }
+  /* The context (a project, say) takes its own line, so a long one cannot
+     squeeze the name to a letter per line and push the composer away. */
+  #messages-container .chat-header {
+    flex-wrap: wrap !important;
+    /* Very long text at large sizes scrolls inside the header rather than
+       pushing the composer off a short screen. */
+    max-height: 40%;
+    overflow-y: auto;
+    /* Back and the avatar stay at the top, beside the name. */
+    align-items: flex-start !important;
+  }
+  #messages-container .chat-context { flex: 1 1 100%; }
 
   /* Message list = scrollable area - THIS IS KEY */
   #messages-container .messages-area {

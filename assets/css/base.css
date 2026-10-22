@@ -818,6 +818,76 @@ body.profile-modal-open .side-panel {
   }
 }
 
+/* ============================================================
+   INBOX AND YOU (app-nav.js)
+   Messages (#messages-modal) and the profile (#profile-modal) are
+   destinations: they sit beside the navigation, never over it. Phones and
+   tablets show them full screen above the bottom bar, without a close
+   button (the bar is the way out); desktop keeps them as cards, with a
+   close button, beside the side bar. Temporary workflows on them (New
+   Message, Settings, Edit Profile's Cancel) keep their own controls.
+   ============================================================ */
+[data-app-screen] > .modal-content:focus { outline: none; }
+
+@media (max-width: 1023px) {
+  body.app-nav-visible #messages-modal.modal,
+  body.app-nav-visible #profile-modal.modal {
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: var(--mobile-tab-bar-height) !important;
+  }
+  body.app-nav-visible #messages-modal > .modal-content > .modal-close,
+  body.app-nav-visible #profile-modal > .modal-content > .modal-close { display: none !important; }
+  /* Nor the swipe-down-to-close handle (swipe-dismiss.js): You is a page
+     here, and the gesture starts only from the handle. */
+  body.app-nav-visible #profile-modal .swipe-handle { display: none !important; }
+
+  /* Messages: the composer and lists end at the bar, which keeps the
+     safe area below it. */
+  body.app-nav-visible #messages-modal .modal-content { height: 100% !important; }
+  body.app-nav-visible #messages-container .conversations-header,
+  body.app-nav-visible #messages-container .chat-header { padding-right: 1rem !important; }
+  body.app-nav-visible #messages-container .message-input-container { padding-bottom: 1.25rem !important; }
+
+  /* The profile: a page, not a card. Below Settings (z-index 10000), which
+     opens over it. */
+  body.app-nav-visible #profile-modal.modal {
+    padding: 0 !important;
+    background: linear-gradient(135deg, #0a0e27, #1a1a2e) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    z-index: 9000 !important;
+  }
+  body.app-nav-visible #profile-modal .modal-content {
+    width: 100% !important;
+    max-width: none !important;
+    height: 100% !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: env(safe-area-inset-top, 0px) 0 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+  }
+}
+
+/* While a text field in Inbox or You has focus on a touch screen, the
+   on-screen keyboard is up: the bar steps aside and the screen reaches the
+   bottom, so the composer sits on the keyboard as it did before. */
+@media (max-width: 1023px) and (pointer: coarse) {
+  body.app-nav-typing #app-nav { display: none !important; }
+  body.app-nav-visible.app-nav-typing #messages-modal.modal,
+  body.app-nav-visible.app-nav-typing #profile-modal.modal { bottom: 0 !important; }
+}
+
+@media (min-width: 1024px) {
+  /* Beside the side bar, which stays visible and usable. The profile stays
+     above entity panels and below Settings, which opens over it. */
+  body.app-nav-visible #messages-modal.modal,
+  body.app-nav-visible #profile-modal.modal { left: var(--app-nav-width) !important; }
+  body.app-nav-visible #profile-modal.modal { z-index: 9000 !important; }
+}
+
 @media (min-width: 1024px) {
   /* Side bar. Below modals and entity panels (z-index 200+), above the app
      content, which moves right to make room. */
