@@ -233,25 +233,28 @@
     part('quiet')?.querySelector('[data-home-action="share"]')?.addEventListener('click', () => window.openProfileModal?.());
   }
 
-  // A new "Waiting on you" row would push down whatever the member is typing
-  // in; it waits until they leave the field.
+  // A section appearing or growing above the field the member is typing in
+  // would push it down. Updates that arrive meanwhile (unread counts, the
+  // report, tasks, suggestions) wait until they leave the field.
   function typingInHome() {
     const el = document.activeElement;
     return !!host && host.contains(el) && /^(INPUT|TEXTAREA|SELECT)$/.test(el?.tagName || '');
   }
-  let attentionWaiting = false;
-  function paintAttentionCalmly() {
-    if (!typingInHome()) { paintAttention(); paintQuiet(); return; }
-    if (attentionWaiting) return;
-    attentionWaiting = true;
+  const waiting = new Set();
+  function calmly(paint) {
+    if (!typingInHome()) { paint(); paintQuiet(); return; }
+    const armed = waiting.size > 0;
+    waiting.add(paint);
+    if (armed) return;
     const target = host;
     target.addEventListener('focusout', function later() {
       window.setTimeout(() => {
         if (typingInHome()) return;
         target.removeEventListener('focusout', later);
-        if (!attentionWaiting || host !== target) return;
-        attentionWaiting = false;
-        paintAttention();
+        const paints = [...waiting];
+        waiting.clear();
+        if (host !== target) return;
+        paints.forEach(fn => fn());
         paintQuiet();
       }, 0);
     });
@@ -301,8 +304,7 @@
       console.warn('[Home] tasks unavailable:', error?.message || error);
       state.work = 'error';
     }
-    paintWork();
-    paintQuiet();
+    calmly(paintWork);
   }
 
   async function refreshAttention() {
@@ -312,10 +314,10 @@
       if (memberId !== state.memberId) return;
       state.attention = data || null;
     } catch (_) {
+      if (memberId !== state.memberId) return;
       state.attention = null;
     }
-    paintAttention();
-    paintQuiet();
+    calmly(paintAttention);
   }
 
   function clear() {
@@ -327,7 +329,7 @@
     state.attention = null;
     state.personId = null;
     state.unread = null;
-    attentionWaiting = false;
+    waiting.clear();
   }
 
   // Shows Home in the element for the current width (and empties the other,
@@ -364,10 +366,10 @@
   window.HomeView = { show, clear, focusGoal };
   window.HomeViewTesting = { taskScore, chooseNextTask, loadWork };
 
-  window.addEventListener('daily-brief-updated', () => { if (host) paintSuggestions(); });
+  window.addEventListener('daily-brief-updated', () => { if (host) calmly(paintSuggestions); });
   window.addEventListener('total-unread-messages-updated', (event) => {
     state.unread = Math.max(0, parseInt(event.detail?.count, 10) || 0);
-    if (host) paintAttentionCalmly();
+    if (host) calmly(paintAttention);
   });
   window.addEventListener('profile-loaded', () => { if (showing()) show(); });
   window.addEventListener('user-logged-out', clear);

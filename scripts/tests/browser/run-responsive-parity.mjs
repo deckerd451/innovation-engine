@@ -2241,6 +2241,33 @@ async function homeChecks(P) {
     check((await destination()) === 'explore', `${P}: goal help closes when navigating away`);
   });
 
+  // Codex review: the report (and tasks, suggestions) arriving late while the
+  // member types must not push the field down; it shows once they leave it.
+  await step(`${P}: updates that arrive while typing wait until the field is left`, async () => {
+    await evaluate(`(() => {
+      window.__realStartData = window.getStartSequenceData;
+      const gate = new Promise(resolve => { window.__releaseStartData = resolve; });
+      window.getStartSequenceData = async () => { await gate; return { has_profile: true, immediate_actions: { pending_requests: { count: 2 } } }; };
+      return true;
+    })()`);
+    await go('home');
+    if (await evaluate(`!document.querySelector('${root} [data-home="goal"]').open`)) await press(`${root} [data-home="goal"] > summary`, 'Have something in mind?');
+    await press('#mgd-goal-input', 'goal field');
+    await send('Input.insertText', { text: 'Start a robotics club' });
+    const fieldTop = () => evaluate(`Math.round(document.getElementById('mgd-goal-input').getBoundingClientRect().top)`);
+    const waitingText = () => evaluate(`(() => { const el = document.querySelector('${root} [data-home="attention"]'); return el && !el.hidden ? el.innerText : ''; })()`);
+    const before = await fieldTop();
+    await evaluate(`window.__releaseStartData(); window.dispatchEvent(new CustomEvent('project-task-updated')); window.dispatchEvent(new CustomEvent('daily-brief-updated')); true`);
+    await sleep(800);
+    const during = { top: await fieldTop(), waiting: await waitingText(), focused: await evaluate(`document.activeElement?.id === 'mgd-goal-input'`) };
+    check(during.top === before && !during.waiting && during.focused, `${P}: while typing, late updates do not move the field`, JSON.stringify({ before, during }));
+    await evaluate(`document.getElementById('mgd-goal-input').blur(); true`);
+    await sleep(400);
+    const after = await waitingText();
+    check(/2 people want to connect with you/.test(after), `${P}: after typing, "Waiting on you" shows what arrived`, after);
+    await evaluate(`window.getStartSequenceData = window.__realStartData; document.getElementById('mgd-goal-input').value = ''; true`);
+  });
+
   await step(`${P}: Home leads on to Explore`, async () => {
     await go('home');
     await press(`${root} .home-explore button`, 'Browse everyone in Explore');
