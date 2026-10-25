@@ -28,9 +28,32 @@ function _names(items, field = 'name', limit = 3) {
   return [...new Set((items || []).map(item => item?.[field]).filter(Boolean))].slice(0, limit);
 }
 
+// Terms that mean the same thing, so "HCD" and "Human-centered design" count
+// as a shared skill or interest. Deliberately small and explicit: only the
+// spellings listed here are treated as equal, nothing is inferred, and
+// related-but-different terms (UX and HCD, UI and UX) stay apart.
+const EQUIVALENT_TERMS = [
+  ['hcd', 'human-centered design', 'human centered design', 'human-centred design', 'human centred design'],
+  ['ux', 'ux design', 'user experience', 'user experience design'],
+  ['ui', 'ui design', 'user interface design'],
+  ['ai', 'artificial intelligence'],
+  ['ml', 'machine learning'],
+  ['js', 'javascript'],
+  ['civic tech', 'civic technology'],
+];
+const TERM_KEYS = new Map(EQUIVALENT_TERMS.flatMap(group => group.map(term => [term, group[0]])));
+const _termKey = term => TERM_KEYS.get(term) || term;
+
+// Shared terms, in the left side's own wording (the current member's).
 function _sharedTerms(left, right, limit = 3) {
-  const rightTerms = new Set(normalizeTerms(right));
-  return [...new Set(normalizeTerms(left).filter(term => rightTerms.has(term)))].slice(0, limit);
+  const rightKeys = new Set(normalizeTerms(right).map(_termKey));
+  const seen = new Set();
+  return normalizeTerms(left).filter(term => {
+    const key = _termKey(term);
+    if (!rightKeys.has(key) || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, limit);
 }
 
 function _displayTerms(terms) {
