@@ -2195,10 +2195,16 @@ async function homeChecks(P) {
   await step(`${P}: Home shows people, possibilities and work in order`, async () => {
     await go('home');
     // Give the member a skill in common with Riley (new), Dana (connected)
-    // and Jordan (request pending), then let the brief run again.
+    // and Jordan (request pending), then let the brief run again. Harbor
+    // Builders' opportunity is the member's own organization's, so it is not
+    // an invitation; one from elsewhere that matches their skills is.
     await evaluate(`(async () => {
       const skills = ['Python', 'Public speaking'];
-      window.supabase.__db.community.find(row => row.id === window.__fixtureProfile.id).skills = skills;
+      const db = window.supabase.__db;
+      if (!db.opportunities.some(row => row.id === '40000000-0000-4000-8000-0000000000a2')) {
+        db.opportunities.push({ id: '40000000-0000-4000-8000-0000000000a2', title: 'Python mentors for a coding club', description: 'Fixture opportunity from another organization', status: 'open', is_public: true, application_deadline: null, organization_id: null, created_at: '2026-09-03T00:00:00Z' });
+      }
+      db.community.find(row => row.id === window.__fixtureProfile.id).skills = skills;
       window.currentUserProfile.skills = skills;
       await window.StartDailyDigest.renderNetworkReflection(window.currentUserProfile);
       return true;
@@ -2207,6 +2213,9 @@ async function homeChecks(P) {
     const h = await homeLayout();
     check(/^Meet Riley \(fixture\)$/.test(h.meet), `${P}: Home suggests someone new to meet`, h.meet);
     check(!/Meet (Dana|Jordan|Sam|Test Member)/.test(h.text), `${P}: never the member, a connection or a pending request`, h.text.slice(0, 300));
+    const join = await evaluate(`document.querySelector('${root} [data-home="join"]')?.innerText || ''`);
+    check(/Python mentors for a coding club/.test(join) && !/Mentor first-time founders/.test(join),
+      `${P}: ways to join in never offer the member's own organization's opportunity`, join);
     const expected = order.filter(name => h.sections.includes(name));
     check(JSON.stringify(h.sections) === JSON.stringify(expected) && ['meet', 'join', 'work', 'goal'].every(name => h.sections.includes(name)),
       `${P}: sections in order: people and possibilities, then work and goal help`, JSON.stringify(h.sections));
@@ -2236,8 +2245,9 @@ async function homeChecks(P) {
   });
 
   await step(`${P}: a way to join in opens its details`, async () => {
-    await press(`${root} [data-join="0"]`, 'Take a look');
-    await waitFor(`${isOpen.panel} && /Mentor first-time founders/.test(document.getElementById('node-side-panel').innerText)`, 'opportunity panel', 6000);
+    const index = await evaluate(`[...document.querySelectorAll('${root} [data-home="join"] .home-item')].findIndex(row => /Python mentors for a coding club/.test(row.innerText))`);
+    await press(`${root} [data-join="${index}"]`, 'Take a look');
+    await waitFor(`${isOpen.panel} && /Python mentors for a coding club/.test(document.getElementById('node-side-panel').innerText)`, 'opportunity panel', 6000);
     check((await destination()) === 'home', `${P}: a way to join in opens its details over Home`);
     await closePanel();
   });
@@ -2298,8 +2308,10 @@ async function homeQuietChecks(P) {
     await evaluate(`(async () => {
       const db = window.supabase.__db;
       const me = window.__fixtureProfile.id;
-      db.projects = db.projects.filter(p => p.creator_id !== me);
-      db.project_members = db.project_members.filter(m => m.user_id !== me);
+      // No work, and no open project a connection is on (that would be a
+      // credible way to join in).
+      db.projects = [];
+      db.project_members = [];
       db.opportunities = [];
       db.community.find(row => row.id === me).skills = [];
       window.currentUserProfile.skills = [];

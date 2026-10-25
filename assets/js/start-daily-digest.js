@@ -154,7 +154,7 @@ function _getConciergeCandidate(brief, profile) {
  */
 async function _loadBriefEngine() {
   if (!_briefEnginePromise) {
-    const url = _SCRIPT_BASE + 'intelligence/daily-brief-engine.js?v=home-trust-20261022';
+    const url = _SCRIPT_BASE + 'intelligence/daily-brief-engine.js?v=home-invitations-20261024';
     _briefEnginePromise = import(url).catch(err => {
       _briefEnginePromise = null;   // allow retry
       throw err;
@@ -1804,9 +1804,39 @@ window.StartDailyDigest.renderNetworkReflection = function (profile) {
   });
 };
 
+// Ways to join in: projects and opportunities the brief found for this
+// member, each with its own reason (never recent activity alone). Projects
+// the member has since created or joined (ownProjectIds, from Home's own
+// list) and opportunities whose deadline has passed are left out.
+function _homeInvitations(brief, ownProjectIds) {
+  const own = new Set([...(ownProjectIds || [])].map(String));
+  const now = Date.now();
+  return [
+    ...(brief?.sections?.projects_for_you || []).map(item => ({ item, type: 'project' })),
+    ...(brief?.sections?.opportunities_for_you || []).map(item => ({ item, type: 'opportunity' })),
+  ].map(({ item, type }) => {
+    const ref = (item.primary_refs || []).find(value => String(value?.nodeType || '').toLowerCase() === type);
+    if (!ref?.nodeId || !item.invitation_reason) return null;
+    if (type === 'project' && own.has(String(ref.nodeId))) return null;
+    const until = item.available_until ? new Date(item.available_until).getTime() : NaN;
+    if (Number.isFinite(until) && until <= now) return null;
+    return {
+      id: `${type}:${ref.nodeId}`,
+      entityId: String(ref.nodeId),
+      type,
+      name: ref.label || 'Something worth exploring',
+      reason: item.invitation_reason,
+      score: Number(item.score) || 0,
+    };
+  })
+    .filter(Boolean)
+    .sort((a, b) => b.score - a.score)
+    .filter((item, index, all) => all.findIndex(other => other.id === item.id) === index);
+}
+
 // What Home shows from the brief: one person to meet (a new introduction)
 // and up to two ways to join in, never anything the member set aside today.
-function _homeSuggestions() {
+function _homeSuggestions({ ownProjectIds } = {}) {
   const brief = _lastDailyBrief;
   if (!_briefIsCurrent(brief)) {
     return { status: _briefStatus === 'unavailable' ? 'unavailable' : 'loading', person: null, joinIn: [] };
@@ -1814,14 +1844,15 @@ function _homeSuggestions() {
   const profile = window.currentUserProfile;
   _loadConciergeState(profile);
   const selfId = String(profile?.id ?? '');
-  const open = _conciergeCandidates(brief).filter(item => (
-    !_conciergeDismissed.has(item.id)
-    && (item.type !== 'person' || (item.entityId !== selfId && !_conciergeRelatedIds.has(String(item.entityId))))
-  ));
+  const person = _conciergeCandidates(brief).find(item => (
+    item.type === 'person'
+    && !_conciergeDismissed.has(item.id)
+    && item.entityId !== selfId && !_conciergeRelatedIds.has(String(item.entityId))
+  )) || null;
   return {
     status: 'ready',
-    person: open.find(item => item.type === 'person') || null,
-    joinIn: open.filter(item => item.type !== 'person').slice(0, 2),
+    person,
+    joinIn: _homeInvitations(brief, ownProjectIds).filter(item => !_conciergeDismissed.has(item.id)).slice(0, 2),
   };
 }
 
