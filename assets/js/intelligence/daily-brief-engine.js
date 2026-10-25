@@ -495,10 +495,15 @@ function _buildMembershipMaps({ communityId, connections, pendingConnections, pr
 
   // projectId -> Set<community_id> of members
   const projectMemberIds = new Map();
+  // projectId -> Set<community_id> on the team (a pending request is not)
+  const projectTeamIds = new Map();
   for (const pm of (projectMembers || [])) {
     const key = String(pm.project_id);
     if (!projectMemberIds.has(key)) projectMemberIds.set(key, new Set());
     projectMemberIds.get(key).add(String(pm.user_id));
+    if (pm.role === 'pending') continue;
+    if (!projectTeamIds.has(key)) projectTeamIds.set(key, new Set());
+    projectTeamIds.get(key).add(String(pm.user_id));
   }
 
   // orgId -> Set<community_id> of members
@@ -528,6 +533,12 @@ function _buildMembershipMaps({ communityId, connections, pendingConnections, pr
       .filter(om => String(om.community_id) === String(communityId))
       .map(om => String(om.organization_id))
   );
+  // Organizations the user runs: their opportunities are the user's own.
+  const userManagedOrgIds = new Set(
+    (orgMembers || [])
+      .filter(om => String(om.community_id) === String(communityId) && ['owner', 'admin'].includes(om.role))
+      .map(om => String(om.organization_id))
+  );
   const userThemeIds = new Set(
     (themeParticipants || [])
       .filter(tp => String(tp.community_id) === String(communityId))
@@ -538,10 +549,12 @@ function _buildMembershipMaps({ communityId, connections, pendingConnections, pr
     connectedCommunityIds,
     pendingCommunityIds,
     projectMemberIds,
+    projectTeamIds,
     orgMemberIds,
     themeMemberIds,
     userProjectIds,
     userOrgIds,
+    userManagedOrgIds,
     userThemeIds,
   };
 }
@@ -658,6 +671,7 @@ async function _fetchCoreGraph(supabase, { communityId, windowDays, now, debug }
     presenceSessions,
     community,
     nearifyEventPresence,
+    opportunityInterests,
   ] = await Promise.all([
     _safe('connections', () => supabase
       .from('connections')
@@ -756,6 +770,14 @@ async function _fetchCoreGraph(supabase, { communityId, windowDays, now, debug }
       .eq('status', 'joined')
       .limit(500)
     ),
+    // Opportunities the member has already said they're interested in are
+    // not new invitations. RLS shows a member only their own interest rows.
+    _safe('opportunity_interests', () => supabase
+      .from('opportunity_interests')
+      .select('opportunity_id')
+      .eq('community_id', communityId)
+      .limit(500)
+    ),
   ]);
 
   // Opportunities: query public.opportunities directly (opportunities_with_org view does not exist).
@@ -807,6 +829,7 @@ async function _fetchCoreGraph(supabase, { communityId, windowDays, now, debug }
     opportunities,
     community,
     nearifyEventPresence,
+    opportunityInterests,
     usedSources,
   };
 }
@@ -1407,15 +1430,116 @@ function _buildPeopleWorthKnowing({ userProfile, community, projects, organizati
     .slice(0, maxItems);
 }
 
+// Home's "Ways to join in" shows only invitations with a reason about the
+// member: terms they listed themselves (skills, interests) or people they
+// know. Recent activity alone is not a reason.
+function _listedTermMatches(userProfile, entityText) {
+  const listed = new Set(_tokenize([userProfile?.skills, userProfile?.interests].flat().filter(Boolean).join(' ')));
+  if (!listed.size) return [];
+  return [...new Set(_tokenize(entityText))].filter(term => listed.has(term));
+}
+
+function _connectedCount(memberships, ids) {
+  let count = 0;
+  for (const id of ids) if (memberships?.connectedCommunityIds?.has(String(id))) count++;
+  return count;
+}
+
+function _opportunityInvitationReason({ opp, orgLabel, matchedKeywords, memberships }) {
+  const reasons = [];
+  if (matchedKeywords.length) reasons.push(`Matches what you listed: ${matchedKeywords.slice(0, 3).join(', ')}`);
+  const orgId = opp.organization_id ? String(opp.organization_id) : null;
+  if (orgId && memberships?.userOrgIds?.has(orgId)) reasons.push(`From ${orgLabel || 'an organization'} you belong to`);
+  else if (orgId && _connectedCount(memberships, memberships?.orgMemberIds?.get(orgId) || [])) reasons.push(`Someone you’re connected to is at ${orgLabel || 'this organization'}`);
+  if (opp.theme_id && memberships?.userThemeIds?.has(String(opp.theme_id))) reasons.push('Part of a theme you’re in');
+  return reasons.length ? reasons.slice(0, 2).join(' · ') : null;
+}
+
+/**
+ * 4b) projects_for_you — projects the member could join.
+ *
+ * Open to collaborators (the open statuses in project-semantics.js), not
+ * created or joined by the member or waiting on their request, and with a
+ * reason about them: terms they listed, or someone they're connected to on
+ * the team.
+ */
+const _JOINABLE_PROJECT_STATUSES = new Set(['active', 'in-progress', 'open', 'recruiting']);
+
+function _buildProjectsForYou({ userProfile, projects, memberships, maxItems }) {
+  if (!userProfile?.id || !Array.isArray(projects)) return [];
+  const me = String(userProfile.id);
+
+  const scored = projects.map(project => {
+    if (!project?.id || !project.title) return null;
+    const id = String(project.id);
+    if (!_JOINABLE_PROJECT_STATUSES.has(project.status)) return null;
+    if (project.creator_id != null && String(project.creator_id) === me) return null;
+    // A member, or a request to join already waiting.
+    if (memberships?.userProjectIds?.has(id)) return null;
+
+    const terms = _listedTermMatches(userProfile, [
+      project.title, project.description, ...(project.tags || []), ...(project.required_skills || []),
+    ].filter(Boolean).join(' '));
+    const team = new Set(memberships?.projectTeamIds?.get(id) || []);
+    if (project.creator_id != null) team.add(String(project.creator_id));
+    const connected = _connectedCount(memberships, team);
+    if (!terms.length && !connected) return null;
+
+    const reasons = [];
+    if (terms.length) reasons.push(`Matches what you listed: ${terms.slice(0, 3).join(', ')}`);
+    if (connected) reasons.push(connected === 1 ? 'Someone you’re connected to is on this project' : `${connected} people you’re connected to are on this project`);
+    const score = _clamp01(Math.min(terms.length, 3) / 3 * 0.6 + (connected ? 0.4 : 0));
+    return { project, terms, connected, reasons, score };
+  }).filter(Boolean);
+
+  return scored
+    .sort((a, b) => b.score - a.score || String(a.project.title).localeCompare(String(b.project.title)))
+    .slice(0, maxItems)
+    .map(({ project, terms, connected, reasons, score }) => {
+      const label = project.title;
+      const why_key = registerWhy({
+        label: 'project',
+        factors: [
+          terms.length ? `Matches your listed skills or interests: ${terms.join(', ')}` : null,
+          connected ? `Connections on the team: ${connected}` : null,
+          `Status: ${project.status}`,
+        ].filter(Boolean),
+        keywords: terms.slice(0, 5),
+        paths: [],
+        signals: { connected },
+        scores: { score },
+      });
+      return {
+        id: _itemId('project', String(project.id)),
+        category: 'project',
+        headline: `"${_trunc(label, 55)}" could use you.`,
+        subhead: reasons[0],
+        invitation_reason: reasons.join(' · '),
+        confidence: _clamp01(0.4 + score * 0.55),
+        score,
+        primary_refs: [{ nodeType: 'project', nodeId: String(project.id), label }],
+        why_key,
+        created_at: new Date().toISOString(),
+      };
+    });
+}
+
 /**
  * 5) opportunities_for_you — top opportunities matching user profile.
  */
-function _buildOpportunitiesForYou({ userProfile, opportunities, memberships, activityHitMap, now, windowDays, maxItems }) {
+function _buildOpportunitiesForYou({ userProfile, opportunities, opportunityInterests = [], memberships, activityHitMap, now, windowDays, maxItems }) {
   if (!userProfile || opportunities.length === 0) return [];
 
   const momentumCtx = { now, windowDays, activityHitMap };
+  const interested = new Set((opportunityInterests || []).map(row => String(row.opportunity_id)));
 
   const scored = opportunities.map(opp => {
+    // Not an invitation: something the member posted, that an organization
+    // they run posted, or that they already said they're interested in.
+    if (opp.posted_by != null && String(opp.posted_by) === String(userProfile.id)) return null;
+    if (opp.organization_id && memberships?.userManagedOrgIds?.has(String(opp.organization_id))) return null;
+    if (interested.has(String(opp.id))) return null;
+
     const rawMomentum = _rawMomentum(opp, momentumCtx);
     const alignment   = _alignmentScore(userProfile, opp);
     const proximity   = _proximityScore(userProfile.id, opp, 'opportunity', memberships);
@@ -1472,6 +1596,8 @@ function _buildOpportunitiesForYou({ userProfile, opportunities, memberships, ac
     return {
       id: _itemId('opportunity', String(opp.id)),
       category: 'opportunity',
+      invitation_reason: _opportunityInvitationReason({ opp, orgLabel, matchedKeywords, memberships }),
+      available_until: opp.application_deadline || null,
       headline: hasSkillEvidence
         ? `"${_trunc(label, 55)}" matches your skills: ${matchedKeywords.slice(0, 3).join(', ')}.`
         : `"${_trunc(label, 55)}" is connected to your network.`,
@@ -1647,6 +1773,7 @@ export async function generateDailyBrief({
     community:       graph.community,
     dailySuggestions: graph.dailySuggestions,
     nearifyEventPresence: graph.nearifyEventPresence,
+    opportunityInterests: graph.opportunityInterests,
     memberships,
     activityHitMap,
     now,
@@ -1660,6 +1787,7 @@ export async function generateDailyBrief({
     your_pattern:               _buildYourPattern(sectionCtx),
     people_worth_knowing:       _buildPeopleWorthKnowing(sectionCtx),
     opportunities_for_you:      _buildOpportunitiesForYou(sectionCtx),
+    projects_for_you:           _buildProjectsForYou(sectionCtx),
   };
 
   const elapsed = Date.now() - t0;
@@ -1698,3 +1826,5 @@ export { getWhy, registerWhy };
 // coverage exercises the real self-exclusion/dedupe logic instead of
 // re-implementing it. Not used by any production call path.
 export { _buildPeopleWorthKnowing as __testBuildPeopleWorthKnowing };
+// Test-only exports of the invitation builders behind Home's "Ways to join in".
+export { _buildProjectsForYou as __testBuildProjectsForYou, _buildOpportunitiesForYou as __testBuildOpportunitiesForYou, _buildMembershipMaps as __testBuildMembershipMaps };

@@ -158,8 +158,10 @@
     if (!opened) window.openNodePanel?.({ id: item.entityId, type: item.type, name: item.name });
   }
 
+  // Invitations only: never a project the member already created or joined.
   function paintJoin() {
-    const suggestions = digest().homeSuggestions?.() || { joinIn: [] };
+    const ownProjectIds = state.work && state.work !== 'error' ? state.work.projects.map(project => project.id) : [];
+    const suggestions = digest().homeSuggestions?.({ ownProjectIds }) || { joinIn: [] };
     const items = suggestions.joinIn || [];
     const kind = (type) => ({ project: 'Project', opportunity: 'Opportunity', theme: 'Theme', organization: 'Organization' }[type] || '');
     setSection('join', items.length ? `<h2 class="home-heading">Ways to join in</h2>
@@ -307,6 +309,7 @@
       state.work = 'error';
     }
     calmly(paintWork);
+    calmly(paintJoin);
   }
 
   async function refreshAttention() {

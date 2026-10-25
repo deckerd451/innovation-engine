@@ -308,15 +308,16 @@ function deferredEngine(page) {
     page.currentUserProfile = { id: 'me' };
     page.supabase = fakeSupabase({ authId: () => 'auth-me', tables: { connections: [{ from_user_id: 'me', to_user_id: 'friend', status: 'accepted' }] } });
     const item = (type, id, name, score) => ({ id: `${type}:${id}`, category: type, headline: name, subhead: `Why ${name}`, score,
-      primary_refs: [{ nodeType: type, nodeId: id, label: name }] });
+      invitation_reason: `Why ${name}`, primary_refs: [{ nodeType: type, nodeId: id, label: name }] });
     page.__brief = brief('me', [
       person('friend', 'Friend', { score: 9 }),
       person('ana', 'Ana', { score: 8 }),
       person('bo', 'Bo', { score: 7 }),
     ]);
     page.__brief.sections.opportunities_for_you = [item('opportunity', 'o1', 'Mentor founders', 6), item('opportunity', 'o2', 'Judge a pitch', 5), item('opportunity', 'o3', 'Host a table', 4)];
-    // The same opportunity as a recent signal too: it is suggested once.
-    page.__brief.sections.signals_moving = [item('opportunity', 'o1', 'Mentor founders', 5.5)];
+    // Recent activity is never an invitation on its own
+    // (test-home-credible-invitations.js covers what is).
+    page.__brief.sections.signals_moving = [item('opportunity', 'o9', 'Busy elsewhere', 9)];
     vm.runInContext(`_lastDailyBrief = window.__brief`, page);
     await vm.runInContext(`_loadConciergeRelatedConnections(window.currentUserProfile)`, page);
     const first = page.StartDailyDigest.homeSuggestions();
