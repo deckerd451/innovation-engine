@@ -12,7 +12,10 @@
     padding-top: env(safe-area-inset-top, 0px);
   }
   #mobile-you-screen[hidden] { display: none !important; }
-  .mobile-you-scroll { box-sizing: border-box; height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 1.25rem 1rem calc(1.5rem + env(safe-area-inset-bottom, 0px)); }
+  /* The screen already ends at the top of the bottom navigation, which
+     includes the safe area, so the bottom padding is the same in Safari and
+     the installed app. */
+  .mobile-you-scroll { box-sizing: border-box; height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 1.25rem 1rem 2.5rem; }
   .mobile-you-content { max-width: 680px; margin: 0 auto; }
   .mobile-you-screen { isolation: isolate; }
   .mobile-you-state { color:#c7cfdd; padding:2rem .5rem; text-align:center; }

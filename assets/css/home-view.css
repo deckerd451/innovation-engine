@@ -40,6 +40,9 @@
 
 /* Your work */
 .home-next { padding:.1rem 0 0; }
+/* Continue is an outlined action like "Take a look", so the next task does
+   not outweigh people and ways to join in. */
+.home-next .home-primary { width:auto; min-height:44px; padding:.5rem 1rem; border:1px solid rgba(0,224,255,.35); background:rgba(0,224,255,.08); color:#9eefff; font-size:.88rem; }
 .home-title { display:block; color:#fff; font-size:1.1rem; line-height:1.3; overflow-wrap:anywhere; }
 .home-update { margin:.45rem 0 0; padding:.4rem .55rem; border-left:3px solid #00e0ff; border-radius:6px; background:rgba(0,224,255,.06); color:#c7cfdd; font-size:.82rem; }
 .home-more-list { margin-top:.65rem; border-top:1px solid rgba(255,255,255,.08); }
