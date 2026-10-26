@@ -321,7 +321,7 @@ try {
   check(!newcomer.shown && !newcomer.items.length, 'newcomer: no generic recent activity in Ways to join in', JSON.stringify(newcomer.items));
   // Discovery first: a newcomer sees what is open in the community instead of
   // an empty Home (the quiet state is for when nothing at all is open).
-  check(/Happening in the community/.test(newcomer.happening) && /Climate dashboard for Charleston/.test(newcomer.happening) && !newcomer.quiet, 'newcomer: Home shows what is open in the community, not an empty page', newcomer.text.slice(0, 300));
+  check(/Start anywhere/.test(newcomer.happening) && /Climate dashboard for Charleston/.test(newcomer.happening) && !newcomer.quiet, 'newcomer: Home starts with what is open in the community, not an empty page', newcomer.text.slice(0, 300));
   const newcomerPrompt = await curiosityPrompt();
   check(/What are you curious about\?/.test(newcomerPrompt) && /optional/.test(newcomerPrompt), 'newcomer with no skills or interests: invited, optionally, to share interests', newcomerPrompt);
 } catch (error) {

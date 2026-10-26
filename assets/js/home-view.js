@@ -274,9 +274,12 @@
     const skills = part('meet')?.hidden !== false ? community.skills.slice(0, 6) : [];
     const empty = !themes.length && !projects.length && !opportunities.length && !skills.length;
     if (empty && quietNow()) { setSection('happening', ''); return; }
+    // A newcomer (nothing picked for them, no projects yet) starts here.
+    const newcomer = part('picked')?.hidden !== false && !!state.work && state.work !== 'error' && !state.work.projects.length;
     const row = (attrs, title, meta) => `<li><button type="button" class="home-open-row" ${attrs}><span><strong>${esc(title)}</strong>${meta ? `<span>${esc(meta)}</span>` : ''}</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></li>`;
-    setSection('happening', `<h2 class="home-heading" id="home-happening-title" tabindex="-1">Happening in the community</h2>
-      <p class="home-sub">Open to everyone.</p>
+    setSection('happening', `${newcomer
+      ? '<h2 class="home-heading" id="home-happening-title" tabindex="-1">Start anywhere</h2><p class="home-sub">What’s open in your community right now. Nothing to set up first.</p>'
+      : '<h2 class="home-heading" id="home-happening-title" tabindex="-1">Happening in the community</h2><p class="home-sub">Open to everyone.</p>'}
       ${empty ? '<p class="home-muted">Nothing new is open in the community right now.</p>' : ''}
       ${themes.length ? `<h3 class="home-subheading">Themes people are exploring</h3><ul class="home-themes">${themes.map((theme, index) => `<li><button type="button" class="home-theme" data-theme="${index}"><strong>${esc(theme.title)}</strong>${theme.participantCount ? `<span>${theme.participantCount} ${theme.participantCount === 1 ? 'person' : 'people'}</span>` : ''}</button></li>`).join('')}</ul>` : ''}
       ${projects.length ? `<h3 class="home-subheading">Projects looking for people</h3><ul class="home-open-list">${projects.map((project, index) => row(`data-project="${index}"`, project.title, project.needs.length ? `Needs ${project.needs.join(', ')}` : '')).join('')}</ul>` : ''}
@@ -432,7 +435,7 @@
     target.innerHTML = `<div class="home-view" data-layout="${desktop ? 'desktop' : 'phone'}">
       ${desktop
         ? '<p class="home-tagline">Discover what we could do together.</p>'
-        : `<header class="home-header"><div class="home-avatar" aria-hidden="true">${esc((name || 'M').slice(0, 1).toUpperCase())}</div><div><h1 id="mobile-you-title">${esc(name ? `Welcome, ${name}` : 'Welcome')}</h1><p>Discover what we could do together.</p></div></header>`}
+        : `<header class="home-header"><div class="home-avatar" aria-hidden="true">${esc((name || 'M').slice(0, 1).toUpperCase())}</div><h1 id="mobile-you-title">${name ? `<span class="home-hello">Welcome,</span> <span class="home-name">${esc(name)}</span>` : '<span class="home-name">Welcome</span>'}</h1><p class="home-intro">Discover what we could do together.</p></header>`}
       <section class="home-section home-attention" data-home="attention" aria-labelledby="home-attention-title" hidden></section>
       <form class="home-search" role="search" data-home-search>
         <label class="home-sr" for="home-search-input">Search people, skills, ideas</label>

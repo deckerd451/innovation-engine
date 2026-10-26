@@ -140,7 +140,7 @@ const boot = `${fixtures}\n${fake}\n(() => {
   Object.assign(riley, { skills: ['Public speaking', 'Python'], interests: ['HCD'] });
   // Members for "Find people by what they do": Design (6), Python (5 with
   // Riley), Woodworking (4 visible + 1 hidden, so below the threshold),
-  // Beekeeping (1). Quinn is hidden from discovery.
+  // Beekeeping (1), Taxidermy (only Quinn). Quinn is hidden from discovery.
   seed.community.push(
     person('m-ana', 'Ana (fixture)', ['Design', 'Python', 'Woodworking']),
     person('m-bo', 'Bo (fixture)', ['Design', 'Python', 'Woodworking']),
@@ -148,7 +148,7 @@ const boot = `${fixtures}\n${fake}\n(() => {
     person('m-dee', 'Dee (fixture)', ['Design', 'Python', 'Woodworking']),
     person('m-eli', 'Eli (fixture)', ['Design']),
     person('m-fay', 'Fay (fixture)', ['Design', 'Beekeeping']),
-    person('m-quinn', 'Quinn (hidden fixture)', ['Woodworking', 'Python'], ['HCD'], { is_hidden: true }),
+    person('m-quinn', 'Quinn (hidden fixture)', ['Woodworking', 'Python', 'Taxidermy'], ['HCD'], { is_hidden: true }),
   );
   seed.organizations = [{ id: 'org-schools', name: 'Tidewater Schools', status: 'active', created_by: riley.id, created_at: '2026-09-01T00:00:00Z' }];
   seed.organization_members = [];
@@ -252,13 +252,24 @@ const home = () => callInPage(function (root) {
   return {
     sections: all.filter(name => ['attention', 'picked', 'happening', 'profile', 'quiet', 'work', 'goal'].includes(name)),
     parts: all,
-    header: text('.home-header'),
+    header: (document.querySelector(`${root} .home-header`)?.textContent || '').replace(/\s+/g, ' ').trim(),
+    heading: (() => { const h = document.querySelector(`${root} #home-happening-title`); return visible(h) ? h.textContent.trim() : ''; })(),
+    headerLayout: (() => {
+      const name = document.querySelector(`${root} .home-name`);
+      const intro = document.querySelector(`${root} .home-intro`);
+      const buttons = [...document.querySelectorAll('#mobile-header-actions > *')].filter(visible).map(el => el.getBoundingClientRect());
+      if (!name || !intro) return null;
+      const n = name.getBoundingClientRect(), i = intro.getBoundingClientRect();
+      const overlaps = r => buttons.some(b => r.left < b.right && r.right > b.left && r.top < b.bottom && r.bottom > b.top);
+      return { nameOneLine: n.height <= parseFloat(getComputedStyle(name).lineHeight || '0') * 1.2 + 2 || n.height < 40, nameUnderButtons: overlaps(n), introUnderButtons: overlaps(i) };
+    })(),
     attention: text('[data-home="attention"]'),
     meet: text('[data-home="meet"]'),
     meetTitle: visible(meet) ? meet.querySelector('.network-reflection-concierge-title')?.textContent.trim() || '' : '',
     meetReasons: visible(meet) ? [...meet.querySelectorAll('.network-reflection-concierge-reasons li')].map(li => li.textContent.trim()) : [],
     meetImages: meet ? meet.querySelectorAll('img').length : 0,
     meetInitials: visible(meet) ? meet.querySelector('.network-reflection-concierge-initials')?.textContent.trim() || '' : '',
+    pickActions: [...document.querySelectorAll(`${root} [data-home="join"] .home-pick`)].filter(visible).map(li => [...li.querySelectorAll('button')].filter(visible).map(b => b.textContent.trim()).join('|')),
     join: [...document.querySelectorAll(`${root} [data-home="join"] .home-pick`)].filter(visible).map(li => ({
       kind: li.querySelector('.home-kind')?.textContent.trim(), name: li.querySelector('strong')?.textContent.trim(),
       reasons: [...li.querySelectorAll('.home-reasons li')].map(x => x.textContent.trim()),
@@ -329,6 +340,8 @@ try {
   let h = await home();
   await phoneShot('established-iphone-top');
   check(/Welcome, Test Member/.test(h.header) && /Discover what we could do together\./.test(h.header), 'a warm welcome by name, with one short invitation', h.header);
+  check(h.headerLayout?.nameOneLine && !h.headerLayout.nameUnderButtons && !h.headerLayout.introUnderButtons, 'the name sits on one line and nothing in the welcome runs under the header buttons', JSON.stringify(h.headerLayout));
+  check(h.heading === 'Happening in the community', 'an established member’s community section is “Happening in the community”', h.heading);
   check(JSON.stringify(h.sections) === '["attention","picked","happening","work","goal"]', 'sections: waiting on you, picked for you, happening, your work, goal help', JSON.stringify(h.sections));
   check(/1 person wants to connect with you/.test(h.attention), 'Waiting on you shows the genuine pending request', h.attention);
   check(h.search && JSON.stringify(h.lenses) === '["For you","People","Projects","Themes","Opportunities"]', 'search and the five ways to explore are shown', JSON.stringify(h.lenses));
@@ -436,6 +449,15 @@ try {
   await backHome();
   await press(`${rootSel()} [data-home-action="topics"]`, 'Explore these topics');
   check((await destination()) === 'explore' && (await activeTab()) === 'themes', '“Explore these topics” opens Explore’s topics', JSON.stringify({ dest: await destination(), tab: await activeTab() }));
+  // Explore's own Skills list and skill view: hidden members never count or show.
+  await waitFor(`/Woodworking/.test(document.getElementById('udc-resource-list')?.innerText || '')`, 'Explore skills', 8000).catch(() => {});
+  const exploreSkills = await evaluate(`[...document.querySelectorAll('#udc-resource-list .udc-resource-item')].map(row => row.innerText.replace(/\\s+/g, ' ').trim())`);
+  check(exploreSkills.some(row => /^Woodworking 4 people/.test(row)), 'Explore counts a skill without hidden members (Woodworking: 4, not 5)', JSON.stringify(exploreSkills));
+  check(!exploreSkills.some(row => /Taxidermy/.test(row)), 'a skill only a hidden member lists never appears in Explore', JSON.stringify(exploreSkills));
+  await evaluate(`window.openNodePanel({ id: 'skill:Woodworking', type: 'skill', name: 'Woodworking', skillName: 'Woodworking', isSkillLens: true }); true`);
+  await waitFor(`/list Woodworking/.test(document.getElementById('node-side-panel')?.innerText || '')`, 'skill view', 6000).catch(() => {});
+  const lens = await panelText();
+  check(/4 people list Woodworking\./.test(lens) && !/Quinn/.test(lens), 'the skill view never lists or counts a hidden member', lens.slice(0, 200));
 
   // ------------------------------------------------------------ newcomer
   console.log('\nNewcomer (nothing listed, no connections, no projects)');
@@ -443,6 +465,7 @@ try {
   h = await home();
   await phoneShot('newcomer-iphone-top');
   check(JSON.stringify(h.sections) === '["happening","profile","goal"]', 'what is happening first; no picks, no work, nothing waiting', JSON.stringify(h.sections));
+  check(h.heading === 'Start anywhere' && /What’s open in your community right now\. Nothing to set up first\./.test(h.happening), 'a newcomer is welcomed with “Start anywhere”', h.happening.slice(0, 160));
   check(h.themes.length === 3 && h.openRows.length >= 3, 'real themes, projects and opportunities to explore right away', JSON.stringify({ themes: h.themes, rows: h.openRows }));
   check(['design', 'python'].every(skill => h.topics.map(t => t.toLowerCase()).includes(skill)) && !h.topics.some(t => /beekeeping|woodworking/i.test(t)), 'a way to browse people by shared skills, never a one-person or hidden-inflated skill', JSON.stringify(h.topics));
   check(/What are you curious about\?/.test(h.profile) && /optional/.test(h.profile), 'an optional invitation to personalize, below discovery', h.profile);
@@ -477,6 +500,9 @@ try {
     h = await home();
     L = await layout();
     check(h.sections[0] === 'attention' && h.sections.indexOf('picked') < h.sections.indexOf('work') && h.sections.indexOf('happening') < h.sections.indexOf('work'), `${name}: discovery before your work`, JSON.stringify(h.sections));
+    if (view.width < 1024) check(h.headerLayout?.nameOneLine && !h.headerLayout.nameUnderButtons && !h.headerLayout.introUnderButtons, `${name}: the welcome fits, clear of the header buttons`, JSON.stringify(h.headerLayout));
+    check(h.meetReasons.length === 2 && h.join.every(item => item.reasons.length) && h.pickActions.every(a => a === 'Take a look|Not now'), `${name}: every reason and action is still on each pick`, JSON.stringify({ reasons: h.meetReasons, join: h.join, actions: h.pickActions }));
+    if (name === 'small-phone') await phoneShot('established-small-phone');
     check(L.overflowX <= 0, `${name}: no sideways scrolling`, JSON.stringify(L));
     if (view.width < 1024) check(L.bottomClearance >= 32, `${name}: the end of Home clears the navigation`, JSON.stringify(L));
     if (name === 'desktop') check(L.columns?.sideBeside && L.columns.mainWidth > L.columns.sideWidth, 'desktop: discovery in the wider column, your work beside it', JSON.stringify(L.columns));

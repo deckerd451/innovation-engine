@@ -1111,7 +1111,8 @@ async function homeRefreshChecks(P, { realTimer = false } = {}) {
     const root = phone ? '#mobile-you-content' : '#cd-home';
     const input = '#mgd-goal-input';
     await waitUntil(function (sel) { return !!document.querySelector(sel); }, [input], 'Home input', 10000);
-    await waitUntil(function (sel) { return document.querySelectorAll(sel + ' details').length >= 3; }, [root], 'Home sections', 10000);
+    // Goal help, and Your work's one list of other tasks and projects.
+    await waitUntil(function (sel) { return document.querySelectorAll(sel + ' details').length >= 2; }, [root], 'Home sections', 10000);
     await sleep(800);
     // Open every collapsed section on Home (goal help, other tasks, projects)
     // with a real tap or click.
@@ -1122,7 +1123,7 @@ async function homeRefreshChecks(P, { realTimer = false } = {}) {
       await press(summary, `Home section ${i + 1}`);
     }
     const opened = (await homeState()).open;
-    check(opened.length >= 3, `${P}: Home sections open with a ${phone ? 'tap' : 'click'}`, JSON.stringify(opened));
+    check(opened.length >= 2, `${P}: Home sections open with a ${phone ? 'tap' : 'click'}`, JSON.stringify(opened));
     // A message arriving while Home is just being read shows in "Waiting on
     // you" straight away.
     {
