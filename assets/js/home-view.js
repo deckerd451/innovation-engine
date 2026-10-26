@@ -119,12 +119,26 @@
     }));
   }
 
+  // Skills and interests arrive as an array, a JSON array string or a
+  // comma-separated string; blank entries are not listed terms.
+  function listed(value) {
+    if (Array.isArray(value)) return value.some(listed);
+    const text = String(value ?? '').trim();
+    if (!text) return false;
+    try {
+      const parsed = JSON.parse(text);
+      if (Array.isArray(parsed)) return parsed.some(listed);
+    } catch (_) { /* comma-separated */ }
+    return text.split(',').some(term => term.trim());
+  }
+
+  // An invitation, not a setup step: shown only to members who have listed
+  // no interests and no skills (what it asks for, and what people and
+  // projects are matched on). A bio or photo is never required.
+  const wantsCuriosityPrompt = (p) => !!p && !listed(p.interests) && !listed(p.skills);
+
   function paintProfilePrompt() {
-    const p = profile();
-    const filled = [displayName(p), p?.bio, p?.skills, p?.interests, p?.image_url || p?.avatar_storage_path]
-      .filter(value => Array.isArray(value) ? value.length : !!value).length;
-    // An invitation, not a setup step: interests are optional.
-    setSection('profile', p && filled < 4 ? `<div><h2 class="home-heading" id="home-curious-title">What are you curious about?</h2>
+    setSection('profile', wantsCuriosityPrompt(profile()) ? `<div><h2 class="home-heading" id="home-curious-title">What are you curious about?</h2>
       <p>Share a few interests and Home will point you to people and projects you might enjoy. It’s optional, and you can skip it.</p></div>
       <button type="button" class="home-link" data-home-action="edit-profile">Share your interests</button>` : '');
     part('profile')?.querySelector('[data-home-action="edit-profile"]')?.addEventListener('click', () => window.openProfileEditor?.());
@@ -369,7 +383,7 @@
   }
 
   window.HomeView = { show, clear, focusGoal };
-  window.HomeViewTesting = { taskScore, chooseNextTask, loadWork };
+  window.HomeViewTesting = { taskScore, chooseNextTask, loadWork, wantsCuriosityPrompt };
 
   window.addEventListener('daily-brief-updated', () => { if (host) calmly(paintSuggestions); });
   window.addEventListener('total-unread-messages-updated', (event) => {
