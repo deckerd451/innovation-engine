@@ -1635,16 +1635,21 @@ window.CommandDashboard = (() => {
       ]);
       const connectedIds = new Set((_enrichedData.acceptedConnections || []).map(p => String(p.id)));
       const pendingIds = new Set((_enrichedData.pendingConnections || []).map(p => String(p.id)));
+      // The same identity rule as search and the profile panel: a full name
+      // and full profile only for accepted connections (and admins); anyone
+      // else shows as "First L." with at most their first three skills.
+      const isAdmin = typeof window.isAdminUser === 'function' && window.isAdminUser();
       return _enrichedData.directory
         .map(p => {
           const id = String(p.id);
           if (connectedIds.has(id)) return { id: p.id, name: p.name, meta: 'Connected' };
-          if (pendingIds.has(id)) return { id: p.id, name: p.name, pending: true, meta: 'Connection request' };
-          const theirs = [..._resourceTerms(p.skills), ..._resourceTerms(p.interests)];
+          const name = isAdmin ? p.name : _limitedDisplayName(p.name);
+          if (pendingIds.has(id)) return { id: p.id, name, pending: true, meta: 'Connection request' };
+          const theirs = isAdmin ? [..._resourceTerms(p.skills), ..._resourceTerms(p.interests)] : _resourceTerms(p.skills).slice(0, 3);
           const shared = [...new Set(theirs.filter(term => myTerms.has(term)))];
           const listed = _resourceTerms(p.skills).slice(0, 2);
           const words = terms => terms.map(term => term.replace(/\b\w/g, letter => letter.toUpperCase())).join(', ');
-          return { id: p.id, name: p.name, meta: shared.length ? `Shares ${words(shared.slice(0, 2))}` : words(listed) };
+          return { id: p.id, name, meta: shared.length ? `Shares ${words(shared.slice(0, 2))}` : words(listed) };
         })
         .sort((a, b) => String(a.name).localeCompare(String(b.name)));
 
@@ -1745,6 +1750,14 @@ window.CommandDashboard = (() => {
     }
 
     return [];
+  }
+
+  // "First L." for people the member is not connected to (as searchEngine.js
+  // and node-panel.js show them).
+  function _limitedDisplayName(rawName) {
+    const parts = String(rawName || 'Community member').trim().split(/\s+/).filter(Boolean);
+    if (parts.length < 2) return parts[0] || 'Community member';
+    return `${parts[0]} ${parts[parts.length - 1][0]}.`;
   }
 
   function _resourceTerms(value) {

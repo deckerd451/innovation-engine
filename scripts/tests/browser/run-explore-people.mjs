@@ -2,7 +2,8 @@
 // member's relationships. Real index.html in headless Google Chrome against
 // the synthetic community of run-discovery-home.mjs (test-only fake client;
 // nothing reaches a database), on iPhone and desktop:
-//   - Explore lists discoverable members beyond the member's connections,
+//   - Explore lists discoverable members beyond the member's connections
+//     (full names only for accepted connections; anyone else "First L."),
 //     each with how they relate (Connected, Connection request, what you
 //     share, or what they list); never the member themselves and never a
 //     member hidden from discovery; the People count is the directory's
@@ -273,25 +274,35 @@ try {
     console.log(`\nExplore and Network people, ${name} (${VIEWPORTS[name].width}×${VIEWPORTS[name].height})`);
     await loadHome('established', VIEWPORTS[name]);
     await openPage('explore');
-    await waitFor(`[...document.querySelectorAll('#udc-resource-list .udc-resource-name')].some(n => /Ana \(fixture\)/.test(n.textContent))`, 'directory', 10000).catch(() => {});
+    await waitFor(`[...document.querySelectorAll('#udc-resource-list .udc-resource-name')].some(n => /^Ana /.test(n.textContent))`, 'directory', 10000).catch(() => {});
     const explore = await peopleList();
     const byName = new Map(explore.rows.map(row => [row.name, row.meta]));
     const names = explore.rows.map(row => row.name);
-    check(explore.tab === 'people' && ['Riley (fixture)', 'Ana (fixture)', 'Bo (fixture)', 'Fay (fixture)'].every(n => names.includes(n)),
+    check(explore.tab === 'people' && ['Riley (.', 'Ana (.', 'Bo (.', 'Fay (.'].every(n => names.includes(n)),
       `${name}: Explore → People lists discoverable members beyond the member's connections`, JSON.stringify(names));
     check(!names.some(n => /Quinn/.test(n)), `${name}: a member hidden from discovery never appears in Explore`, JSON.stringify(names));
     check(!names.includes('Test Member'), `${name}: never the member themselves`, JSON.stringify(names));
     check(explore.label === 'People in the community', `${name}: the directory is labelled as the community, not "your" people`, explore.label);
-    check(byName.get('Dana (fixture)') === 'Connected' && byName.get('Sam (fixture)') === 'Connected' && byName.get('Jordan (fixture)') === 'Connection request' && byName.get('Eli (fixture)') === 'Connection request',
+    check(byName.get('Dana (fixture)') === 'Connected' && byName.get('Sam (fixture)') === 'Connected' && byName.get('Jordan (.') === 'Connection request' && byName.get('Eli (.') === 'Connection request',
       `${name}: connections and requests say so in the directory`, JSON.stringify([...byName]));
-    check(byName.get('Riley (fixture)') === 'Shares Python' && byName.get('Fay (fixture)') === 'Design, Beekeeping',
-      `${name}: a stranger shows what you share, or what they list`, JSON.stringify([...byName]));
+    // The same identity rule as search and the profile panel: full names only
+    // for accepted connections; anyone else is "First L." everywhere.
+    const strangers = explore.rows.filter(row => row.meta !== 'Connected');
+    check(strangers.length >= 6 && strangers.every(row => /^\S+ \S\.$/.test(row.name) && !/fixture\)/.test(row.name)),
+      `${name}: anyone not connected shows as “First L.”, never a full surname`, JSON.stringify(strangers.map(r => r.name)));
+    const titles = await callInPage(function () {
+      return [...document.querySelectorAll('#udc-resource-list [title]')].map(el => el.getAttribute('title'))
+        .filter(t => t.includes('(fixture)') && !t.startsWith('Dana ') && !t.startsWith('Sam '));
+    });
+    check(!titles.length, `${name}: no full surname of anyone not connected in tooltips either`, JSON.stringify(titles));
+    check(byName.get('Riley (.') === 'Shares Python' && byName.get('Fay (.') === 'Design, Beekeeping',
+      `${name}: a stranger shows what you share, or what they list (from what their limited profile shows)`, JSON.stringify([...byName]));
     check(explore.count === String(explore.rows.length) && /members$/.test(explore.countLabel) && !explore.rows.some(r => /Quinn/.test(r.name)),
       `${name}: the People count is the directory's, with no hidden member counted`, JSON.stringify({ count: explore.count, label: explore.countLabel, rows: explore.rows.length }));
     await (name === 'phone' ? phoneShot : shot)(`explore-people-${name}`);
 
     // A stranger opens their profile, with Connect.
-    const index = explore.rows.findIndex(row => row.name === 'Ana (fixture)');
+    const index = explore.rows.findIndex(row => row.name === 'Ana (.');
     await evaluate(`(() => { const row = document.querySelectorAll('#udc-resource-list .udc-resource-item')[${index}]; row.scrollIntoView({ block: 'center' }); row.click(); return true; })()`);
     await waitFor(`/Ana/.test(document.getElementById('node-side-panel')?.innerText || '')`, 'profile', 8000).catch(() => {});
     const profile = await evaluate(`(() => { const p = document.getElementById('node-side-panel'); return p && p.getClientRects().length ? { text: p.innerText.slice(0, 600), connect: [...p.querySelectorAll('button')].some(b => /^\\s*(Connect|Send connection request)/i.test(b.textContent)) } : null; })()`);
@@ -313,7 +324,7 @@ try {
     // And back: Explore shows the directory again.
     await openPage('explore');
     const again = await peopleList();
-    check(again.rows.length === explore.rows.length && again.rows.some(r => r.name === 'Riley (fixture)'), `${name}: back in Explore, the directory again`, JSON.stringify(again.rows.map(r => r.name)));
+    check(again.rows.length === explore.rows.length && again.rows.some(r => r.name === 'Riley (.'), `${name}: back in Explore, the directory again`, JSON.stringify(again.rows.map(r => r.name)));
   }
 } catch (error) {
   check(false, 'Run aborted', error.message);

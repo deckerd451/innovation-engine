@@ -3,6 +3,8 @@
 
 // Explore → People is the community directory; Network → People stays the
 // member's relationships (command-dashboard.js). Offline guards for:
+//  - anyone the member is not connected to shows as "First L." with at most
+//    three skills, the same identity rule as searchEngine.js and node-panel.js
 //  - the directory reads community rows with the same hidden-from-discovery
 //    filter as every other discovery surface, and leaves out the member
 //    themselves (including a duplicate row for them)
@@ -23,6 +25,10 @@ assert.match(source, /\.from\('community'\)\s*\.select\('id, user_id, name, skil
   'the directory never includes members hidden from discovery');
 assert.match(source, /String\(p\.id\) !== String\(_userId\) && !\(selfAuth && String\(p\.user_id\) === selfAuth\)/,
   'the directory never includes the member themselves');
+assert.match(source, /if \(connectedIds\.has\(id\)\) return \{ id: p\.id, name: p\.name, meta: 'Connected' \};\s*const name = isAdmin \? p\.name : _limitedDisplayName\(p\.name\);/,
+  'full names only for accepted connections (and admins); anyone else "First L.", as search and the profile panel');
+assert.match(source, /const theirs = isAdmin \? \[[^\]]*\] : _resourceTerms\(p\.skills\)\.slice\(0, 3\);/,
+  'what a stranger shares comes only from what their limited profile shows (first three skills)');
 assert.match(source, /const _peopleView = \(\) => \(document\.body\.dataset\.destination === 'network' \? 'network' : 'explore'\);/,
   'People follows the page: relationships in Network, the directory elsewhere');
 assert.match(source, /resourceType === 'people' && _peopleView\(\) === 'explore' && _enrichedData\.directory/);
