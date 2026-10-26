@@ -291,8 +291,15 @@ const home = () => callInPage(function (root) {
 const destination = () => evaluate(`document.body.dataset.destination || ''`);
 const activeTab = () => evaluate(`document.querySelector('#udc-resource-tabs .udc-resource-tab.active')?.dataset.resource || ''`);
 const panelText = () => evaluate(`(() => { const p = document.getElementById('node-side-panel'); return p && getComputedStyle(p).display !== 'none' && p.getClientRects().length ? p.innerText : ''; })()`);
+// The selector goes in as an argument, never into generated code.
 async function press(selector, label) {
-  const ok = await evaluate(`(() => { const el = document.querySelector(${JSON.stringify(selector)}); if (!el) return false; el.scrollIntoView({ block: 'center' }); el.click(); return true; })()`);
+  const ok = await callInPage(function (sel) {
+    const el = document.querySelector(sel);
+    if (!el) return false;
+    el.scrollIntoView({ block: 'center' });
+    el.click();
+    return true;
+  }, selector);
   if (!ok) throw new Error(`Missing: ${label}`);
   await sleep(500);
 }
@@ -402,6 +409,11 @@ try {
   await press(`${rootSel()} [data-skip="1"]`, 'Not now on the opportunity');
   h = await home();
   check(!h.join.some(item => /Python mentor/.test(item.name)), 'Not now sets a way to join in aside', JSON.stringify(h.join));
+  check(!h.openRows.some(row => /Python mentor/.test(row)), 'an opportunity set aside does not reappear in Happening in the community', JSON.stringify(h.openRows));
+  await press(`${rootSel()} [data-skip="0"]`, 'Not now on the project');
+  h = await home();
+  check(!h.join.some(item => /HCD Event/.test(item.name)) && !h.openRows.some(row => /HCD Event/.test(row)), 'a project set aside leaves Picked for you and does not reappear in the community', JSON.stringify({ join: h.join, rows: h.openRows }));
+  check(h.openRows.some(row => /^Community fridge network/.test(row)) && h.openRows.some(row => /^Judge the spring pitch night/.test(row)), 'the rest of the community stays', JSON.stringify(h.openRows));
   await press(`${rootSel()} [data-home="meet"] .network-reflection-concierge-link`, 'Not now on the introduction');
   h = await home();
   check(!/Meet Riley/.test(h.meet), 'Not now sets the introduction aside', h.meet);

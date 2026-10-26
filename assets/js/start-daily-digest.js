@@ -1889,15 +1889,17 @@ function _pickJoinIn(items) {
 }
 
 // What is open in the community (the brief's non-personalized summary),
-// without anything Home already suggests or the member's own projects.
+// without anything Home already suggests, anything the member set aside
+// today ("Not now" holds across Home's sections) or their own projects.
 function _homeCommunity(brief, { ownProjectIds, joinIn }) {
   const community = brief?.community || {};
   const shown = new Set((joinIn || []).map(item => item.id));
   const own = new Set([...(ownProjectIds || [])].map(String));
+  const open = id => !shown.has(id) && !_conciergeDismissed.has(id);
   return {
     themes: community.themes || [],
-    projects: (community.projects || []).filter(item => !shown.has(`project:${item.id}`) && !own.has(String(item.id))),
-    opportunities: (community.opportunities || []).filter(item => !shown.has(`opportunity:${item.id}`)),
+    projects: (community.projects || []).filter(item => open(`project:${item.id}`) && !own.has(String(item.id))),
+    opportunities: (community.opportunities || []).filter(item => open(`opportunity:${item.id}`)),
     skills: community.skills || [],
   };
 }
