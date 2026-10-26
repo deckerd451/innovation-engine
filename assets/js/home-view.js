@@ -7,10 +7,12 @@
 //
 //   Welcome                   the member's name; "Discover what we could do together."
 //   Waiting on you            inbound only, and only when something needs a reply
-//   Search and lenses         hand off to Explore's own search and tabs
+//   Search                    hands off to Explore's own search; one quiet
+//                             "Browse Explore" link for the full directory
 //   Picked for you            one person to meet, then a project and an
 //                             opportunity, each with its reason; omitted
-//                             when nothing qualifies
+//                             when nothing qualifies (skill chips below
+//                             are then the way to find people)
 //   Happening in the community  open to everyone: themes, projects looking
 //                             for people, open opportunities, and (when no
 //                             one is introduced) skills to find people by
@@ -200,13 +202,9 @@
   // Picked for you: one person to meet, then up to two ways to join in, each
   // with its reason. Shown only when there is something real to show.
   function paintPicked() {
-    const suggestions = digest().homeSuggestions?.() || { status: 'unavailable' };
     const shown = ['meet', 'join'].some(name => part(name)?.hidden === false);
     const el = part('picked');
     if (el) el.hidden = !shown;
-    // No one to meet: a way to find people instead of an empty card.
-    const route = part('people-route');
-    if (route) route.hidden = !(shown && suggestions.status === 'ready' && part('meet')?.hidden !== false);
   }
 
   function paintMeet() {
@@ -285,8 +283,7 @@
       ${projects.length ? `<h3 class="home-subheading">Projects looking for people</h3><ul class="home-open-list">${projects.map((project, index) => row(`data-project="${index}"`, project.title, project.needs.length ? `Needs ${project.needs.join(', ')}` : '')).join('')}</ul>` : ''}
       ${opportunities.length ? `<h3 class="home-subheading">Open opportunities</h3><ul class="home-open-list">${opportunities.map((opp, index) => row(`data-opportunity="${index}"`, opp.title, [opp.organization, opp.deadline ? `Closes ${shortDate(opp.deadline)}` : 'No deadline'].filter(Boolean).join(' · '))).join('')}</ul>` : ''}
       ${skills.length ? `<h3 class="home-subheading">Find people by what they do</h3><ul class="home-topics">${skills.map((skill, index) => `<li><button type="button" class="home-topic" data-skill="${index}">${esc(skill.label)}</button></li>`).join('')}</ul>
-        <button type="button" class="home-action" data-home-action="topics">Explore these topics</button>` : ''}
-      <p class="home-explore"><button type="button" class="home-link" data-home-action="explore">See everything in Explore</button></p>`);
+        <button type="button" class="home-action" data-home-action="topics">Explore these topics</button>` : ''}`);
     const el = part('happening');
     el?.querySelectorAll('[data-theme]').forEach(button => button.addEventListener('click', () => {
       const theme = themes[Number(button.dataset.theme)];
@@ -302,7 +299,6 @@
     }));
     el?.querySelectorAll('[data-skill]').forEach(button => button.addEventListener('click', () => openSkill(skills[Number(button.dataset.skill)].label)));
     el?.querySelector('[data-home-action="topics"]')?.addEventListener('click', () => exploreTab('themes'));
-    el?.querySelector('[data-home-action="explore"]')?.addEventListener('click', () => window.AppNav?.go?.('explore'));
   }
 
   // Your work: quiet and below discovery. The next task in one line, the
@@ -383,11 +379,9 @@
   function paintQuiet() {
     setSection('quiet', quietNow() ? `<h2 class="home-heading">It’s quiet around you right now</h2>
       <p class="home-muted">Tell people what you’re looking for or how you can help, and suggestions will follow.</p>
-      <button type="button" class="home-primary" data-home-action="share">Share what you’re looking for</button>
-      <p class="home-explore"><button type="button" class="home-link" data-home-action="explore">See everything in Explore</button></p>` : '');
+      <button type="button" class="home-primary" data-home-action="share">Share what you’re looking for</button>` : '');
     const el = part('quiet');
     el?.querySelector('[data-home-action="share"]')?.addEventListener('click', () => window.openProfileModal?.());
-    el?.querySelector('[data-home-action="explore"]')?.addEventListener('click', () => window.AppNav?.go?.('explore'));
   }
 
   // A section appearing or growing above the field the member is typing in
@@ -427,8 +421,6 @@
 
   // ---------------------------------------------------------------- frame
 
-  const LENSES = [['foryou', 'For you'], ['people', 'People'], ['projects', 'Projects'], ['themes', 'Themes'], ['opportunities', 'Opportunities']];
-
   function build(target, desktop) {
     const p = profile();
     const name = displayName(p);
@@ -443,9 +435,7 @@
         <input id="home-search-input" type="search" placeholder="Search people, skills, ideas…" autocomplete="off" enterkeyhint="search">
         <button type="submit" class="home-search-go" aria-label="Search"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
       </form>
-      <nav class="home-lenses" aria-label="Explore by">
-        ${LENSES.map(([key, label]) => `<button type="button" class="home-lens" data-lens="${key}"${key === 'foryou' ? ' aria-current="true"' : ''}>${label}</button>`).join('')}
-      </nav>
+      <p class="home-explore"><button type="button" class="home-link" data-home-action="explore">Browse Explore</button></p>
       <div class="home-grid">
         <div class="home-main">
           <section class="home-section home-picked" data-home="picked" aria-labelledby="home-picked-title" hidden>
@@ -453,7 +443,6 @@
             <p class="home-sub">From what you listed and the people you know.</p>
             <div class="home-part" data-home="meet" hidden></div>
             <div class="home-part" data-home="join" hidden></div>
-            <p class="home-part home-people-route" data-home="people-route" hidden><button type="button" class="home-link" data-home-action="people">Find people in Explore</button></p>
           </section>
           <section class="home-section home-happening" data-home="happening" aria-labelledby="home-happening-title" hidden></section>
           <section class="home-section home-profile" data-home="profile" aria-labelledby="home-curious-title" hidden></section>
@@ -473,15 +462,7 @@
       if (query) searchExplore(query);
       else window.AppNav?.go?.('explore');
     });
-    target.querySelectorAll('[data-lens]').forEach(button => button.addEventListener('click', () => {
-      const lens = button.dataset.lens;
-      if (lens !== 'foryou') { exploreTab(lens); return; }
-      // For you is this page: go to what was picked (or what is open).
-      const heading = part('picked')?.hidden === false ? part('picked').querySelector('h2') : part('happening')?.querySelector('h2');
-      heading?.scrollIntoView({ block: 'start', behavior: 'smooth' });
-      heading?.focus?.({ preventScroll: true });
-    }));
-    target.querySelector('[data-home-action="people"]')?.addEventListener('click', () => exploreTab('people'));
+    target.querySelector('.home-explore [data-home-action="explore"]')?.addEventListener('click', () => window.AppNav?.go?.('explore'));
   }
 
   async function refreshWork() {
@@ -558,7 +539,7 @@
   }
 
   window.HomeView = { show, clear, focusGoal };
-  window.HomeViewTesting = { taskScore, chooseNextTask, loadWork, wantsCuriosityPrompt, LENSES };
+  window.HomeViewTesting = { taskScore, chooseNextTask, loadWork, wantsCuriosityPrompt };
 
   window.addEventListener('daily-brief-updated', () => { if (host) calmly(paintSuggestions); });
   window.addEventListener('total-unread-messages-updated', (event) => {

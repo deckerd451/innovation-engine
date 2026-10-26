@@ -1,7 +1,7 @@
 /* Home (home-view.js): discovery first, the same sections at every width.
    Phones and tablets show them in #mobile-you-content (one column), desktop
    in #cd-home (two columns: discovery, then your work and goal help).
-   Search, lenses, Picked for you and Happening in the community carry the
+   Search, Picked for you and Happening in the community carry the
    page; Your work and goal help stay quiet below. */
 .home-view { display:grid; gap:1rem; color:#e6ebf5; }
 .home-sr { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
@@ -32,7 +32,7 @@
 .home-link { min-height:44px; padding:.5rem 0; border:0; background:none; color:#9eefff; font:inherit; font-weight:700; text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
 .home-dismiss { min-height:44px; margin-left:auto; padding:.5rem .4rem; border:0; background:none; color:#a3adc0; font:inherit; font-size:.86rem; font-weight:600; cursor:pointer; }
 .home-action:focus-visible, .home-primary:focus-visible, .home-link:focus-visible, .home-dismiss:focus-visible, .home-section summary:focus-visible,
-.home-project:focus-visible, .home-lens:focus-visible, .home-theme:focus-visible, .home-open-row:focus-visible, .home-topic:focus-visible,
+.home-project:focus-visible, .home-theme:focus-visible, .home-open-row:focus-visible, .home-topic:focus-visible,
 .home-search-go:focus-visible { outline:2px solid #00e0ff; outline-offset:2px; }
 
 /* Waiting on you: compact and noticeable, only when something needs a reply */
@@ -40,7 +40,7 @@
 .home-attention .home-heading { margin-bottom:.35rem; color:#ffc27a; font-size:.74rem; letter-spacing:.07em; text-transform:uppercase; }
 .home-attention .home-action { border-color:rgba(255,170,90,.55); background:rgba(255,170,90,.12); color:#ffd29e; }
 
-/* Search and lenses: Explore's own search and tabs */
+/* Search: hands off to Explore's own search */
 .home-search { position:relative; display:flex; align-items:center; gap:.55rem; min-height:48px; padding:0 .35rem 0 .85rem; border:1px solid rgba(255,255,255,.14); border-radius:14px; background:rgba(255,255,255,.06); }
 .home-search:focus-within { border-color:rgba(0,224,255,.6); }
 .home-search svg { flex:none; width:18px; height:18px; fill:none; stroke:#a3adc0; stroke-width:2; stroke-linecap:round; }
@@ -48,10 +48,6 @@
 .home-search input::placeholder { color:#a3adc0; }
 .home-search-go { flex:none; width:44px; height:40px; display:grid; place-items:center; padding:0; border:0; border-radius:10px; background:rgba(0,224,255,.12); cursor:pointer; }
 .home-search .home-search-go svg { width:18px; height:18px; stroke:#9eefff; }
-.home-lenses { display:flex; gap:.5rem; margin:0 -1rem 0 0; padding:0 1rem 2px 0; overflow-x:auto; scrollbar-width:none; }
-.home-lenses::-webkit-scrollbar { display:none; }
-.home-lens { flex:none; min-height:44px; padding:0 1rem; border:1px solid rgba(255,255,255,.14); border-radius:999px; background:rgba(255,255,255,.05); color:#e6ebf5; font:inherit; font-size:.9rem; font-weight:700; cursor:pointer; }
-.home-lens[aria-current="true"] { border-color:#00e0ff; background:#00e0ff; color:#061018; }
 
 /* Picked for you */
 .home-picked { display:grid; gap:.6rem; }
@@ -63,7 +59,6 @@
 .home-reasons li, .network-reflection-concierge-reasons li { padding:.2rem .6rem; border:1px solid rgba(0,224,255,.25); border-radius:10px; background:rgba(0,224,255,.08); color:#a8ecf7; font-size:.78rem; font-weight:600; line-height:1.4; }
 .home-reasons .home-chip-date { border-color:rgba(255,170,90,.4); background:rgba(255,170,90,.1); color:#ffd29e; }
 .home-pick-actions { display:flex; align-items:center; gap:.5rem; }
-.home-people-route { margin:0; }
 
 /* The introduction card (start-daily-digest.js, Home layout) */
 .home-meet-card .network-reflection-concierge { display:grid; gap:.45rem; margin:0; padding:.85rem; border:1px solid rgba(255,255,255,.1); border-radius:14px; background:rgba(10,14,39,.45); }
@@ -96,7 +91,9 @@
 .home-open-row svg { flex:none; width:18px; height:18px; fill:none; stroke:#a3adc0; stroke-width:2; stroke-linecap:round; }
 .home-topics { display:flex; flex-wrap:wrap; gap:.4rem; margin:0 0 .6rem; padding:0; list-style:none; }
 .home-topic { min-height:40px; padding:0 .85rem; border:1px solid rgba(255,255,255,.14); border-radius:999px; background:rgba(255,255,255,.05); color:#e6ebf5; font:inherit; font-size:.86rem; font-weight:600; cursor:pointer; }
-.home-explore { margin:.5rem 0 0; text-align:center; }
+/* One quiet way into the full directory, under the search. */
+.home-explore { margin:-.6rem 0 0; text-align:right; }
+.home-explore .home-link { min-height:44px; font-size:.86rem; font-weight:600; }
 
 /* What are you curious about? (only when nothing is listed) */
 .home-profile { display:grid; gap:.6rem; border-style:dashed; }
@@ -156,7 +153,6 @@
   .home-view[data-layout="desktop"] { padding:.4rem 1rem 2rem; }
   /* The dashboard's own search sits above Home on desktop: one search box. */
   .home-view[data-layout="desktop"] .home-search { display:none; }
-  .home-view[data-layout="desktop"] .home-lenses { margin-right:0; padding-right:0; flex-wrap:wrap; }
   .home-view[data-layout="desktop"] .home-themes { margin-right:0; padding-right:0; flex-wrap:wrap; }
   .home-view[data-layout="desktop"] .home-grid { grid-template-columns:minmax(0, 1.6fr) minmax(0, 1fr); align-items:start; }
   .home-view[data-layout="desktop"] .home-picks { grid-template-columns:repeat(auto-fill, minmax(15rem, 1fr)); }
