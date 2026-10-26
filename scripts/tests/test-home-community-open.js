@@ -20,6 +20,11 @@
 //     so no chip points at one identifiable person; hidden members never
 //     reach the builder (the community query filters them)
 //  5. person suggestions carry their labelled reasons for Home's chips
+//  6. theme counts come from direct reads (_fetchThemeDiscoverableCounts):
+//     participation for the newest eligible themes and each participant's
+//     visibility, so a visible member outside the brief's capped snapshots
+//     still counts and a hidden one never does; the snapshot is only the
+//     fallback when those reads fail
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -134,6 +139,43 @@ global.window = {};
   });
   assert.deepEqual(people[0].reasons.map(r => [r.category, r.detail]), [['shared_skill', 'Python'], ['shared_theme', 'Human-Centered Design']],
     'an introduction carries the same evidence as its summary, labelled');
+
+  // 6. Theme counts from direct reads, not the capped snapshots.
+  {
+    const { createFakeSupabase } = require('./fixtures/fake-supabase.js');
+    const fakeNow = new Date();
+    const themes = [
+      { id: 't-big', title: 'Climate resilience', created_at: new Date(fakeNow - 2 * day).toISOString(), expires_at: null },
+      { id: 't-thin', title: 'Food access', created_at: new Date(fakeNow - 3 * day).toISOString(), expires_at: null },
+      { id: 't-bucket', title: 'General Projects', created_at: new Date(fakeNow - day).toISOString(), expires_at: null },
+    ];
+    const community = [
+      { id: 'v1', is_hidden: false }, { id: 'v2', is_hidden: null }, { id: 'v3', is_hidden: false }, { id: 'v4', is_hidden: false },
+      { id: 'h1', is_hidden: true }, { id: 'h2', is_hidden: true },
+    ];
+    const supabase = createFakeSupabase({
+      community,
+      theme_participants: [
+        ...['v1', 'v2', 'v3', 'v4', 'h1'].map(id => ({ theme_id: 't-big', community_id: id })),
+        ...['v1', 'h1', 'h2'].map(id => ({ theme_id: 't-thin', community_id: id })),
+        ...['v1', 'v2', 'v3', 'v4'].map(id => ({ theme_id: 't-bucket', community_id: id })),
+      ],
+    });
+    const counts = await engine.__testFetchThemeDiscoverableCounts(supabase, themes, fakeNow);
+    assert.deepEqual([...counts].sort(), [['t-big', 4], ['t-thin', 1]], 'visible participants only, read directly; the catch-all is not even read');
+
+    // A brief whose community snapshot holds only one of the four visible
+    // participants (the rest beyond its 500-row cap) still shows the theme.
+    const snapshotOnly = build({ userProfile: me, memberships: engine.__testBuildMembershipMaps({ communityId: 'me', themeParticipants: [{ theme_id: 't-big', community_id: 'v1' }] }), now: fakeNow,
+      themeCircles: themes, projects: [], opportunities: [], organizations: [], community: [{ id: 'v1', skills: [] }] });
+    assert.ok(!snapshotOnly.themes.length, 'from the capped snapshot alone the theme would be missing (the review finding)');
+    const direct = build({ userProfile: me, memberships: engine.__testBuildMembershipMaps({ communityId: 'me' }), now: fakeNow,
+      themeCircles: themes, projects: [], opportunities: [], organizations: [], community: [{ id: 'v1', skills: [] }], themeDiscoverableCounts: counts });
+    assert.deepEqual(direct.themes.map(t => [t.title, t.participantCount]), [['Climate resilience', 4]], 'with direct counts it is shown, counted fully; a theme with one visible member is not');
+
+    const failing = { from: () => ({ select: () => ({ in: () => ({ limit: async () => ({ data: null, error: { message: 'denied' } }) }) }) }) };
+    assert.equal(await engine.__testFetchThemeDiscoverableCounts(failing, themes, fakeNow), null, 'a failed read gives no counts (the snapshot is used), never invented ones');
+  }
 
   console.log('Home community summary: all checks passed');
 })().catch(error => {

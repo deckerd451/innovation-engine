@@ -1554,7 +1554,51 @@ const COMMUNITY_THEME_MIN_MEMBERS = 3;
 // chose: never shown, whatever their size.
 const _CATCH_ALL_THEME_TITLES = new Set(['general projects']);
 
-function _buildCommunityOpen({ userProfile, themeCircles, projects, opportunities, organizations, community, memberships, now }) {
+// Discoverable participants per theme, read directly for the newest active
+// themes Home could show, so a count never depends on the brief's capped
+// snapshots (500 community rows, 1,000 participation rows). The same reads
+// and visibility filter as the snapshots; null when they fail (the snapshot
+// count is used then).
+const _THEME_COUNT_CANDIDATES = 12;
+async function _fetchThemeDiscoverableCounts(supabase, themeCircles, now) {
+  try {
+    const nowMs = (now instanceof Date ? now : new Date()).getTime();
+    const time = value => { const t = new Date(value || 0).getTime(); return Number.isFinite(t) ? t : 0; };
+    const ids = (themeCircles || [])
+      .filter(theme => theme?.id && theme.title && (!theme.expires_at || time(theme.expires_at) > nowMs))
+      .filter(theme => !_CATCH_ALL_THEME_TITLES.has(String(theme.title).trim().toLowerCase()))
+      .sort((a, b) => time(b.created_at) - time(a.created_at))
+      .slice(0, _THEME_COUNT_CANDIDATES)
+      .map(theme => String(theme.id));
+    if (!ids.length) return new Map();
+    const { data: rows, error } = await supabase
+      .from('theme_participants')
+      .select('theme_id, community_id')
+      .in('theme_id', ids)
+      .limit(5000);
+    if (error) return null;
+    const people = [...new Set((rows || []).map(row => String(row.community_id)))];
+    const visible = new Set();
+    for (let i = 0; i < people.length; i += 150) {
+      const { data, error: visibleError } = await supabase
+        .from('community')
+        .select('id')
+        .in('id', people.slice(i, i + 150))
+        .or('is_hidden.is.null,is_hidden.eq.false');
+      if (visibleError) return null;
+      (data || []).forEach(row => visible.add(String(row.id)));
+    }
+    const members = new Map(ids.map(id => [id, new Set()]));
+    for (const row of rows || []) {
+      if (visible.has(String(row.community_id))) members.get(String(row.theme_id))?.add(String(row.community_id));
+    }
+    return new Map([...members].map(([id, set]) => [id, set.size]));
+  } catch (_) {
+    return null;
+  }
+}
+
+function _buildCommunityOpen({ userProfile, themeCircles, projects, opportunities, organizations, community, memberships, themeDiscoverableCounts, now }) {
   const me = userProfile?.id != null ? String(userProfile.id) : null;
   const myAuth = userProfile?.user_id != null ? String(userProfile.user_id) : null;
   const time = value => { const t = new Date(value || 0).getTime(); return Number.isFinite(t) ? t : 0; };
@@ -1571,7 +1615,10 @@ function _buildCommunityOpen({ userProfile, themeCircles, projects, opportunitie
       id: String(theme.id),
       title: theme.title,
       created_at: theme.created_at,
-      participantCount: [...(memberships?.themeMemberIds?.get(String(theme.id)) || [])].filter(id => discoverable.has(String(id))).length,
+      // Read directly when available; otherwise from the brief's snapshots.
+      participantCount: themeDiscoverableCounts instanceof Map
+        ? (themeDiscoverableCounts.get(String(theme.id)) || 0)
+        : [...(memberships?.themeMemberIds?.get(String(theme.id)) || [])].filter(id => discoverable.has(String(id))).length,
     }))
     .filter(theme => theme.participantCount >= COMMUNITY_THEME_MIN_MEMBERS)
     .sort(newestFirst)
@@ -1832,6 +1879,7 @@ export async function generateDailyBrief({
 
   if (debug) console.log('[IE] Fetching core graph…');
   const graph = await _fetchCoreGraph(supabase, { communityId, windowDays, now, debug });
+  const themeDiscoverableCounts = await _fetchThemeDiscoverableCounts(supabase, graph.themeCircles, now);
 
   // Build supporting data structures
   const memberships = _buildMembershipMaps({
@@ -1874,6 +1922,7 @@ export async function generateDailyBrief({
     dailySuggestions: graph.dailySuggestions,
     nearifyEventPresence: graph.nearifyEventPresence,
     opportunityInterests: graph.opportunityInterests,
+    themeDiscoverableCounts,
     memberships,
     activityHitMap,
     now,
@@ -1930,4 +1979,4 @@ export { _buildPeopleWorthKnowing as __testBuildPeopleWorthKnowing };
 // Test-only exports of the invitation builders behind Home's "Ways to join in".
 export { _buildProjectsForYou as __testBuildProjectsForYou, _buildOpportunitiesForYou as __testBuildOpportunitiesForYou, _buildMembershipMaps as __testBuildMembershipMaps };
 // Test-only export of Home's "Happening in the community" builder.
-export { _buildCommunityOpen as __testBuildCommunityOpen, COMMUNITY_SKILL_MIN_MEMBERS, COMMUNITY_THEME_MIN_MEMBERS };
+export { _buildCommunityOpen as __testBuildCommunityOpen, _fetchThemeDiscoverableCounts as __testFetchThemeDiscoverableCounts, COMMUNITY_SKILL_MIN_MEMBERS, COMMUNITY_THEME_MIN_MEMBERS };
