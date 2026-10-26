@@ -739,9 +739,12 @@ window.CommandDashboard = (() => {
     //    does not depend on graphDataStore being loaded)
     if (window.supabase) {
       try {
+        // Members hidden from discovery never count toward a skill, as on
+        // every other discovery surface (search, matching, the brief).
         const { data: people, error } = await window.supabase
           .from('community')
-          .select('skills');
+          .select('skills')
+          .or('is_hidden.is.null,is_hidden.eq.false');
 
         if (error) {
           console.warn('[Themes] community.skills query failed:', error.message);

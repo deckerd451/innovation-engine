@@ -1401,6 +1401,9 @@ function _buildPeopleWorthKnowing({ userProfile, community, projects, organizati
       relationship,
       headline: label,
       subhead: summaries.join(' · '),
+      // The same evidence as the subhead, labelled, so Home can say which
+      // kind of reason it is ("Shared interest: …").
+      reasons: meaningful.slice(0, 2).map(reason => ({ category: reason.category, label: reason.label || null, detail: reason.detail || null })),
       confidence: _clamp01(0.45 + Math.min(score, 10) * 0.05),
       score,
       primary_refs: [{ nodeType: 'person', nodeId: personId, label }],
@@ -1522,6 +1525,89 @@ function _buildProjectsForYou({ userProfile, projects, memberships, maxItems }) 
         created_at: new Date().toISOString(),
       };
     });
+}
+
+/**
+ * 4c) community — what is open in the community, for everyone (Home's
+ * "Happening in the community"). Not personalized and not ranked by
+ * popularity: built only from rows the graph already read under the member's
+ * own permissions, newest (or closing soonest) first, and only with the
+ * counts and deadlines those rows carry.
+ *
+ *   themes         active themes; participant_count only when the summary
+ *                  view provides it
+ *   projects       projects open to collaborators ('open', 'recruiting'),
+ *                  never the member's own, joined or requested ones
+ *   opportunities  public, open, not past their deadline; never the
+ *                  member's own or their managed organization's
+ *   skills         skills listed by at least COMMUNITY_SKILL_MIN_MEMBERS
+ *                  visible members (hidden members are already excluded
+ *                  by the community query), so no chip points at one person
+ */
+const _COMMUNITY_OPEN_PROJECT_STATUSES = new Set(['open', 'recruiting']);
+const COMMUNITY_SKILL_MIN_MEMBERS = 5;
+
+function _buildCommunityOpen({ userProfile, themeCircles, projects, opportunities, organizations, community, memberships, now }) {
+  const me = userProfile?.id != null ? String(userProfile.id) : null;
+  const myAuth = userProfile?.user_id != null ? String(userProfile.user_id) : null;
+  const time = value => { const t = new Date(value || 0).getTime(); return Number.isFinite(t) ? t : 0; };
+  const newestFirst = (a, b) => time(b.created_at) - time(a.created_at);
+  const nowMs = (now instanceof Date ? now : new Date()).getTime();
+
+  const themes = (themeCircles || [])
+    .filter(theme => theme?.id && theme.title && (!theme.expires_at || time(theme.expires_at) > nowMs))
+    .sort(newestFirst)
+    .map(theme => ({
+      id: String(theme.id),
+      title: theme.title,
+      participantCount: Number.isInteger(theme.participant_count) && theme.participant_count > 0 ? theme.participant_count : null,
+    }));
+
+  const openProjects = (projects || [])
+    .filter(project => project?.id && project.title && _COMMUNITY_OPEN_PROJECT_STATUSES.has(project.status))
+    .filter(project => !(me && String(project.creator_id) === me) && !memberships?.userProjectIds?.has(String(project.id)))
+    .sort(newestFirst)
+    .map(project => ({
+      id: String(project.id),
+      title: project.title,
+      needs: (Array.isArray(project.required_skills) ? project.required_skills : []).map(skill => String(skill).trim()).filter(Boolean).slice(0, 3),
+    }));
+
+  const orgNames = new Map((organizations || []).map(org => [String(org.id), org.name]));
+  const deadline = opp => (opp.application_deadline ? time(opp.application_deadline) : Infinity);
+  const openOpportunities = (opportunities || [])
+    .filter(opp => opp?.id && opp.title)
+    .filter(opp => !(me && String(opp.posted_by) === me) && !(opp.organization_id && memberships?.userManagedOrgIds?.has(String(opp.organization_id))))
+    .filter(opp => deadline(opp) > nowMs)
+    .sort((a, b) => deadline(a) - deadline(b) || newestFirst(a, b))
+    .map(opp => ({
+      id: String(opp.id),
+      title: opp.title,
+      organization: opp.organization_id ? orgNames.get(String(opp.organization_id)) || null : null,
+      deadline: opp.application_deadline || null,
+    }));
+
+  // Distinct members per skill, the member themselves not counted.
+  const members = new Map();
+  const labels = new Map();
+  for (const person of community || []) {
+    if (!person?.id || String(person.id) === me || (myAuth && String(person.user_id) === myAuth)) continue;
+    const identity = String(person.user_id ?? person.id);
+    const raw = Array.isArray(person.skills) ? person.skills : typeof person.skills === 'string' ? person.skills.split(',') : [];
+    for (const value of raw) {
+      const label = String(value || '').trim();
+      if (!label) continue;
+      const key = label.toLowerCase();
+      if (!members.has(key)) { members.set(key, new Set()); labels.set(key, label); }
+      members.get(key).add(identity);
+    }
+  }
+  const skills = [...members.entries()]
+    .filter(([, ids]) => ids.size >= COMMUNITY_SKILL_MIN_MEMBERS)
+    .sort((a, b) => b[1].size - a[1].size || a[0].localeCompare(b[0]))
+    .map(([key]) => ({ key, label: labels.get(key) }));
+
+  return { themes: themes.slice(0, 6), projects: openProjects.slice(0, 6), opportunities: openOpportunities.slice(0, 6), skills: skills.slice(0, 8) };
 }
 
 /**
@@ -1816,6 +1902,7 @@ export async function generateDailyBrief({
       used_sources: graph.usedSources,
     },
     sections,
+    community: _buildCommunityOpen(sectionCtx),
   };
 }
 
@@ -1828,3 +1915,5 @@ export { getWhy, registerWhy };
 export { _buildPeopleWorthKnowing as __testBuildPeopleWorthKnowing };
 // Test-only exports of the invitation builders behind Home's "Ways to join in".
 export { _buildProjectsForYou as __testBuildProjectsForYou, _buildOpportunitiesForYou as __testBuildOpportunitiesForYou, _buildMembershipMaps as __testBuildMembershipMaps };
+// Test-only export of Home's "Happening in the community" builder.
+export { _buildCommunityOpen as __testBuildCommunityOpen, COMMUNITY_SKILL_MIN_MEMBERS };

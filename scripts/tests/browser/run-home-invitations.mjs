@@ -13,9 +13,14 @@
 //     opportunity from an organization they run, or one past its deadline;
 //     each invitation that is shown says why, in terms of the member
 //   - a newcomer with no skills, interests, projects or connections: nothing
-//     matches, so Home shows its quiet state instead of recent activity
+//     matches, so Home shows its quiet state instead of recent activity, and
+//     invites them (optionally) to share interests; the member above, who
+//     lists skills and interests but no bio or photo, is not asked
 // and at the top of Home: the heading sits below the status bar, and Home's
-// content never scrolls underneath the status bar.
+// content never scrolls underneath the status bar. At the bottom, in iPhone
+// Safari (no bottom safe area) and the installed app (34px), "Browse
+// everyone in Explore" clears the navigation by the same comfortable amount,
+// and the next task's Continue is an outlined action that still opens it.
 //
 // CHROME_PATH overrides the browser; HOME_TEST_ROOT serves another checkout
 // (used for the "before" run against unfixed code). Screenshots go to outDir.
@@ -202,11 +207,12 @@ const joinIn = () => callInPage(function () {
   const quiet = document.querySelector('#mobile-you-content [data-home="quiet"]');
   return {
     shown: !!section && !section.hidden,
-    items: section && !section.hidden ? [...section.querySelectorAll('.home-item')].map(item => ({
+    items: section && !section.hidden ? [...section.querySelectorAll('.home-pick')].map(item => ({
       name: item.querySelector('strong')?.textContent.trim() || '',
-      reason: item.querySelector('p')?.textContent.trim() || '',
+      reason: item.querySelector('.home-reasons li')?.textContent.trim() || '',
     })) : [],
     quiet: !!quiet && !quiet.hidden ? quiet.innerText : '',
+    happening: (() => { const el = document.querySelector('#mobile-you-content [data-home="happening"]'); return el && !el.hidden ? el.innerText : ''; })(),
     text: document.getElementById('mobile-you-content')?.innerText || '',
   };
 });
@@ -233,6 +239,30 @@ const scrollHome = (y) => callInPage(function (top) {
 }, y);
 
 const EXCLUDED = ['Harborhack 2026 prep', 'Startup lab', 'Investor day', 'Climate data archive', 'Python study group', 'Mentor first-time founders', 'Climate grant reviewer'];
+// The bottom of Home, scrolled to the end: the Explore link against the
+// bottom navigation, and how loud the next task's Continue button is.
+const bottomEdge = () => callInPage(function () {
+  const scroller = document.querySelector('#mobile-you-screen .mobile-you-scroll');
+  scroller.scrollTop = scroller.scrollHeight;
+  const link = document.querySelector('#mobile-you-content .home-explore button').getBoundingClientRect();
+  const nav = document.getElementById('app-nav').getBoundingClientRect();
+  const card = document.querySelector('#mobile-you-content .home-next');
+  const button = card?.querySelector('.home-primary');
+  const style = button ? getComputedStyle(button) : null;
+  return {
+    linkBottom: Math.round(link.bottom),
+    navTop: Math.round(nav.top),
+    clearance: Math.round(nav.top - link.bottom),
+    continueLabel: button?.textContent.trim() || '',
+    continueOpensTask: !!button?.dataset.nextTask,
+    continueWidth: button ? Math.round(button.getBoundingClientRect().width) : 0,
+    cardWidth: card ? Math.round(card.getBoundingClientRect().width) : 0,
+    continueBackground: style?.backgroundColor || '',
+    sections: [...document.querySelectorAll('#mobile-you-content [data-home]')].filter(el => !el.hidden && el.getClientRects().length).map(el => el.dataset.home),
+  };
+});
+// "What are you curious about?", if Home shows it.
+const curiosityPrompt = () => evaluate(`(() => { const el = document.querySelector('#mobile-you-content [data-home="profile"]'); return el && !el.hidden ? el.innerText : ''; })()`);
 const CREDIBLE = ['Climate dashboard for Charleston', 'Neighborhood tool library', 'Python mentor for a coding club'];
 const REASON = /^(Matches what you listed: |Someone you’re connected to |From .+ you belong to|Part of a theme you’re in|\d+ people you’re connected to )/;
 
@@ -246,6 +276,10 @@ try {
     console.log(`\nMember with projects (${device.name}, ${device.top}px top safe area)`);
     await loadHome('member', device);
     const join = await joinIn();
+    if (device.name === 'dynamic-island') {
+      const prompt = await curiosityPrompt();
+      check(!/What are you curious about\?/.test(prompt), 'member with skills and interests (no bio or photo): not asked to share interests', prompt);
+    }
     if (device.name === 'dynamic-island') await phoneShot(`member-${device.name}-top`);
     const offered = join.items.map(item => item.name);
     const wrong = offered.filter(name => EXCLUDED.includes(name));
@@ -265,12 +299,31 @@ try {
     await scrollHome(0);
   }
 
+  console.log('\nBottom of Home (iPhone Safari and the installed Home Screen app)');
+  const bottoms = {};
+  for (const mode of [{ name: 'safari', top: 47, bottom: 0 }, { name: 'installed', top: 59, bottom: 34 }]) {
+    await loadHome('member', mode);
+    const edge = await bottomEdge();
+    await sleep(200);
+    await phoneShot(`member-${mode.name}-bottom`);
+    bottoms[mode.name] = edge;
+    check(edge.clearance >= 32, `${mode.name}: "Browse everyone in Explore" has comfortable clearance above the navigation`, JSON.stringify(edge));
+    check(edge.continueLabel === 'Continue' && edge.continueOpensTask, `${mode.name}: Continue is still there and opens the next task`, JSON.stringify(edge));
+    check(edge.continueWidth < edge.cardWidth && edge.continueBackground !== 'rgb(0, 224, 255)', `${mode.name}: Continue is an outlined action, not a full-width solid button`, JSON.stringify(edge));
+    check(JSON.stringify(edge.sections.filter(name => ['join', 'work', 'goal'].includes(name))) === '["join","work","goal"]', `${mode.name}: section order is unchanged`, JSON.stringify(edge.sections));
+  }
+  check(bottoms.safari.clearance === bottoms.installed.clearance, 'the Explore link has the same clearance in Safari and the installed app', JSON.stringify({ safari: bottoms.safari.clearance, installed: bottoms.installed.clearance }));
+
   console.log('\nNewcomer (no skills, interests, projects or connections)');
   await loadHome('newcomer', { top: 59, bottom: 34 });
   const newcomer = await joinIn();
   await phoneShot('newcomer-dynamic-island-top');
   check(!newcomer.shown && !newcomer.items.length, 'newcomer: no generic recent activity in Ways to join in', JSON.stringify(newcomer.items));
-  check(/It’s quiet around you right now/.test(newcomer.quiet), 'newcomer: Home shows its honest quiet state', newcomer.text.slice(0, 300));
+  // Discovery first: a newcomer sees what is open in the community instead of
+  // an empty Home (the quiet state is for when nothing at all is open).
+  check(/Start anywhere/.test(newcomer.happening) && /Climate dashboard for Charleston/.test(newcomer.happening) && !newcomer.quiet, 'newcomer: Home starts with what is open in the community, not an empty page', newcomer.text.slice(0, 300));
+  const newcomerPrompt = await curiosityPrompt();
+  check(/What are you curious about\?/.test(newcomerPrompt) && /optional/.test(newcomerPrompt), 'newcomer with no skills or interests: invited, optionally, to share interests', newcomerPrompt);
 } catch (error) {
   check(false, 'Run aborted', error.message);
   await shot('zz-failure').catch(() => {});

@@ -127,6 +127,7 @@ function _conciergeCandidates(brief) {
         type: resolvedType,
         name: ref.label || item.headline || 'Something worth exploring',
         reason: item.subhead || 'This is a useful next step based on your activity.',
+        reasons: resolvedType === 'person' && Array.isArray(item.reasons) ? item.reasons : null,
         score: Number(item.score) || 0,
         priority,
       } : null;
@@ -154,7 +155,7 @@ function _getConciergeCandidate(brief, profile) {
  */
 async function _loadBriefEngine() {
   if (!_briefEnginePromise) {
-    const url = _SCRIPT_BASE + 'intelligence/daily-brief-engine.js?v=home-invitations-20261024';
+    const url = _SCRIPT_BASE + 'intelligence/daily-brief-engine.js?v=discovery-home-20261026';
     _briefEnginePromise = import(url).catch(err => {
       _briefEnginePromise = null;   // allow retry
       throw err;
@@ -1674,9 +1675,25 @@ async function _renderReflectionSupportContent(renderId = _reflectionRenderId) {
 
 // options: eyebrow (null for none), next() for the candidate shown after
 // "Not now", onEmpty() when there is none. Home passes its own (home-view.js).
+// One labelled reason for an introduction, in the member's terms, from the
+// brief's own evidence (never more than it says).
+function _introductionReason(reason) {
+  const detail = String(reason?.detail || '').trim();
+  switch (reason?.category) {
+    case 'shared_theme': return detail ? `Shared interest: ${detail}` : 'Shared interest';
+    case 'shared_skill': return detail ? `Shared skill${detail.includes(',') ? 's' : ''}: ${detail}` : 'Shared skill';
+    case 'shared_organization': return detail ? `Both in ${detail}` : 'Same organization';
+    case 'shared_nearify_event': return detail || 'At the same event';
+    default: return detail || String(reason?.label || '').trim() || null;
+  }
+}
+
 function _renderCollaborationConcierge(root, candidate, options = {}) {
   const {
     eyebrow: eyebrowText = 'ONE MOVE',
+    // 'home': initials, the reasons as labelled chips, and the outcome line
+    // only once a request is sent (Home's compact card).
+    layout = null,
     next: nextCandidate = () => _getConciergeCandidate(_lastDailyBrief, window.currentUserProfile),
     onEmpty = () => { if (root.closest('.network-reflection-section')) root.closest('.network-reflection-section').hidden = true; },
   } = options;
@@ -1703,12 +1720,38 @@ function _renderCollaborationConcierge(root, candidate, options = {}) {
   title.textContent = candidate.type === 'person'
     ? `Meet ${candidate.name}`
     : candidate.type === 'project' ? `Explore ${candidate.name}` : `Consider ${candidate.name}`;
-  card.appendChild(title);
+  const chips = layout === 'home' ? (candidate.reasons || []).map(_introductionReason).filter(Boolean) : [];
+  if (layout === 'home' && candidate.type === 'person') {
+    // Initials only: Home never shows a photo here.
+    const who = document.createElement('div');
+    who.className = 'network-reflection-concierge-who';
+    const initials = document.createElement('span');
+    initials.className = 'network-reflection-concierge-initials';
+    initials.setAttribute('aria-hidden', 'true');
+    initials.textContent = String(candidate.name || '').split(/\s+/).map(word => word.match(/[\p{L}\p{N}]/u)?.[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?';
+    who.appendChild(initials);
+    who.appendChild(title);
+    card.appendChild(who);
+  } else {
+    card.appendChild(title);
+  }
 
-  const reason = document.createElement('p');
-  reason.className = 'network-reflection-concierge-reason';
-  reason.textContent = `Why this fits: ${candidate.reason}`;
-  card.appendChild(reason);
+  if (chips.length) {
+    const list = document.createElement('ul');
+    list.className = 'network-reflection-concierge-reasons';
+    list.setAttribute('aria-label', 'Why this fits');
+    chips.forEach(text => {
+      const chip = document.createElement('li');
+      chip.textContent = text;
+      list.appendChild(chip);
+    });
+    card.appendChild(list);
+  } else {
+    const reason = document.createElement('p');
+    reason.className = 'network-reflection-concierge-reason';
+    reason.textContent = `Why this fits: ${candidate.reason}`;
+    card.appendChild(reason);
+  }
 
   const prompt = document.createElement('p');
   prompt.className = 'network-reflection-concierge-prompt';
@@ -1722,6 +1765,7 @@ function _renderCollaborationConcierge(root, candidate, options = {}) {
   outcome.textContent = candidate.type === 'person'
     ? 'If they accept, your conversation will appear in Inbox.'
     : 'Buildspace chose this from your profile and recent activity.';
+  if (layout === 'home') outcome.hidden = true;
   card.appendChild(outcome);
 
   const actions = document.createElement('div');
@@ -1753,6 +1797,7 @@ function _renderCollaborationConcierge(root, candidate, options = {}) {
       _saveConciergeState(window.currentUserProfile);
       invite.textContent = 'Request sent';
       outcome.textContent = 'Request sent — you’ll see their reply in Inbox.';
+      outcome.hidden = false;
     } else {
       invite.disabled = false;
     }
@@ -1826,6 +1871,7 @@ function _homeInvitations(brief, ownProjectIds) {
       type,
       name: ref.label || 'Something worth exploring',
       reason: item.invitation_reason,
+      until: item.available_until || null,
       score: Number(item.score) || 0,
     };
   })
@@ -1834,12 +1880,37 @@ function _homeInvitations(brief, ownProjectIds) {
     .filter((item, index, all) => all.findIndex(other => other.id === item.id) === index);
 }
 
-// What Home shows from the brief: one person to meet (a new introduction)
-// and up to two ways to join in, never anything the member set aside today.
+// Up to two ways to join in: a project first, then an opportunity; when one
+// kind has nothing, the next strongest of the other.
+function _pickJoinIn(items) {
+  const picked = [items.find(item => item.type === 'project'), items.find(item => item.type === 'opportunity')].filter(Boolean);
+  for (const item of items) if (picked.length < 2 && !picked.includes(item)) picked.push(item);
+  return picked;
+}
+
+// What is open in the community (the brief's non-personalized summary),
+// without anything Home already suggests, anything the member set aside
+// today ("Not now" holds across Home's sections) or their own projects.
+function _homeCommunity(brief, { ownProjectIds, joinIn }) {
+  const community = brief?.community || {};
+  const shown = new Set((joinIn || []).map(item => item.id));
+  const own = new Set([...(ownProjectIds || [])].map(String));
+  const open = id => !shown.has(id) && !_conciergeDismissed.has(id);
+  return {
+    themes: community.themes || [],
+    projects: (community.projects || []).filter(item => open(`project:${item.id}`) && !own.has(String(item.id))),
+    opportunities: (community.opportunities || []).filter(item => open(`opportunity:${item.id}`)),
+    skills: community.skills || [],
+  };
+}
+
+// What Home shows from the brief: one person to meet (a new introduction),
+// up to two ways to join in, never anything the member set aside today, and
+// what is open in the community for everyone.
 function _homeSuggestions({ ownProjectIds } = {}) {
   const brief = _lastDailyBrief;
   if (!_briefIsCurrent(brief)) {
-    return { status: _briefStatus === 'unavailable' ? 'unavailable' : 'loading', person: null, joinIn: [] };
+    return { status: _briefStatus === 'unavailable' ? 'unavailable' : 'loading', person: null, joinIn: [], community: null };
   }
   const profile = window.currentUserProfile;
   _loadConciergeState(profile);
@@ -1849,18 +1920,30 @@ function _homeSuggestions({ ownProjectIds } = {}) {
     && !_conciergeDismissed.has(item.id)
     && item.entityId !== selfId && !_conciergeRelatedIds.has(String(item.entityId))
   )) || null;
+  const joinIn = _pickJoinIn(_homeInvitations(brief, ownProjectIds).filter(item => !_conciergeDismissed.has(item.id)));
   return {
     status: 'ready',
     person,
-    joinIn: _homeInvitations(brief, ownProjectIds).filter(item => !_conciergeDismissed.has(item.id)).slice(0, 2),
+    joinIn,
+    community: _homeCommunity(brief, { ownProjectIds, joinIn }),
   };
 }
 
+// "Not now" on a way to join in: set aside for today, like an introduction.
+function _setAsideSuggestion(id) {
+  if (!id) return;
+  _loadConciergeState(window.currentUserProfile);
+  _conciergeDismissed.add(String(id));
+  _saveConciergeState(window.currentUserProfile);
+}
+
 window.StartDailyDigest.homeSuggestions = _homeSuggestions;
+window.StartDailyDigest.setAsideSuggestion = _setAsideSuggestion;
 window.StartDailyDigest.inboundAttention = data => _reflectionAttentionActions(data?.immediate_actions || {});
 window.StartDailyDigest.renderIntroduction = function (root, candidate, onEmpty) {
   _renderCollaborationConcierge(root, candidate, {
-    eyebrow: null,
+    eyebrow: 'Someone to meet',
+    layout: 'home',
     next: () => _homeSuggestions().person,
     onEmpty,
   });

@@ -433,9 +433,11 @@ async function renderSkillLensPanel(skillData) {
     // schema. Some deployed projects do not have full_name/username, and
     // skills has existed as both JSON and text, so filtering locally avoids
     // turning a valid skill click into a schema error.
+    // Members hidden from discovery are never listed or counted here.
     const { data, error } = await client
       .from('community')
       .select('id,name,skills')
+      .or('is_hidden.is.null,is_hidden.eq.false')
       .limit(1000);
     if (error) throw error;
     const people = (data || []).filter(person => {

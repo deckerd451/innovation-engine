@@ -168,7 +168,7 @@ try {
   check(s.youVisible && s.centreOwner === 'my-space', 'My Space owns the viewport', JSON.stringify(s));
   check(s.goalForms === 1, 'Exactly one objective entry is mounted', `forms=${s.goalForms}`);
   const nextTitle = await evaluate(`document.querySelector('#mobile-you-content .home-next .home-title')?.textContent`);
-  check(nextTitle === 'select speaker(s)', 'Scenario A: My Space surfaces the existing next step', nextTitle);
+  check(nextTitle === 'Next: select speaker(s)', 'Scenario A: My Space surfaces the existing next step', nextTitle);
   check(!(await evaluate(`/Python/.test(document.getElementById('mobile-you-content').textContent)`)), 'Profile details are not shown as the objective');
 
   // Scenario A: one tap to substantive help.

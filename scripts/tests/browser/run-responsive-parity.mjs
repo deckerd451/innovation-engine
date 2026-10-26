@@ -1111,7 +1111,8 @@ async function homeRefreshChecks(P, { realTimer = false } = {}) {
     const root = phone ? '#mobile-you-content' : '#cd-home';
     const input = '#mgd-goal-input';
     await waitUntil(function (sel) { return !!document.querySelector(sel); }, [input], 'Home input', 10000);
-    await waitUntil(function (sel) { return document.querySelectorAll(sel + ' details').length >= 3; }, [root], 'Home sections', 10000);
+    // Goal help, and Your work's one list of other tasks and projects.
+    await waitUntil(function (sel) { return document.querySelectorAll(sel + ' details').length >= 2; }, [root], 'Home sections', 10000);
     await sleep(800);
     // Open every collapsed section on Home (goal help, other tasks, projects)
     // with a real tap or click.
@@ -1122,7 +1123,7 @@ async function homeRefreshChecks(P, { realTimer = false } = {}) {
       await press(summary, `Home section ${i + 1}`);
     }
     const opened = (await homeState()).open;
-    check(opened.length >= 3, `${P}: Home sections open with a ${phone ? 'tap' : 'click'}`, JSON.stringify(opened));
+    check(opened.length >= 2, `${P}: Home sections open with a ${phone ? 'tap' : 'click'}`, JSON.stringify(opened));
     // A message arriving while Home is just being read shows in "Waiting on
     // you" straight away.
     {
@@ -2174,7 +2175,9 @@ async function accessChecks(P) {
 // connection or someone with a request waiting.
 async function homeChecks(P) {
   const root = current.width < 1024 ? '#mobile-you-content' : '#cd-home';
-  const order = ['attention', 'profile', 'meet', 'join', 'quiet', 'work', 'goal'];
+  // Discovery first: Picked for you (a person, then ways to join in) and
+  // Happening in the community, then the curiosity invitation, then work.
+  const order = ['attention', 'picked', 'meet', 'join', 'people-route', 'happening', 'profile', 'quiet', 'work', 'goal'];
   const homeLayout = () => callInPage(function (sel) {
     const host = document.querySelector(sel);
     const shown = (el) => !!el && !el.hidden && el.getClientRects().length > 0;
@@ -2217,7 +2220,7 @@ async function homeChecks(P) {
     check(/Python mentors for a coding club/.test(join) && !/Mentor first-time founders/.test(join),
       `${P}: ways to join in never offer the member's own organization's opportunity`, join);
     const expected = order.filter(name => h.sections.includes(name));
-    check(JSON.stringify(h.sections) === JSON.stringify(expected) && ['meet', 'join', 'work', 'goal'].every(name => h.sections.includes(name)),
+    check(JSON.stringify(h.sections) === JSON.stringify(expected) && ['picked', 'meet', 'join', 'work', 'goal'].every(name => h.sections.includes(name)),
       `${P}: sections in order: people and possibilities, then work and goal help`, JSON.stringify(h.sections));
     check(h.goalFields === 1, `${P}: one goal field on the page`, String(h.goalFields));
     if (current.width >= 1024) {
@@ -2230,22 +2233,34 @@ async function homeChecks(P) {
     await evaluate(`Object.keys(localStorage).filter(key => key.startsWith('ie:collaboration-concierge:')).forEach(key => localStorage.removeItem(key)); true`);
   });
 
-  // A thin profile gets an optional, curiosity-first invitation; it still
+  // A member who has listed skills is not asked to share interests; one who
+  // has listed neither gets an optional, curiosity-first invitation. It still
   // opens Edit Profile, and Cancel returns without changing anything.
   await step(`${P}: the interests invitation is optional and opens Edit Profile`, async () => {
     await go('home');
-    const text = await evaluate(`document.querySelector('${root} [data-home="profile"]')?.innerText || ''`);
-    check(/What are you curious about\?/.test(text) && /optional/.test(text) && !/Add a few details/.test(text), `${P}: a thin profile gets a curiosity-first invitation`, text);
+    const prompt = () => evaluate(`(() => { const el = document.querySelector('${root} [data-home="profile"]'); return el && !el.hidden ? el.innerText : ''; })()`);
+    check(!/What are you curious about\?/.test(await prompt()), `${P}: a member who listed skills is not asked to share interests`, await prompt());
+    await evaluate(`(() => {
+      window.__listed = { skills: window.currentUserProfile.skills, interests: window.currentUserProfile.interests };
+      window.currentUserProfile.skills = [];
+      window.currentUserProfile.interests = [];
+      return true;
+    })()`);
+    await go('explore');
+    await go('home');
+    const text = await prompt();
+    check(/What are you curious about\?/.test(text) && /optional/.test(text) && !/Add a few details/.test(text), `${P}: a member with no skills or interests gets a curiosity-first invitation`, text);
     await press(`${root} [data-home-action="edit-profile"]`, 'Share your interests');
     await waitFor(`document.getElementById('edit-name')?.getClientRects().length`, 'Edit Profile', 6000);
     check((await destination()) === 'you', `${P}: Share your interests opens Edit Profile`);
     await press('#edit-cancel', 'Cancel');
     await waitFor(`document.querySelector('#btn-open-profile-editor')?.getClientRects().length`, 'profile view', 6000);
+    await evaluate(`(() => { Object.assign(window.currentUserProfile, window.__listed); delete window.__listed; return true; })()`);
     await go('home');
   });
 
   await step(`${P}: a way to join in opens its details`, async () => {
-    const index = await evaluate(`[...document.querySelectorAll('${root} [data-home="join"] .home-item')].findIndex(row => /Python mentors for a coding club/.test(row.innerText))`);
+    const index = await evaluate(`[...document.querySelectorAll('${root} [data-home="join"] .home-pick')].findIndex(row => /Python mentors for a coding club/.test(row.innerText))`);
     await press(`${root} [data-join="${index}"]`, 'Take a look');
     await waitFor(`${isOpen.panel} && /Python mentors for a coding club/.test(document.getElementById('node-side-panel').innerText)`, 'opportunity panel', 6000);
     check((await destination()) === 'home', `${P}: a way to join in opens its details over Home`);

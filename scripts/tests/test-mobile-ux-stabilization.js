@@ -43,7 +43,7 @@ assert.match(nav, /unread > 0/);
 // is never presented as the member's objective.
 assert.match(home, /Your projects/);
 assert.match(home, /data-next-project/);
-assert.match(home, /Pick up where you left off/);
+assert.match(home, /Your work/); // the next task, below discovery (was "Pick up where you left off")
 assert.match(home, /Have something in mind\?/);
 assert.doesNotMatch(home, /profile\.(bio|intent)|p\?\.(bio|intent) *\?/);
 assert.match(youCss, /z-index: 700/);
