@@ -121,6 +121,7 @@ window.CommandDashboard = (() => {
     acceptedPeerIds: null,       // Set<string> — accepted-only connection peer IDs
     acceptedConnections: null,   // Array<{id, name}> — accepted connection peers with names
     pendingConnections: null,    // Array<{id, name}> — pending connection peers
+    directory: null,             // Array<{id, name, skills, interests}> — discoverable members (Explore → People)
     activeProjectIds: null,      // Set<string> — projects with status active/open/etc.
     // Direct Supabase data for dashboard (projects/orgs/opps no longer in graph)
     projects: null,              // Array — all projects from Supabase
@@ -135,6 +136,9 @@ window.CommandDashboard = (() => {
   /* ── Element shortcuts ──────────────────────────────────────── */
   const $id = id => document.getElementById(id);
   const $all = sel => document.querySelectorAll(sel);
+  // People means relationships in Network and the community directory
+  // everywhere else (Explore).
+  const _peopleView = () => (document.body.dataset.destination === 'network' ? 'network' : 'explore');
 
   function _removeLegacySynapseIntelligenceLaunchers() {
     ['cd-notif-btn', 'btn-notif-mobile', 'cd-report-btn'].forEach(id => {
@@ -206,6 +210,13 @@ window.CommandDashboard = (() => {
     window.addEventListener('unified-network-ready', () => {
       _renderCompactStatus(_currentTier);
     }, { once: true });
+
+    // People means the directory in Explore and relationships in Network:
+    // moving between them redraws the list and its count.
+    window.addEventListener('app-destination-changed', () => {
+      _renderCompactStatus(_currentTier);
+      if (_activeResourceTab === 'people') _renderResources(_currentTier);
+    });
 
     console.log('[CommandDashboard] Initialized for userId:', userId);
   }
@@ -546,7 +557,7 @@ window.CommandDashboard = (() => {
     const loadVersion = ++_enrichedDataLoadVersion;
     const isCurrentLoad = () => loadVersion === _enrichedDataLoadVersion;
     try {
-      const [connResult, pendingResult, projResult, myProjResult, orgResult, myOrgResult, oppResult] = await Promise.all([
+      const [connResult, pendingResult, projResult, myProjResult, orgResult, myOrgResult, oppResult, directoryResult] = await Promise.all([
         // Accepted connections only (both directions)
         window.supabase
           .from('connections')
@@ -597,6 +608,15 @@ window.CommandDashboard = (() => {
           .or(`application_deadline.is.null,application_deadline.gt.${new Date().toISOString()}`)
           .then(res => res)
           .catch(() => ({ data: null, error: { message: 'table may not exist' } })),
+        // Explore → People: everyone discoverable. Members hidden from
+        // discovery never appear or count, as on every discovery surface.
+        window.supabase
+          .from('community')
+          .select('id, user_id, name, skills, interests')
+          .or('is_hidden.is.null,is_hidden.eq.false')
+          .limit(500)
+          .then(res => res)
+          .catch(() => ({ data: null, error: { message: 'directory unavailable' } })),
       ]);
       if (!isCurrentLoad()) return;
 
@@ -626,6 +646,14 @@ window.CommandDashboard = (() => {
         } else {
           _enrichedData.acceptedConnections = [];
         }
+      }
+
+      if (directoryResult?.data) {
+        // Never the member themselves (a duplicate row for them included).
+        const selfAuth = _profile?.user_id != null ? String(_profile.user_id) : null;
+        _enrichedData.directory = directoryResult.data
+          .filter(p => p?.id && String(p.id) !== String(_userId) && !(selfAuth && String(p.user_id) === selfAuth))
+          .map(p => ({ id: p.id, name: p.name || 'Member', skills: p.skills || [], interests: p.interests || [] }));
       }
 
       if (pendingResult.data && pendingResult.data.length > 0) {
@@ -849,7 +877,8 @@ window.CommandDashboard = (() => {
       el.setAttribute('aria-label', `${count} ${label}`);
     };
 
-    setResourceCount('people', connections, 'connected people');
+    if (_peopleView() === 'explore' && _enrichedData.directory) setResourceCount('people', _enrichedData.directory.length, 'members');
+    else setResourceCount('people', connections, 'connected people');
     setResourceCount('projects', projects, 'projects');
     setResourceCount('organizations', organizations, 'organizations');
     setResourceCount('opportunities', opps, 'opportunities');
@@ -1364,7 +1393,9 @@ window.CommandDashboard = (() => {
     if (!list) return;
 
     const meta = TIER_META[tier];
-    const tabLabel = meta.resourcesLabel[_activeResourceTab] || _activeResourceTab;
+    // Explore's People is the directory, not "your" people.
+    const directory = _activeResourceTab === 'people' && _peopleView() === 'explore' && _enrichedData.directory;
+    const tabLabel = directory ? 'People in the community' : (meta.resourcesLabel[_activeResourceTab] || _activeResourceTab);
     const items = _getResourceItems(tier, _activeResourceTab);
 
     if (_activeResourceTab === 'projects') {
@@ -1594,8 +1625,32 @@ window.CommandDashboard = (() => {
 
     let filtered = [];
 
-    if (resourceType === 'people') {
-      // Always show: accepted connections first, then pending requests in yellow.
+    if (resourceType === 'people' && _peopleView() === 'explore' && _enrichedData.directory) {
+      // Explore → People: the community directory, beyond the member's own
+      // connections. Each row says how they relate: connected, a request,
+      // what you share, or what they list.
+      const myTerms = new Set([
+        ..._resourceTerms(_profile?.skills),
+        ..._resourceTerms(_profile?.interests),
+      ]);
+      const connectedIds = new Set((_enrichedData.acceptedConnections || []).map(p => String(p.id)));
+      const pendingIds = new Set((_enrichedData.pendingConnections || []).map(p => String(p.id)));
+      return _enrichedData.directory
+        .map(p => {
+          const id = String(p.id);
+          if (connectedIds.has(id)) return { id: p.id, name: p.name, meta: 'Connected' };
+          if (pendingIds.has(id)) return { id: p.id, name: p.name, pending: true, meta: 'Connection request' };
+          const theirs = [..._resourceTerms(p.skills), ..._resourceTerms(p.interests)];
+          const shared = [...new Set(theirs.filter(term => myTerms.has(term)))];
+          const listed = _resourceTerms(p.skills).slice(0, 2);
+          const words = terms => terms.map(term => term.replace(/\b\w/g, letter => letter.toUpperCase())).join(', ');
+          return { id: p.id, name: p.name, meta: shared.length ? `Shares ${words(shared.slice(0, 2))}` : words(listed) };
+        })
+        .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+
+    } else if (resourceType === 'people') {
+      // Network → People: the member's relationships. Accepted connections
+      // first, then pending requests in yellow.
       // Use pre-resolved acceptedConnections (names from Supabase) so the list
       // doesn't depend on graph nodes being loaded.
       const myTerms = new Set([
