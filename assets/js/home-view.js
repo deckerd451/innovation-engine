@@ -1,13 +1,21 @@
-// Home: one set of sections at every width, shown in the phone and tablet
-// Home screen (#mobile-you-content, mobile-you.js) or the desktop dashboard
-// (#cd-home). It composes what already exists -- what others are waiting on
-// the member for and the Daily Brief's suggestions (start-daily-digest.js),
-// the member's tasks, goal assistance -- and has no data of its own.
+// Home: discovery first, the same sections at every width, shown in the
+// phone and tablet Home screen (#mobile-you-content, mobile-you.js) or the
+// desktop dashboard (#cd-home). It composes what already exists -- what
+// others are waiting on the member for, the Daily Brief's suggestions and
+// community summary (start-daily-digest.js), Explore's tabs and search, the
+// member's tasks, goal assistance -- and has no data of its own.
 //
-//   Waiting on you            inbound only: replies, requests, offers
-//   Someone you might enjoy   one new introduction, with why
-//   Ways to join in           up to two projects or opportunities, with why
-//   Pick up where you left off  the next task, other tasks, projects
+//   Welcome                   the member's name; "Discover what we could do together."
+//   Waiting on you            inbound only, and only when something needs a reply
+//   Search and lenses         hand off to Explore's own search and tabs
+//   Picked for you            one person to meet, then a project and an
+//                             opportunity, each with its reason; omitted
+//                             when nothing qualifies
+//   Happening in the community  open to everyone: themes, projects looking
+//                             for people, open opportunities, and (when no
+//                             one is introduced) skills to find people by
+//   What are you curious about?  only when nothing is listed; optional
+//   Your work                 quiet: the next task, the rest one tap away
 //   Have something in mind?   goal assistance, collapsed
 //
 // Sections update on their own: an unread count or a new brief never
@@ -134,14 +142,71 @@
 
   // An invitation, not a setup step: shown only to members who have listed
   // no interests and no skills (what it asks for, and what people and
-  // projects are matched on). A bio or photo is never required.
+  // projects are matched on). A bio or photo is never required, and it sits
+  // below what there is to discover, so it never stands in the way.
   const wantsCuriosityPrompt = (p) => !!p && !listed(p.interests) && !listed(p.skills);
 
+  // "Not now" on the invitation lasts for the day, on this device.
+  const promptKey = (p) => `ie:home-curious-later:${p?.id}:${new Date().toISOString().slice(0, 10)}`;
+  function promptSetAside(p) {
+    try { return localStorage.getItem(promptKey(p)) === '1'; } catch (_) { return false; }
+  }
+
   function paintProfilePrompt() {
-    setSection('profile', wantsCuriosityPrompt(profile()) ? `<div><h2 class="home-heading" id="home-curious-title">What are you curious about?</h2>
-      <p>Share a few interests and Home will point you to people and projects you might enjoy. It’s optional, and you can skip it.</p></div>
-      <button type="button" class="home-link" data-home-action="edit-profile">Share your interests</button>` : '');
-    part('profile')?.querySelector('[data-home-action="edit-profile"]')?.addEventListener('click', () => window.openProfileEditor?.());
+    const p = profile();
+    setSection('profile', wantsCuriosityPrompt(p) && !promptSetAside(p) ? `<div><h2 class="home-heading" id="home-curious-title">What are you curious about?</h2>
+      <p>Add a few interests and Home will suggest people and projects for you. It’s optional, and you can skip it.</p></div>
+      <div class="home-pick-actions"><button type="button" class="home-action" data-home-action="edit-profile">Share your interests</button><button type="button" class="home-dismiss" data-home-action="later">Not now</button></div>` : '');
+    const el = part('profile');
+    el?.querySelector('[data-home-action="edit-profile"]')?.addEventListener('click', () => window.openProfileEditor?.());
+    el?.querySelector('[data-home-action="later"]')?.addEventListener('click', () => {
+      try { localStorage.setItem(promptKey(p), '1'); } catch (_) { /* optional */ }
+      setSection('profile', '');
+    });
+  }
+
+  // ------------------------------------------------- discovery and Explore
+
+  // Explore's own tabs and search, so Home never becomes a second Explore.
+  function exploreTab(resource) {
+    window.AppNav?.go?.('explore');
+    document.querySelector(`#udc-resource-tabs .udc-resource-tab[data-resource="${resource}"]`)?.click();
+  }
+
+  function searchExplore(query) {
+    window.AppNav?.go?.('explore');
+    const input = document.getElementById('global-search');
+    if (!input) return;
+    input.value = query;
+    input.focus();
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  function openSkill(label) {
+    exploreTab('themes');
+    window.openNodePanel?.({ id: `skill:${label}`, type: 'skill', name: label, skillName: label, isSkillLens: true });
+  }
+
+  function open(item) {
+    const opened = digest().selectReflectionEntity?.(item.type, item.entityId, item.name);
+    if (!opened) window.openNodePanel?.({ id: item.entityId, type: item.type, name: item.name });
+  }
+
+  const shortDate = (value) => {
+    const date = new Date(value);
+    return Number.isFinite(date.getTime()) ? date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
+  };
+
+  // Picked for you: one person to meet, then up to two ways to join in, each
+  // with its reason. Shown only when there is something real to show.
+  function paintPicked() {
+    const suggestions = digest().homeSuggestions?.() || { status: 'unavailable' };
+    const shown = ['meet', 'join'].some(name => part(name)?.hidden === false);
+    const el = part('picked');
+    if (el) el.hidden = !shown;
+    // No one to meet: a way to find people instead of an empty card.
+    const route = part('people-route');
+    if (route) route.hidden = !(shown && suggestions.status === 'ready' && part('meet')?.hidden !== false);
   }
 
   function paintMeet() {
@@ -150,26 +215,25 @@
     if (!el) return;
     if (suggestions.status === 'loading') {
       state.personId = null;
-      setSection('meet', '<h2 class="home-heading">Someone you might enjoy meeting</h2><p class="home-muted" role="status">Looking for people who share your interests…</p>');
+      setSection('meet', '<p class="home-muted" role="status">Looking for people who share your interests…</p>');
+      paintPicked();
       return;
     }
     const person = suggestions.person;
-    if (!person) { state.personId = null; setSection('meet', ''); return; }
+    if (!person) { state.personId = null; setSection('meet', ''); paintPicked(); return; }
     // The card keeps its own state (a request sent); redraw it only for
     // someone new.
-    if (state.personId === person.id && el.querySelector('.network-reflection-concierge')) return;
+    if (state.personId === person.id && el.querySelector('.network-reflection-concierge')) { paintPicked(); return; }
     state.personId = person.id;
-    setSection('meet', '<h2 class="home-heading" id="home-meet-title">Someone you might enjoy meeting</h2><div class="home-meet-card"></div>');
+    setSection('meet', '<div class="home-meet-card"></div>');
     digest().renderIntroduction?.(el.querySelector('.home-meet-card'), person, () => {
       state.personId = null;
       setSection('meet', '');
+      paintPicked();
+      paintHappening();
       paintQuiet();
     });
-  }
-
-  function open(item) {
-    const opened = digest().selectReflectionEntity?.(item.type, item.entityId, item.name);
-    if (!opened) window.openNodePanel?.({ id: item.entityId, type: item.type, name: item.name });
+    paintPicked();
   }
 
   // Invitations only: never a project the member already created or joined.
@@ -177,16 +241,73 @@
     const ownProjectIds = state.work && state.work !== 'error' ? state.work.projects.map(project => project.id) : [];
     const suggestions = digest().homeSuggestions?.({ ownProjectIds }) || { joinIn: [] };
     const items = suggestions.joinIn || [];
-    const kind = (type) => ({ project: 'Project', opportunity: 'Opportunity', theme: 'Theme', organization: 'Organization' }[type] || '');
-    setSection('join', items.length ? `<h2 class="home-heading">Ways to join in</h2>
-      <ul class="home-rows">${items.map((item, index) => `<li class="home-item"><div><span class="home-kind">${esc(kind(item.type))}</span><strong>${esc(item.name)}</strong><p>${esc(item.reason)}</p></div><button type="button" class="home-action" data-join="${index}">Take a look</button></li>`).join('')}</ul>` : '');
-    part('join')?.querySelectorAll('[data-join]').forEach(button => button.addEventListener('click', () => open(items[Number(button.dataset.join)])));
+    const kind = (type) => ({ project: 'Project you could join', opportunity: 'Opportunity' }[type] || '');
+    setSection('join', items.length ? `<ul class="home-picks">${items.map((item, index) => {
+      const reasons = String(item.reason || '').split(' · ').filter(Boolean);
+      const closes = item.type === 'opportunity' && item.until ? `<li class="home-chip-date">Closes ${esc(shortDate(item.until))}</li>` : '';
+      return `<li class="home-pick"><span class="home-kind">${esc(kind(item.type))}</span><strong>${esc(item.name)}</strong>
+        <ul class="home-reasons" aria-label="Why this fits">${reasons.map(text => `<li>${esc(text)}</li>`).join('')}${closes}</ul>
+        <div class="home-pick-actions"><button type="button" class="home-action" data-join="${index}">Take a look</button><button type="button" class="home-dismiss" data-skip="${index}">Not now</button></div></li>`;
+    }).join('')}</ul>` : '');
+    const el = part('join');
+    el?.querySelectorAll('[data-join]').forEach(button => button.addEventListener('click', () => open(items[Number(button.dataset.join)])));
+    el?.querySelectorAll('[data-skip]').forEach(button => button.addEventListener('click', () => {
+      digest().setAsideSuggestion?.(items[Number(button.dataset.skip)]?.id);
+      paintJoin();
+      paintHappening();
+      paintQuiet();
+    }));
+    paintPicked();
   }
 
+  // Happening in the community: what is open to everyone, from the brief's
+  // non-personalized summary. A short preview; Explore has the rest.
+  function paintHappening() {
+    const ownProjectIds = state.work && state.work !== 'error' ? state.work.projects.map(project => project.id) : [];
+    const suggestions = digest().homeSuggestions?.({ ownProjectIds }) || {};
+    const community = suggestions.community;
+    if (suggestions.status !== 'ready' || !community) { setSection('happening', ''); return; }
+    const themes = community.themes.slice(0, 3);
+    const projects = community.projects.slice(0, 2);
+    const opportunities = community.opportunities.slice(0, 2);
+    // Skills open a way to people when Home has no one to introduce.
+    const skills = part('meet')?.hidden !== false ? community.skills.slice(0, 6) : [];
+    const empty = !themes.length && !projects.length && !opportunities.length && !skills.length;
+    if (empty && quietNow()) { setSection('happening', ''); return; }
+    const row = (attrs, title, meta) => `<li><button type="button" class="home-open-row" ${attrs}><span><strong>${esc(title)}</strong>${meta ? `<span>${esc(meta)}</span>` : ''}</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></li>`;
+    setSection('happening', `<h2 class="home-heading" id="home-happening-title" tabindex="-1">Happening in the community</h2>
+      <p class="home-sub">Open to everyone.</p>
+      ${empty ? '<p class="home-muted">Nothing new is open in the community right now.</p>' : ''}
+      ${themes.length ? `<h3 class="home-subheading">Themes people are exploring</h3><ul class="home-themes">${themes.map((theme, index) => `<li><button type="button" class="home-theme" data-theme="${index}"><strong>${esc(theme.title)}</strong>${theme.participantCount ? `<span>${theme.participantCount} ${theme.participantCount === 1 ? 'person' : 'people'}</span>` : ''}</button></li>`).join('')}</ul>` : ''}
+      ${projects.length ? `<h3 class="home-subheading">Projects looking for people</h3><ul class="home-open-list">${projects.map((project, index) => row(`data-project="${index}"`, project.title, project.needs.length ? `Needs ${project.needs.join(', ')}` : '')).join('')}</ul>` : ''}
+      ${opportunities.length ? `<h3 class="home-subheading">Open opportunities</h3><ul class="home-open-list">${opportunities.map((opp, index) => row(`data-opportunity="${index}"`, opp.title, [opp.organization, opp.deadline ? `Closes ${shortDate(opp.deadline)}` : 'No deadline'].filter(Boolean).join(' · '))).join('')}</ul>` : ''}
+      ${skills.length ? `<h3 class="home-subheading">Find people by what they do</h3><ul class="home-topics">${skills.map((skill, index) => `<li><button type="button" class="home-topic" data-skill="${index}">${esc(skill.label)}</button></li>`).join('')}</ul>
+        <button type="button" class="home-action" data-home-action="topics">Explore these topics</button>` : ''}
+      <p class="home-explore"><button type="button" class="home-link" data-home-action="explore">See everything in Explore</button></p>`);
+    const el = part('happening');
+    el?.querySelectorAll('[data-theme]').forEach(button => button.addEventListener('click', () => {
+      const theme = themes[Number(button.dataset.theme)];
+      open({ type: 'theme', entityId: theme.id, name: theme.title });
+    }));
+    el?.querySelectorAll('[data-project]').forEach(button => button.addEventListener('click', () => {
+      const project = projects[Number(button.dataset.project)];
+      open({ type: 'project', entityId: project.id, name: project.title });
+    }));
+    el?.querySelectorAll('[data-opportunity]').forEach(button => button.addEventListener('click', () => {
+      const opp = opportunities[Number(button.dataset.opportunity)];
+      open({ type: 'opportunity', entityId: opp.id, name: opp.title });
+    }));
+    el?.querySelectorAll('[data-skill]').forEach(button => button.addEventListener('click', () => openSkill(skills[Number(button.dataset.skill)].label)));
+    el?.querySelector('[data-home-action="topics"]')?.addEventListener('click', () => exploreTab('themes'));
+    el?.querySelector('[data-home-action="explore"]')?.addEventListener('click', () => window.AppNav?.go?.('explore'));
+  }
+
+  // Your work: quiet and below discovery. The next task in one line, the
+  // rest one tap away.
   function paintWork() {
     const work = state.work;
     if (work === 'error') {
-      setSection('work', '<h2 class="home-heading">Pick up where you left off</h2><p class="home-muted">Your tasks couldn’t be loaded.</p><button type="button" class="home-link" data-home-action="retry">Try again</button>');
+      setSection('work', '<h2 class="home-heading home-label">Your work</h2><p class="home-muted">Your tasks couldn’t be loaded.</p><button type="button" class="home-link" data-home-action="retry">Try again</button>');
       part('work')?.querySelector('[data-home-action="retry"]')?.addEventListener('click', () => refreshWork());
       return;
     }
@@ -198,14 +319,20 @@
     const update = task ? lastUpdate(task) : '';
     if (!task && !attempt && !work.projects.length) { setSection('work', ''); return; }
     const next = task
-      ? `<div class="home-card home-next"><strong class="home-title">${esc(task.title)}</strong><p class="home-muted">${esc(task.project?.title || 'Project task')} · ${task.status === 'in_progress' ? 'In progress' : 'Not started'}</p>${update ? `<p class="home-update">Last update: ${esc(update)}</p>` : ''}<button type="button" class="home-primary" data-next-project="${esc(task.project_id)}" data-next-task="${esc(task.id)}">Continue</button></div>`
+      ? `<div class="home-next"><div><strong class="home-title">Next: ${esc(task.title)}</strong><p class="home-muted">${esc(task.project?.title || 'Project task')} · ${task.status === 'in_progress' ? 'In progress' : 'Not started'}</p>${update ? `<p class="home-update">Last update: ${esc(update)}</p>` : ''}</div><button type="button" class="home-primary" data-next-project="${esc(task.project_id)}" data-next-task="${esc(task.id)}">Continue</button></div>`
       : attempt
-        ? `<div class="home-card home-next"><strong class="home-title">${esc(attempt.goal || 'A method you started')}</strong><p class="home-muted">Waiting on a result</p><button type="button" class="home-primary" data-next-project="${esc(attempt.project_id)}" data-next-tab="work">Record what happened</button></div>`
+        ? `<div class="home-next"><div><strong class="home-title">${esc(attempt.goal || 'A method you started')}</strong><p class="home-muted">Waiting on a result</p></div><button type="button" class="home-primary" data-next-project="${esc(attempt.project_id)}" data-next-tab="work">Record what happened</button></div>`
         : '';
+    const counts = [
+      work.projects.length ? `${work.projects.length} project${work.projects.length === 1 ? '' : 's'}` : '',
+      others.length ? `${others.length} more open task${others.length === 1 ? '' : 's'}` : '',
+    ].filter(Boolean).join(' · ');
     const projectList = work.projects.map(project => `<button type="button" class="home-project" data-project-id="${esc(project.id)}"><strong>${esc(project.title || 'Untitled project')}</strong><span>${esc(project.status || 'active')}</span></button>`).join('');
-    setSection('work', `<h2 class="home-heading">Pick up where you left off</h2>${next}
-      ${others.length ? `<details class="home-more-list"><summary>Your other open tasks (${others.length})</summary><div>${others.map(item => `<button type="button" class="home-project" data-next-project="${esc(item.project_id)}" data-next-task="${esc(item.id)}"><strong>${esc(item.title)}</strong><span>${esc(item.project?.title || 'Project')}</span></button>`).join('')}</div></details>` : ''}
-      ${work.projects.length ? `<details class="home-more-list"><summary>Your projects (${work.projects.length})</summary><div>${projectList}${results ? `<p class="home-muted">${results} method result${results === 1 ? '' : 's'} recorded.</p>` : ''}</div></details>` : ''}`);
+    setSection('work', `<h2 class="home-heading home-label">Your work</h2>${next}
+      ${counts ? `<details class="home-more-list"><summary>${esc(counts)}</summary><div>
+        ${others.length ? `<h3 class="home-subheading">Your other open tasks</h3>${others.map(item => `<button type="button" class="home-project" data-next-project="${esc(item.project_id)}" data-next-task="${esc(item.id)}"><strong>${esc(item.title)}</strong><span>${esc(item.project?.title || 'Project')}</span></button>`).join('')}` : ''}
+        ${work.projects.length ? `<h3 class="home-subheading">Your projects</h3>${projectList}${results ? `<p class="home-muted">${results} method result${results === 1 ? '' : 's'} recorded.</p>` : ''}` : ''}
+      </div></details>` : ''}`);
     const el = part('work');
     el?.querySelectorAll('[data-next-project]').forEach(button => button.addEventListener('click', (event) => {
       const target = event.currentTarget;
@@ -240,15 +367,24 @@
     slot.querySelector('button')?.addEventListener('click', () => window.MobileTaskAssistance?.openObjective?.(draft.objective));
   }
 
-  // Nothing waiting, no one to meet, nothing to join and no work: say so
-  // plainly and offer one small step, instead of an empty page.
-  function paintQuiet() {
+  // Nothing waiting, no one to meet, nothing to join, nothing open in the
+  // community and no work: say so plainly and offer one small step.
+  function quietNow() {
     const status = digest().homeSuggestions?.().status || 'unavailable';
-    const empty = ['attention', 'meet', 'join', 'work'].every(name => part(name)?.hidden !== false);
-    setSection('quiet', empty && status !== 'loading' && state.work ? `<h2 class="home-heading">It’s quiet around you right now</h2>
+    const community = digest().homeSuggestions?.().community;
+    const communityEmpty = !community || !['themes', 'projects', 'opportunities', 'skills'].some(key => community[key]?.length);
+    return status !== 'loading' && !!state.work && communityEmpty
+      && ['attention', 'meet', 'join', 'work'].every(name => part(name)?.hidden !== false);
+  }
+
+  function paintQuiet() {
+    setSection('quiet', quietNow() ? `<h2 class="home-heading">It’s quiet around you right now</h2>
       <p class="home-muted">Tell people what you’re looking for or how you can help, and suggestions will follow.</p>
-      <button type="button" class="home-primary" data-home-action="share">Share what you’re looking for</button>` : '');
-    part('quiet')?.querySelector('[data-home-action="share"]')?.addEventListener('click', () => window.openProfileModal?.());
+      <button type="button" class="home-primary" data-home-action="share">Share what you’re looking for</button>
+      <p class="home-explore"><button type="button" class="home-link" data-home-action="explore">See everything in Explore</button></p>` : '');
+    const el = part('quiet');
+    el?.querySelector('[data-home-action="share"]')?.addEventListener('click', () => window.openProfileModal?.());
+    el?.querySelector('[data-home-action="explore"]')?.addEventListener('click', () => window.AppNav?.go?.('explore'));
   }
 
   // A section appearing or growing above the field the member is typing in
@@ -282,32 +418,67 @@
     if (!host) return;
     paintMeet();
     paintJoin();
+    paintHappening();
     paintQuiet();
   }
 
   // ---------------------------------------------------------------- frame
 
+  const LENSES = [['foryou', 'For you'], ['people', 'People'], ['projects', 'Projects'], ['themes', 'Themes'], ['opportunities', 'Opportunities']];
+
   function build(target, desktop) {
     const p = profile();
     const name = displayName(p);
     target.innerHTML = `<div class="home-view" data-layout="${desktop ? 'desktop' : 'phone'}">
-      ${desktop ? '' : `<header class="home-header"><div class="home-avatar" aria-hidden="true">${esc((name || 'M').slice(0, 1).toUpperCase())}</div><div><h1 id="mobile-you-title">${esc(name ? `Welcome, ${name}` : 'Welcome')}</h1><p>Here’s what’s around you.</p></div></header>`}
+      ${desktop
+        ? '<p class="home-tagline">Discover what we could do together.</p>'
+        : `<header class="home-header"><div class="home-avatar" aria-hidden="true">${esc((name || 'M').slice(0, 1).toUpperCase())}</div><div><h1 id="mobile-you-title">${esc(name ? `Welcome, ${name}` : 'Welcome')}</h1><p>Discover what we could do together.</p></div></header>`}
+      <section class="home-section home-attention" data-home="attention" aria-labelledby="home-attention-title" hidden></section>
+      <form class="home-search" role="search" data-home-search>
+        <label class="home-sr" for="home-search-input">Search people, skills, ideas</label>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <input id="home-search-input" type="search" placeholder="Search people, skills, ideas…" autocomplete="off" enterkeyhint="search">
+        <button type="submit" class="home-search-go" aria-label="Search"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      </form>
+      <nav class="home-lenses" aria-label="Explore by">
+        ${LENSES.map(([key, label]) => `<button type="button" class="home-lens" data-lens="${key}"${key === 'foryou' ? ' aria-current="true"' : ''}>${label}</button>`).join('')}
+      </nav>
       <div class="home-grid">
         <div class="home-main">
-          <section class="home-section home-attention" data-home="attention" aria-labelledby="home-attention-title" hidden></section>
+          <section class="home-section home-picked" data-home="picked" aria-labelledby="home-picked-title" hidden>
+            <h2 class="home-heading" id="home-picked-title" tabindex="-1">Picked for you</h2>
+            <p class="home-sub">From what you listed and the people you know.</p>
+            <div class="home-part" data-home="meet" hidden></div>
+            <div class="home-part" data-home="join" hidden></div>
+            <p class="home-part home-people-route" data-home="people-route" hidden><button type="button" class="home-link" data-home-action="people">Find people in Explore</button></p>
+          </section>
+          <section class="home-section home-happening" data-home="happening" aria-labelledby="home-happening-title" hidden></section>
           <section class="home-section home-profile" data-home="profile" aria-labelledby="home-curious-title" hidden></section>
-          <section class="home-section" data-home="meet" aria-labelledby="home-meet-title" hidden></section>
-          <section class="home-section" data-home="join" aria-label="Ways to join in" hidden></section>
           <section class="home-section home-quiet" data-home="quiet" aria-label="Getting started" hidden></section>
         </div>
         <div class="home-side">
-          <section class="home-section" data-home="work" aria-label="Pick up where you left off" hidden></section>
+          <section class="home-section home-work" data-home="work" aria-label="Your work" hidden></section>
           <details class="home-section home-goal" data-home="goal"></details>
         </div>
       </div>
-      <p class="home-explore"><button type="button" class="home-link" data-home-action="explore">Browse everyone in Explore</button></p>
     </div>`;
-    target.querySelector('[data-home-action="explore"]')?.addEventListener('click', () => window.AppNav?.go?.('explore'));
+    target.querySelector('[data-home-search]')?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const input = event.currentTarget.querySelector('input');
+      const query = input.value.trim();
+      input.blur();
+      if (query) searchExplore(query);
+      else window.AppNav?.go?.('explore');
+    });
+    target.querySelectorAll('[data-lens]').forEach(button => button.addEventListener('click', () => {
+      const lens = button.dataset.lens;
+      if (lens !== 'foryou') { exploreTab(lens); return; }
+      // For you is this page: go to what was picked (or what is open).
+      const heading = part('picked')?.hidden === false ? part('picked').querySelector('h2') : part('happening')?.querySelector('h2');
+      heading?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      heading?.focus?.({ preventScroll: true });
+    }));
+    target.querySelector('[data-home-action="people"]')?.addEventListener('click', () => exploreTab('people'));
   }
 
   async function refreshWork() {
@@ -324,6 +495,7 @@
     }
     calmly(paintWork);
     calmly(paintJoin);
+    calmly(paintHappening);
   }
 
   async function refreshAttention() {
@@ -383,14 +555,16 @@
   }
 
   window.HomeView = { show, clear, focusGoal };
-  window.HomeViewTesting = { taskScore, chooseNextTask, loadWork, wantsCuriosityPrompt };
+  window.HomeViewTesting = { taskScore, chooseNextTask, loadWork, wantsCuriosityPrompt, LENSES };
 
   window.addEventListener('daily-brief-updated', () => { if (host) calmly(paintSuggestions); });
   window.addEventListener('total-unread-messages-updated', (event) => {
     state.unread = Math.max(0, parseInt(event.detail?.count, 10) || 0);
     if (host) calmly(paintAttention);
   });
-  window.addEventListener('profile-loaded', () => { if (showing()) show(); });
+  // The profile can arrive after Home was entered (desktop's first load):
+  // show it then, not only once it is already on the page.
+  window.addEventListener('profile-loaded', () => { if (document.body.dataset.destination === 'home') show(); });
   window.addEventListener('user-logged-out', clear);
   // What was done in focused assistance or a project shows on return.
   ['mobile-assistance-closed', 'project-task-updated', 'capability-outcome-recorded'].forEach(type => window.addEventListener(type, () => {

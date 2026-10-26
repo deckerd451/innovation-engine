@@ -207,11 +207,12 @@ const joinIn = () => callInPage(function () {
   const quiet = document.querySelector('#mobile-you-content [data-home="quiet"]');
   return {
     shown: !!section && !section.hidden,
-    items: section && !section.hidden ? [...section.querySelectorAll('.home-item')].map(item => ({
+    items: section && !section.hidden ? [...section.querySelectorAll('.home-pick')].map(item => ({
       name: item.querySelector('strong')?.textContent.trim() || '',
-      reason: item.querySelector('p')?.textContent.trim() || '',
+      reason: item.querySelector('.home-reasons li')?.textContent.trim() || '',
     })) : [],
     quiet: !!quiet && !quiet.hidden ? quiet.innerText : '',
+    happening: (() => { const el = document.querySelector('#mobile-you-content [data-home="happening"]'); return el && !el.hidden ? el.innerText : ''; })(),
     text: document.getElementById('mobile-you-content')?.innerText || '',
   };
 });
@@ -318,7 +319,9 @@ try {
   const newcomer = await joinIn();
   await phoneShot('newcomer-dynamic-island-top');
   check(!newcomer.shown && !newcomer.items.length, 'newcomer: no generic recent activity in Ways to join in', JSON.stringify(newcomer.items));
-  check(/It’s quiet around you right now/.test(newcomer.quiet), 'newcomer: Home shows its honest quiet state', newcomer.text.slice(0, 300));
+  // Discovery first: a newcomer sees what is open in the community instead of
+  // an empty Home (the quiet state is for when nothing at all is open).
+  check(/Happening in the community/.test(newcomer.happening) && /Climate dashboard for Charleston/.test(newcomer.happening) && !newcomer.quiet, 'newcomer: Home shows what is open in the community, not an empty page', newcomer.text.slice(0, 300));
   const newcomerPrompt = await curiosityPrompt();
   check(/What are you curious about\?/.test(newcomerPrompt) && /optional/.test(newcomerPrompt), 'newcomer with no skills or interests: invited, optionally, to share interests', newcomerPrompt);
 } catch (error) {
