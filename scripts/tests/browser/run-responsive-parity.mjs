@@ -2230,17 +2230,29 @@ async function homeChecks(P) {
     await evaluate(`Object.keys(localStorage).filter(key => key.startsWith('ie:collaboration-concierge:')).forEach(key => localStorage.removeItem(key)); true`);
   });
 
-  // A thin profile gets an optional, curiosity-first invitation; it still
+  // A member who has listed skills is not asked to share interests; one who
+  // has listed neither gets an optional, curiosity-first invitation. It still
   // opens Edit Profile, and Cancel returns without changing anything.
   await step(`${P}: the interests invitation is optional and opens Edit Profile`, async () => {
     await go('home');
-    const text = await evaluate(`document.querySelector('${root} [data-home="profile"]')?.innerText || ''`);
-    check(/What are you curious about\?/.test(text) && /optional/.test(text) && !/Add a few details/.test(text), `${P}: a thin profile gets a curiosity-first invitation`, text);
+    const prompt = () => evaluate(`(() => { const el = document.querySelector('${root} [data-home="profile"]'); return el && !el.hidden ? el.innerText : ''; })()`);
+    check(!/What are you curious about\?/.test(await prompt()), `${P}: a member who listed skills is not asked to share interests`, await prompt());
+    await evaluate(`(() => {
+      window.__listed = { skills: window.currentUserProfile.skills, interests: window.currentUserProfile.interests };
+      window.currentUserProfile.skills = [];
+      window.currentUserProfile.interests = [];
+      return true;
+    })()`);
+    await go('explore');
+    await go('home');
+    const text = await prompt();
+    check(/What are you curious about\?/.test(text) && /optional/.test(text) && !/Add a few details/.test(text), `${P}: a member with no skills or interests gets a curiosity-first invitation`, text);
     await press(`${root} [data-home-action="edit-profile"]`, 'Share your interests');
     await waitFor(`document.getElementById('edit-name')?.getClientRects().length`, 'Edit Profile', 6000);
     check((await destination()) === 'you', `${P}: Share your interests opens Edit Profile`);
     await press('#edit-cancel', 'Cancel');
     await waitFor(`document.querySelector('#btn-open-profile-editor')?.getClientRects().length`, 'profile view', 6000);
+    await evaluate(`(() => { Object.assign(window.currentUserProfile, window.__listed); delete window.__listed; return true; })()`);
     await go('home');
   });
 

@@ -13,7 +13,9 @@
 //     opportunity from an organization they run, or one past its deadline;
 //     each invitation that is shown says why, in terms of the member
 //   - a newcomer with no skills, interests, projects or connections: nothing
-//     matches, so Home shows its quiet state instead of recent activity
+//     matches, so Home shows its quiet state instead of recent activity, and
+//     invites them (optionally) to share interests; the member above, who
+//     lists skills and interests but no bio or photo, is not asked
 // and at the top of Home: the heading sits below the status bar, and Home's
 // content never scrolls underneath the status bar.
 //
@@ -233,6 +235,8 @@ const scrollHome = (y) => callInPage(function (top) {
 }, y);
 
 const EXCLUDED = ['Harborhack 2026 prep', 'Startup lab', 'Investor day', 'Climate data archive', 'Python study group', 'Mentor first-time founders', 'Climate grant reviewer'];
+// "What are you curious about?", if Home shows it.
+const curiosityPrompt = () => evaluate(`(() => { const el = document.querySelector('#mobile-you-content [data-home="profile"]'); return el && !el.hidden ? el.innerText : ''; })()`);
 const CREDIBLE = ['Climate dashboard for Charleston', 'Neighborhood tool library', 'Python mentor for a coding club'];
 const REASON = /^(Matches what you listed: |Someone you’re connected to |From .+ you belong to|Part of a theme you’re in|\d+ people you’re connected to )/;
 
@@ -246,6 +250,10 @@ try {
     console.log(`\nMember with projects (${device.name}, ${device.top}px top safe area)`);
     await loadHome('member', device);
     const join = await joinIn();
+    if (device.name === 'dynamic-island') {
+      const prompt = await curiosityPrompt();
+      check(!/What are you curious about\?/.test(prompt), 'member with skills and interests (no bio or photo): not asked to share interests', prompt);
+    }
     if (device.name === 'dynamic-island') await phoneShot(`member-${device.name}-top`);
     const offered = join.items.map(item => item.name);
     const wrong = offered.filter(name => EXCLUDED.includes(name));
@@ -271,6 +279,8 @@ try {
   await phoneShot('newcomer-dynamic-island-top');
   check(!newcomer.shown && !newcomer.items.length, 'newcomer: no generic recent activity in Ways to join in', JSON.stringify(newcomer.items));
   check(/It’s quiet around you right now/.test(newcomer.quiet), 'newcomer: Home shows its honest quiet state', newcomer.text.slice(0, 300));
+  const newcomerPrompt = await curiosityPrompt();
+  check(/What are you curious about\?/.test(newcomerPrompt) && /optional/.test(newcomerPrompt), 'newcomer with no skills or interests: invited, optionally, to share interests', newcomerPrompt);
 } catch (error) {
   check(false, 'Run aborted', error.message);
   await shot('zz-failure').catch(() => {});
