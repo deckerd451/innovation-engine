@@ -1534,8 +1534,10 @@ function _buildProjectsForYou({ userProfile, projects, memberships, maxItems }) 
  * own permissions, newest (or closing soonest) first, and only with the
  * counts and deadlines those rows carry.
  *
- *   themes         active themes; participant_count only when the summary
- *                  view provides it
+ *   themes         active themes at least COMMUNITY_THEME_MIN_MEMBERS
+ *                  discoverable members take part in, with that count
+ *                  (participants hidden from discovery never count);
+ *                  administrative catch-all themes never appear
  *   projects       projects open to collaborators ('open', 'recruiting'),
  *                  never the member's own, joined or requested ones
  *   opportunities  public, open, not past their deadline; never the
@@ -1546,6 +1548,11 @@ function _buildProjectsForYou({ userProfile, projects, memberships, maxItems }) 
  */
 const _COMMUNITY_OPEN_PROJECT_STATUSES = new Set(['open', 'recruiting']);
 const COMMUNITY_SKILL_MIN_MEMBERS = 5;
+const COMMUNITY_THEME_MIN_MEMBERS = 3;
+// Buckets an administrator created to hold unsorted projects
+// (supabase/sql/fixes/AUTO_ASSIGN_PROJECT_THEMES.sql), not themes members
+// chose: never shown, whatever their size.
+const _CATCH_ALL_THEME_TITLES = new Set(['general projects']);
 
 function _buildCommunityOpen({ userProfile, themeCircles, projects, opportunities, organizations, community, memberships, now }) {
   const me = userProfile?.id != null ? String(userProfile.id) : null;
@@ -1554,14 +1561,21 @@ function _buildCommunityOpen({ userProfile, themeCircles, projects, opportunitie
   const newestFirst = (a, b) => time(b.created_at) - time(a.created_at);
   const nowMs = (now instanceof Date ? now : new Date()).getTime();
 
+  // Discoverable members: the community rows the brief read (hidden members
+  // are already filtered out of them).
+  const discoverable = new Set((community || []).map(person => String(person?.id)));
   const themes = (themeCircles || [])
     .filter(theme => theme?.id && theme.title && (!theme.expires_at || time(theme.expires_at) > nowMs))
-    .sort(newestFirst)
+    .filter(theme => !_CATCH_ALL_THEME_TITLES.has(String(theme.title).trim().toLowerCase()))
     .map(theme => ({
       id: String(theme.id),
       title: theme.title,
-      participantCount: Number.isInteger(theme.participant_count) && theme.participant_count > 0 ? theme.participant_count : null,
-    }));
+      created_at: theme.created_at,
+      participantCount: [...(memberships?.themeMemberIds?.get(String(theme.id)) || [])].filter(id => discoverable.has(String(id))).length,
+    }))
+    .filter(theme => theme.participantCount >= COMMUNITY_THEME_MIN_MEMBERS)
+    .sort(newestFirst)
+    .map(({ created_at, ...theme }) => theme);
 
   const openProjects = (projects || [])
     .filter(project => project?.id && project.title && _COMMUNITY_OPEN_PROJECT_STATUSES.has(project.status))
@@ -1916,4 +1930,4 @@ export { _buildPeopleWorthKnowing as __testBuildPeopleWorthKnowing };
 // Test-only exports of the invitation builders behind Home's "Ways to join in".
 export { _buildProjectsForYou as __testBuildProjectsForYou, _buildOpportunitiesForYou as __testBuildOpportunitiesForYou, _buildMembershipMaps as __testBuildMembershipMaps };
 // Test-only export of Home's "Happening in the community" builder.
-export { _buildCommunityOpen as __testBuildCommunityOpen, COMMUNITY_SKILL_MIN_MEMBERS };
+export { _buildCommunityOpen as __testBuildCommunityOpen, COMMUNITY_SKILL_MIN_MEMBERS, COMMUNITY_THEME_MIN_MEMBERS };

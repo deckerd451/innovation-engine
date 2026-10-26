@@ -11,8 +11,10 @@
 //   - quiet-community: the member's own work and nothing open in the community
 // It checks what is shown and why, the privacy rules (never yourself, a
 // connection, a pending request or a hidden member; initials, not photos; no
-// skill fewer than five visible members list), that every visible action and
-// way to explore works (Explore's own tabs, search and panels), and the
+// skill fewer than five visible members list; no catch-all or thinly
+// supported themes), that every visible action works (Explore's own search,
+// the one Browse Explore link, skill views and panels; no category pills and
+// no link to existing connections), and the
 // layout on small, standard and large iPhones, tablet and desktop.
 //
 //   node scripts/tests/browser/run-discovery-home.mjs [outDir]
@@ -157,6 +159,17 @@ const boot = `${fixtures}\n${fake}\n(() => {
     { id: 'th-civic', title: 'Civic tech', participant_count: 22, created_at: soon(-2), expires_at: soon(30) },
     { id: 'th-food', title: 'Food access', participant_count: 9, created_at: soon(-3), expires_at: soon(30) },
     { id: 'th-gone', title: 'Expired theme', participant_count: 40, created_at: soon(-4), expires_at: soon(-1) },
+    // An administrator's bucket for unsorted projects, not a theme.
+    { id: 'th-general', title: 'General Projects', participant_count: 6, origin_type: 'admin', created_at: soon(-1), expires_at: soon(300) },
+  ];
+  // Who takes part, as discoverable members see it: Climate 4, Food 3,
+  // Civic 2 + hidden Quinn (below three), General Projects 6 (never shown).
+  seed.theme_participants = [
+    ...['m-ana', 'm-bo', 'm-cy', 'm-dee'].map(id => ({ theme_id: 'th-climate', community_id: id })),
+    ...['m-ana', 'm-bo', riley.id].map(id => ({ theme_id: 'th-food', community_id: id })),
+    ...['m-eli', 'm-fay', 'm-quinn'].map(id => ({ theme_id: 'th-civic', community_id: id })),
+    ...['m-ana', 'm-bo', 'm-cy', 'm-dee', 'm-eli', 'm-fay'].map(id => ({ theme_id: 'th-general', community_id: id })),
+    ...['m-ana', 'm-bo', 'm-cy', 'm-dee'].map(id => ({ theme_id: 'th-gone', community_id: id })),
   ];
   seed.projects.push(
     { id: 'p-hcd', title: 'HCD Event: redesigning the library card', description: 'A Saturday workshop', status: 'open', creator_id: dana.id, required_skills: ['Facilitation'], created_at: soon(-1), updated_at: now },
@@ -274,7 +287,8 @@ const home = () => callInPage(function (root) {
       kind: li.querySelector('.home-kind')?.textContent.trim(), name: li.querySelector('strong')?.textContent.trim(),
       reasons: [...li.querySelectorAll('.home-reasons li')].map(x => x.textContent.trim()),
     })),
-    peopleRoute: visible(document.querySelector(`${root} [data-home="people-route"]`)),
+    connectionsLinks: [...document.querySelectorAll(`${root} button, ${root} a`)].filter(visible).map(b => b.textContent.trim()).filter(t => /Find people in Explore|People$/.test(t)),
+    exploreLink: (() => { const b = document.querySelector(`${root} .home-explore button`); return visible(b) ? b.textContent.trim() : ''; })(),
     themes: [...document.querySelectorAll(`${root} .home-theme`)].filter(visible).map(b => b.innerText.replace(/\s+/g, ' ').trim()),
     openRows: [...document.querySelectorAll(`${root} [data-home="happening"] .home-open-row`)].filter(visible).map(b => b.innerText.replace(/\s+/g, ' ').trim()),
     topics: [...document.querySelectorAll(`${root} .home-topic`)].filter(visible).map(b => b.textContent.trim()),
@@ -283,7 +297,7 @@ const home = () => callInPage(function (root) {
     quiet: text('[data-home="quiet"]'),
     work: text('[data-home="work"]'),
     all: document.querySelector(root)?.innerText || '',
-    lenses: [...document.querySelectorAll(`${root} .home-lens`)].filter(visible).map(b => b.textContent.trim()),
+    pills: document.querySelectorAll(`${root} .home-lens, ${root} [data-lens]`).length,
     search: visible(document.querySelector(`${root} .home-search`)),
   };
 }, rootSel());
@@ -317,7 +331,7 @@ const layout = () => callInPage(function (root, phone) {
   const top = sel => { const el = document.querySelector(`${root} ${sel}`); return el && !el.hidden && el.getClientRects().length ? Math.round(el.getBoundingClientRect().top) : null; };
   const result = {
     viewBottom: Math.round(viewBottom),
-    searchTop: top('.home-search'), lensesTop: top('.home-lenses'),
+    searchTop: top('.home-search'), exploreLinkTop: top('.home-explore'),
     pickedTop: top('[data-home="picked"]'), happeningTop: top('[data-home="happening"]'), workTop: top('[data-home="work"]'),
     homeHeight: scroller ? scroller.scrollHeight : Math.round(document.querySelector(root).scrollHeight),
     overflowX: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth,
@@ -351,7 +365,7 @@ try {
   check(h.heading === 'Happening in the community', 'an established member’s community section is “Happening in the community”', h.heading);
   check(JSON.stringify(h.sections) === '["attention","picked","happening","work","goal"]', 'sections: waiting on you, picked for you, happening, your work, goal help', JSON.stringify(h.sections));
   check(/1 person wants to connect with you/.test(h.attention), 'Waiting on you shows the genuine pending request', h.attention);
-  check(h.search && JSON.stringify(h.lenses) === '["For you","People","Projects","Themes","Opportunities"]', 'search and the five ways to explore are shown', JSON.stringify(h.lenses));
+  check(h.search && h.exploreLink === 'Browse Explore' && h.pills === 0, 'search and one quiet Browse Explore link; no category pills duplicating Explore', JSON.stringify({ link: h.exploreLink, pills: h.pills }));
   check(h.meetTitle === 'Meet Riley (fixture)', 'a person worth meeting: someone new with something in common', h.meetTitle);
   check(h.meetReasons.includes('Shared interest: Human-Centered Design') && h.meetReasons.includes('Shared skill: Python'), 'the introduction says why, from real shared terms (HCD = human-centered design)', JSON.stringify(h.meetReasons));
   check(h.meetImages === 0 && h.meetInitials === 'RF', 'initials, not a photo', JSON.stringify({ images: h.meetImages, initials: h.meetInitials }));
@@ -361,15 +375,17 @@ try {
     'a project worth joining comes first, with its reason', JSON.stringify(h.join));
   check(h.join[1]?.kind === 'Opportunity' && /Python mentor/.test(h.join[1].name) && h.join[1].reasons.some(r => /^Matches what you listed: python/.test(r)) && h.join[1].reasons.some(r => /^Closes /.test(r)),
     'then an opportunity worth exploring, with its match and real deadline', JSON.stringify(h.join[1]));
-  check(JSON.stringify(h.themes) === '["Climate resilience 14 people","Civic tech 22 people","Food access 9 people"]', 'themes with their real member counts, never an expired one', JSON.stringify(h.themes));
+  check(JSON.stringify(h.themes) === '["Climate resilience 4 people","Food access 3 people"]', 'themes only with three or more discoverable members, counted honestly; never expired', JSON.stringify(h.themes));
+  check(!/General Projects/.test(h.all), 'an administrative catch-all theme never appears, whatever its size');
+  check(!h.themes.some(t => /Civic tech/.test(t)), 'a hidden member never lifts a theme over the threshold (2 visible + 1 hidden)', JSON.stringify(h.themes));
   check(h.openRows.some(r => /^Flood map for West Ashley Needs GIS, Python/.test(r)) && h.openRows.some(r => /^Community fridge network/.test(r)) && !h.openRows.some(r => /HCD Event|Finished archive|Harborhack/.test(r)),
     'projects open to collaborators, with what they need; never one already picked, finished or your own', JSON.stringify(h.openRows));
   check(h.openRows.some(r => /^Judge the spring pitch night Tidewater Schools · Closes /.test(r)) && !h.openRows.some(r => /Expired grant|My own posting|Python mentor/.test(r)),
     'open opportunities with their organization and deadline; never expired, your own, or one already picked', JSON.stringify(h.openRows));
-  check(!h.topics.length && !h.peopleRoute, 'with someone to meet, no people-finding fallback is needed', JSON.stringify(h.topics));
+  check(!h.topics.length && !h.connectionsLinks.length, 'with someone to meet, no people-finding fallback is needed', JSON.stringify({ topics: h.topics, links: h.connectionsLinks }));
   check(/^YOUR WORK\s*Next: select speaker\(s\)/i.test(h.work) && /2 projects · 1 more open task/.test(h.work), 'your work: the next task and a one-line summary', h.work);
   let L = await layout();
-  check(L.searchTop != null && L.lensesTop < L.viewBottom && L.pickedTop != null && L.pickedTop < L.viewBottom - 120, 'the first screenful shows search, the ways to explore and Picked for you', JSON.stringify(L));
+  check(L.searchTop != null && L.exploreLinkTop < L.viewBottom && L.pickedTop != null && L.pickedTop < L.viewBottom - 120, 'the first screenful shows search, Browse Explore and Picked for you', JSON.stringify(L));
   check(L.workTop > L.happeningTop && L.happeningTop > L.pickedTop, 'discovery comes before your work', JSON.stringify(L));
   check(L.homeHeight <= 2400, `Home stays focused (${L.homeHeight}px of scrolling at iPhone size)`, String(L.homeHeight));
   check(L.overflowX <= 0 && L.bottomClearance >= 32, 'no sideways scrolling; the end of Home clears the navigation', JSON.stringify(L));
@@ -402,8 +418,8 @@ try {
   check(/Judge the spring pitch night/.test(await panelText()), 'an open opportunity opens its details', (await panelText()).slice(0, 120));
   await backHome();
   await evaluate(`(() => { window.__selected = []; const ec = window.ExplorerCoordinator; if (ec) { const sc = ec.selectContext.bind(ec); ec.selectContext = (type, ctx) => { window.__selected.push([type, ctx?.id]); return sc(type, ctx); }; } return true; })()`);
-  await press(`${rootSel()} [data-home="happening"] [data-theme="1"]`, 'Civic tech theme');
-  check(JSON.stringify(await evaluate('window.__selected')) === '[["theme","th-civic"]]', 'a theme opens in the explorer', JSON.stringify(await evaluate('window.__selected')));
+  await press(`${rootSel()} [data-home="happening"] [data-theme="1"]`, 'Food access theme');
+  check(JSON.stringify(await evaluate('window.__selected')) === '[["theme","th-food"]]', 'a theme opens its own theme view in the explorer (not Skills)', JSON.stringify(await evaluate('window.__selected')));
   await backHome();
   // Not now: set aside for today, and the next one moves up.
   await press(`${rootSel()} [data-skip="1"]`, 'Not now on the opportunity');
@@ -418,22 +434,15 @@ try {
   h = await home();
   check(!/Meet Riley/.test(h.meet), 'Not now sets the introduction aside', h.meet);
 
-  // Navigation from Home: Explore's own tabs and search.
-  for (const [lens, tab] of [['people', 'people'], ['projects', 'projects'], ['themes', 'themes'], ['opportunities', 'opportunities']]) {
-    await backHome();
-    await press(`${rootSel()} [data-lens="${lens}"]`, `${lens} lens`);
-    check((await destination()) === 'explore' && (await activeTab()) === tab, `“${lens}” opens Explore on its tab`, JSON.stringify({ dest: await destination(), tab: await activeTab() }));
-  }
+  // Navigation from Home: Explore's own search, and one way into Explore.
   await backHome();
-  await press(`${rootSel()} [data-lens="foryou"]`, 'For you');
-  check((await destination()) === 'home', '“For you” stays on Home', await destination());
   await evaluate(`(() => { const i = document.getElementById('home-search-input'); i.value = 'Python'; i.form.requestSubmit(); return true; })()`);
   await sleep(900);
   const searched = await evaluate(`({ dest: document.body.dataset.destination, value: document.getElementById('global-search')?.value, suggestions: [...document.querySelectorAll('#search-suggestions .search-suggestion-item')].map(i => i.innerText.trim()).slice(0, 6) })`);
   check(searched.dest === 'explore' && searched.value === 'Python' && searched.suggestions.length > 0, 'search hands the words to Explore’s search, with suggestions', JSON.stringify(searched));
   await backHome();
-  await press(`${rootSel()} [data-home="happening"] [data-home-action="explore"]`, 'See everything in Explore');
-  check((await destination()) === 'explore', '“See everything in Explore” opens Explore', await destination());
+  await press(`${rootSel()} .home-explore [data-home-action="explore"]`, 'Browse Explore');
+  check((await destination()) === 'explore', '“Browse Explore” opens Explore', await destination());
   await backHome();
   await evaluate(`(() => { window.__requests = 0; window.toggleConnectionsPanel = () => { window.__requests += 1; }; return true; })()`);
   await press(`${rootSel()} [data-home="attention"] [data-attention="openConnectionRequests"]`, 'See who');
@@ -444,7 +453,7 @@ try {
   console.log('\nEstablished member with no one eligible to meet');
   await loadHome('no-people');
   h = await home();
-  check(!h.meet && h.peopleRoute, 'no introduction card; a way to find people instead', JSON.stringify({ meet: h.meet, route: h.peopleRoute }));
+  check(!h.meet && !h.connectionsLinks.length, 'no introduction card, and no link that leads to existing connections', JSON.stringify({ meet: h.meet, links: h.connectionsLinks }));
   check(h.join.length >= 1 && /HCD Event/.test(h.join[0].name), 'connections still bring a credible invitation', JSON.stringify(h.join));
   check(!h.attention, 'nothing waiting: no Waiting on you', h.attention);
   const topics = h.topics.map(t => t.toLowerCase());
@@ -452,9 +461,6 @@ try {
   check(!topics.includes('beekeeping') && !topics.includes('welding'), 'never a skill only one or two members list', JSON.stringify(h.topics));
   check(!topics.includes('woodworking'), 'a hidden member never counts toward a skill (4 visible + 1 hidden stays below five)', JSON.stringify(h.topics));
   await phoneShot('no-people-iphone');
-  await press(`${rootSel()} [data-home="people-route"] button`, 'Find people in Explore');
-  check((await destination()) === 'explore' && (await activeTab()) === 'people', '“Find people in Explore” opens People', JSON.stringify({ dest: await destination(), tab: await activeTab() }));
-  await backHome();
   await press(`${rootSel()} .home-topic`, 'a skill');
   await sleep(600);
   check((await destination()) === 'explore' && /Design/.test(await panelText()), 'a skill opens Explore’s skill view', (await panelText()).slice(0, 120));
@@ -478,7 +484,7 @@ try {
   await phoneShot('newcomer-iphone-top');
   check(JSON.stringify(h.sections) === '["happening","profile","goal"]', 'what is happening first; no picks, no work, nothing waiting', JSON.stringify(h.sections));
   check(h.heading === 'Start anywhere' && /What’s open in your community right now\. Nothing to set up first\./.test(h.happening), 'a newcomer is welcomed with “Start anywhere”', h.happening.slice(0, 160));
-  check(h.themes.length === 3 && h.openRows.length >= 3, 'real themes, projects and opportunities to explore right away', JSON.stringify({ themes: h.themes, rows: h.openRows }));
+  check(h.themes.length === 2 && h.openRows.length >= 3 && !/General Projects/.test(h.all), 'real themes, projects and opportunities to explore right away; no catch-all filler', JSON.stringify({ themes: h.themes, rows: h.openRows }));
   check(['design', 'python'].every(skill => h.topics.map(t => t.toLowerCase()).includes(skill)) && !h.topics.some(t => /beekeeping|woodworking/i.test(t)), 'a way to browse people by shared skills, never a one-person or hidden-inflated skill', JSON.stringify(h.topics));
   check(/What are you curious about\?/.test(h.profile) && /optional/.test(h.profile), 'an optional invitation to personalize, below discovery', h.profile);
   check(!/Meet /.test(h.all), 'no individual introductions without real evidence');
@@ -503,7 +509,7 @@ try {
   h = await home();
   check(/Nothing new is open in the community right now\./.test(h.happening) && !h.themes.length && !h.openRows.length && !h.topics.length,
     'says so plainly: no invented themes, counts or activity', h.happening);
-  check(/See everything in Explore/.test(h.happening) && /Next: select speaker/.test(h.work), 'Explore is one tap away, and the member’s work is still there', h.work);
+  check(h.exploreLink === 'Browse Explore' && /Next: select speaker/.test(h.work), 'Explore is one tap away, and the member’s work is still there', JSON.stringify({ link: h.exploreLink, work: h.work }));
 
   // ------------------------------------------------------------ other sizes
   for (const name of ['small-phone', 'large-phone', 'tablet', 'desktop']) {

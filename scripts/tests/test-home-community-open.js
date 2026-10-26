@@ -10,8 +10,11 @@
 //  2. public opportunities still open, never the member's own or one from an
 //     organization they run, closing soonest first, with their real deadline
 //     and organization
-//  3. active themes, never expired, with a member count only when the row has
-//     one (no invented counts)
+//  3. active themes only when at least COMMUNITY_THEME_MIN_MEMBERS
+//     discoverable members take part, counted from participation rows (a
+//     participant hidden from discovery never counts, and the summary view's
+//     own participant_count is not trusted); never expired; administrative
+//     catch-all themes such as "General Projects" never, whatever their size
 //  4. skills listed by at least COMMUNITY_SKILL_MIN_MEMBERS distinct members,
 //     never counting the member themselves or a second row for one person,
 //     so no chip points at one identifiable person; hidden members never
@@ -40,6 +43,13 @@ global.window = {};
   const memberships = engine.__testBuildMembershipMaps({
     communityId: 'me',
     projectMembers: [{ project_id: 'p-joined', user_id: 'me', role: 'member' }, { project_id: 'p-requested', user_id: 'me', role: 'pending' }],
+    themeParticipants: [
+      ...['a', 'b', 'c'].map(id => ({ theme_id: 't-new', community_id: id })),
+      ...['a', 'b', 'hidden-h'].map(id => ({ theme_id: 't-old', community_id: id })),
+      ...['a', 'b', 'c', 'd'].map(id => ({ theme_id: 't-expired', community_id: id })),
+      ...['a', 'b', 'c', 'd', 'e', 'f'].map(id => ({ theme_id: 't-general', community_id: id })),
+      ...['a', 'b', 'c', 'd', 'e'].map(id => ({ theme_id: 't-climate', community_id: id })),
+    ],
     orgMembers: [{ organization_id: 'org-mine', community_id: 'me', role: 'owner' }],
   });
   const person = (id, skills, extra = {}) => ({ id, user_id: `auth-${id}`, skills, ...extra });
@@ -53,6 +63,8 @@ global.window = {};
       { id: 't-old', title: 'Civic tech', participant_count: 22, created_at: at(-5), expires_at: null },
       { id: 't-nocount', title: 'Fallback theme', created_at: at(-3) },
       { id: 't-expired', title: 'Expired theme', participant_count: 40, created_at: at(-2), expires_at: at(-1) },
+      { id: 't-general', title: 'General Projects', participant_count: 6, origin_type: 'admin', created_at: at(-1), expires_at: at(300) },
+      { id: 't-climate', title: 'Climate resilience', participant_count: 1, created_at: at(-4), expires_at: null },
     ],
     projects: [
       { id: 'p-open', title: 'Community fridge', status: 'open', creator_id: 'x', required_skills: ['Driving', 'Outreach', 'Cooking', 'Logistics'], created_at: at(-3) },
@@ -93,8 +105,13 @@ global.window = {};
   assert.equal(result.opportunities[0].deadline, at(4), 'the real deadline');
   assert.equal(result.opportunities[2].deadline, null, 'no deadline is never invented');
 
-  assert.deepEqual(result.themes.map(t => [t.title, t.participantCount]), [['Food access', 9], ['Fallback theme', null], ['Civic tech', 22]],
-    'active themes newest first, never expired; a count only when the row has one');
+  assert.equal(engine.COMMUNITY_THEME_MIN_MEMBERS, 3);
+  assert.ok(!result.themes.some(t => t.title === 'General Projects'), 'an administrative catch-all theme never appears, whatever its size');
+  assert.ok(!result.themes.some(t => t.title === 'Civic tech'), 'two discoverable members plus a hidden one is below three');
+  assert.ok(!result.themes.some(t => t.title === 'Fallback theme'), 'no participants, no theme');
+  assert.ok(!result.themes.some(t => t.title === 'Expired theme'), 'never an expired theme');
+  assert.deepEqual(result.themes.map(t => [t.title, t.participantCount]), [['Food access', 3], ['Climate resilience', 5]],
+    'themes newest first, counted from discoverable participants (not the view’s own count)');
 
   const skills = result.skills.map(s => s.key);
   assert.ok(skills.includes('design'), 'Design: six members (any capitalization), not counting yourself');

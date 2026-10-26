@@ -239,12 +239,14 @@ const scrollHome = (y) => callInPage(function (top) {
 }, y);
 
 const EXCLUDED = ['Harborhack 2026 prep', 'Startup lab', 'Investor day', 'Climate data archive', 'Python study group', 'Mentor first-time founders', 'Climate grant reviewer'];
-// The bottom of Home, scrolled to the end: the Explore link against the
+// The bottom of Home, scrolled to the end: its last section against the
 // bottom navigation, and how loud the next task's Continue button is.
 const bottomEdge = () => callInPage(function () {
   const scroller = document.querySelector('#mobile-you-screen .mobile-you-scroll');
   scroller.scrollTop = scroller.scrollHeight;
-  const link = document.querySelector('#mobile-you-content .home-explore button').getBoundingClientRect();
+  // The end of Home: its last visible section (goal help).
+  const sections = [...document.querySelectorAll('#mobile-you-content .home-view [data-home]')].filter(el => !el.hidden && el.getClientRects().length);
+  const link = sections[sections.length - 1].getBoundingClientRect();
   const nav = document.getElementById('app-nav').getBoundingClientRect();
   const card = document.querySelector('#mobile-you-content .home-next');
   const button = card?.querySelector('.home-primary');
@@ -307,12 +309,12 @@ try {
     await sleep(200);
     await phoneShot(`member-${mode.name}-bottom`);
     bottoms[mode.name] = edge;
-    check(edge.clearance >= 32, `${mode.name}: "Browse everyone in Explore" has comfortable clearance above the navigation`, JSON.stringify(edge));
+    check(edge.clearance >= 32, `${mode.name}: the end of Home has comfortable clearance above the navigation`, JSON.stringify(edge));
     check(edge.continueLabel === 'Continue' && edge.continueOpensTask, `${mode.name}: Continue is still there and opens the next task`, JSON.stringify(edge));
     check(edge.continueWidth < edge.cardWidth && edge.continueBackground !== 'rgb(0, 224, 255)', `${mode.name}: Continue is an outlined action, not a full-width solid button`, JSON.stringify(edge));
     check(JSON.stringify(edge.sections.filter(name => ['join', 'work', 'goal'].includes(name))) === '["join","work","goal"]', `${mode.name}: section order is unchanged`, JSON.stringify(edge.sections));
   }
-  check(bottoms.safari.clearance === bottoms.installed.clearance, 'the Explore link has the same clearance in Safari and the installed app', JSON.stringify({ safari: bottoms.safari.clearance, installed: bottoms.installed.clearance }));
+  check(bottoms.safari.clearance === bottoms.installed.clearance, 'the end of Home has the same clearance in Safari and the installed app', JSON.stringify({ safari: bottoms.safari.clearance, installed: bottoms.installed.clearance }));
 
   console.log('\nNewcomer (no skills, interests, projects or connections)');
   await loadHome('newcomer', { top: 59, bottom: 34 });
