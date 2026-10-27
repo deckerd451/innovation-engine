@@ -2156,3 +2156,11 @@ body[data-destination="network"] .cd-network-back { display: inline-flex; }
 .network-map-back[hidden] { display: none; }
 /* The back button takes the map title's corner. */
 body.mobile-surface-map .synapse-workspace-title { display: none; }
+
+/* The panel tab sits on the panel's right edge. The panel starts after the
+   side navigation (#app-nav), so the tab is offset by it too; without this
+   it sat inside the panel, over the list's buttons. */
+@media (min-width: 1024px) {
+  body.app-nav-visible #cd-panel-tab { left: calc(var(--app-nav-width) + var(--cd-width)); }
+  body.app-nav-visible.panel-collapsed #cd-panel-tab { left: var(--app-nav-width); }
+}

@@ -4,9 +4,13 @@
 // (test-only fake client; nothing reaches a database), on iPhone and
 // desktop, in a browser without Web Bluetooth (as Safari).
 //   - Home shows no Bluetooth notice; Event Mode explains it when opened.
-//   - Each person met appears once, with the events they were met at.
-//   - Their status comes from the member's own connections: Connected,
-//     Request sent, Wants to connect (Respond), or Connect.
+//   - People you met is first in Your Network: the three most recently met,
+//     then "Show N more"; empty, it stays quietly at the end.
+//   - Each person met appears once, with where and when they last met and
+//     the events they were met at.
+//   - Their status comes from the member's own connections, with one next
+//     action: Connected → Message, Request sent → View profile, Wants to
+//     connect → Respond, otherwise Connect (or View profile).
 //   - Names open profiles under the usual rules (limited for strangers).
 //
 //   node scripts/tests/browser/run-people-you-met.mjs [outDir]
@@ -297,6 +301,7 @@ const extra = `(() => {
     document.body.appendChild(holder);
   });
   const ID = window.AssistanceFixtures.ID;
+  const noEncounters = new URLSearchParams(location.search).get('scenario') === 'no-encounters';
   const peer = (edge, id, name, signal, status) => ({ edge_id: edge, community_id: id, name, headline: name.split(' ')[0] + ' (headline)', signal_type: signal, status });
   const peers = { success: true, community_id: ID.me, events: [
     { event_id: 'ev-founders', event_name: 'Charleston Founders Meetup', occurred_at: '2026-10-10T22:00:00Z', peers: [
@@ -322,7 +327,7 @@ const extra = `(() => {
     client.__metWrapped = true;
     const rpc = client.rpc.bind(client);
     client.rpc = async (name, args) => {
-      if (name === 'get_nearify_event_peers') return { data: JSON.parse(JSON.stringify(peers)), error: null };
+      if (name === 'get_nearify_event_peers') return { data: noEncounters ? { success: true, community_id: ID.me, events: [] } : JSON.parse(JSON.stringify(peers)), error: null };
       if (name === 'promote_edge_to_connection') { window.__promoted.push(args.p_edge_id); return { data: { success: true, status: 'pending' }, error: null }; }
       return rpc(name, args);
     };
@@ -342,19 +347,23 @@ const extra = `(() => {
 // encounter line, the events listed under it, and its action.
 const metCards = () => callInPage(function () {
   return [...document.querySelectorAll('#cd-network-history .ch-peer-card')].map(card => {
-    const details = card.querySelector('details.ch-peer-met');
+    const details = card.querySelector('.ch-peer-met details');
     return {
       name: card.querySelector('.ch-peer-name')?.textContent.trim() || '',
       id: card.dataset.communityId || '',
       edge: card.dataset.edgeId || '',
+      shown: card.checkVisibility(),
       status: card.querySelector('.ch-peer-status')?.textContent.trim() || '',
-      met: (details ? details.querySelector('summary') : card.querySelector('.ch-peer-met'))?.textContent.replace(/\s+/g, ' ').trim() || '',
+      last: (card.querySelector('.ch-peer-met')?.firstChild?.textContent || '').replace(/\s+/g, ' ').trim(),
+      met: details?.querySelector('summary')?.textContent.replace(/\s+/g, ' ').trim() || '',
       events: details ? [...details.querySelectorAll('li')].map(li => li.textContent.replace(/\s+/g, ' ').trim()) : [],
-      action: card.querySelector('.ch-peer-action')?.innerText.replace(/\s+/g, ' ').trim() || '',
+      action: card.querySelector('.ch-peer-action')?.textContent.replace(/\s+/g, ' ').trim() || '',
       connectEdge: card.querySelector('.ch-btn-peer-connect')?.dataset.edgeId || '',
     };
   });
 });
+const ID_DANA = '22222222-2222-4222-8222-222222222222';
+const ID_JORDAN = '55555555-5555-4555-8555-555555555555';
 const card = (cards, first) => cards.find(c => c.name.startsWith(first));
 const openYourNetwork = async () => {
   await press('#app-nav [data-destination="you"]', 'You');
@@ -397,9 +406,37 @@ try {
       await evaluate(`window.__eventModeOpened = false; document.getElementById('__event-mode-anchor')?.remove(); document.getElementById('btn-event-mode')?.remove(); true`);
     }
 
-    // 2. Your Network → People you met: each person once.
+    // 2. Your Network → People you met: first, each person once.
     await openYourNetwork();
     let cards = await metCards();
+    const place = await callInPage(function () {
+      const section = document.getElementById('cd-network-history');
+      const more = section.querySelector('.ch-nearify-more');
+      return { first: document.getElementById('cd-explore-body').firstElementChild === section, top: Math.round(section.getBoundingClientRect().top), vh: innerHeight, more: more?.querySelector('summary')?.textContent.trim() || '', open: !!more?.open };
+    });
+    check(place.first && place.top < place.vh * 0.6, `${name}: People you met is first in Your Network, in view`, JSON.stringify(place));
+    await snap(`met-${name}-network`);
+    // Every visible action can be tapped: nothing covers it (desktop's
+    // panel tab sits on the list's right edge).
+    const covered = await callInPage(function () {
+      return [...document.querySelectorAll('#cd-network-history .ch-peer-action button')].filter(b => b.checkVisibility()).map(b => {
+        const r = b.getBoundingClientRect();
+        const points = [[r.left + 4, r.top + r.height / 2], [r.left + r.width / 2, r.top + r.height / 2], [r.right - 4, r.top + r.height / 2]];
+        const hidden = points.filter(([x, y]) => { const hit = document.elementFromPoint(x, y); return !hit || !b.contains(hit); }).length;
+        return { label: b.textContent.trim(), hidden, by: (() => { const hit = document.elementFromPoint(r.right - 4, r.top + r.height / 2); return hit && !b.contains(hit) ? (hit.id || hit.className) : ''; })() };
+      }).filter(x => x.hidden);
+    });
+    check(!covered.length, `${name}: each action is fully tappable`, JSON.stringify(covered));
+    if (!phone) {
+      const edge = await callInPage(function () {
+        const tab = document.getElementById('cd-panel-tab').getBoundingClientRect();
+        const panel = document.getElementById('command-dashboard').getBoundingClientRect();
+        return { tab: Math.round(tab.left), panelRight: Math.round(panel.right), shown: tab.width > 0 };
+      });
+      check(edge.shown && Math.abs(edge.tab - edge.panelRight) <= 1, `${name}: the panel tab sits on the panel’s edge, not over the list`, JSON.stringify(edge));
+    }
+    check(JSON.stringify(cards.filter(c => c.shown).map(c => c.name)) === JSON.stringify(['Riley (fixture)', 'Dana (fixture)', 'Jordan (fixture)']) && place.more === 'Show 3 more' && !place.open,
+      `${name}: the three most recently met show, then “Show 3 more”`, JSON.stringify({ shown: cards.filter(c => c.shown).map(c => c.name), place }));
     const names = cards.map(c => c.name);
     check(JSON.stringify(names) === JSON.stringify(['Riley (fixture)', 'Dana (fixture)', 'Jordan (fixture)', 'Eli (fixture)', 'Sam (fixture)', 'Ana "A" <b>x</b> (fixture)']),
       `${name}: each person appears once, most recently met first`, JSON.stringify(names));
@@ -408,10 +445,10 @@ try {
 
     // Encounter history from the encounters only.
     const riley = card(cards, 'Riley');
-    check(riley.met === 'Met at 3 events' && JSON.stringify(riley.events) === JSON.stringify(['Charleston Founders Meetup · Oct 10, 2026', 'HCD Event · Sep 20, 2026', 'Harbor Demo Night · Aug 1, 2026']),
-      `${name}: someone met at three events shows “Met at 3 events” and lists them, newest first`, JSON.stringify(riley));
+    check(riley.last === 'Last met at Charleston Founders Meetup · Oct 10, 2026' && riley.met === 'Met at 3 events' && JSON.stringify(riley.events) === JSON.stringify(['Charleston Founders Meetup · Oct 10, 2026', 'HCD Event · Sep 20, 2026', 'Harbor Demo Night · Aug 1, 2026']),
+      `${name}: someone met at three events: where and when last met, and “Met at 3 events” listing them, newest first`, JSON.stringify(riley));
     const ana = card(cards, 'Ana');
-    check(ana.met === 'Met at HCD Event · Sep 18, 2026' && !ana.events.length, `${name}: someone met once names the event`, JSON.stringify(ana));
+    check(ana.last === 'Met at HCD Event · Sep 18, 2026' && !ana.met && !ana.events.length, `${name}: someone met once names the event`, JSON.stringify(ana));
     // A name with quotes and markup stays text, in the row and its attributes.
     const unsafe = await callInPage(function () {
       const row = document.querySelector('#cd-network-history .ch-peer-card[data-community-id="m-ana"]');
@@ -424,9 +461,9 @@ try {
     // 3. Status and actions, from the member's own connections.
     const dana = card(cards, 'Dana'), sam = card(cards, 'Sam'), jordan = card(cards, 'Jordan'), eli = card(cards, 'Eli');
     check(riley.action === 'Connect' && riley.connectEdge === 'e5', `${name}: not connected → one Connect (for the QR encounter)`, JSON.stringify(riley));
-    check(dana.action === 'Connected' && !dana.connectEdge, `${name}: connected → Connected, no Connect`, JSON.stringify(dana));
-    check(sam.action === 'Connected' && !sam.connectEdge, `${name}: connected with a stale suggested encounter → Connected, no Connect`, JSON.stringify(sam));
-    check(jordan.action === 'Request sent' && !jordan.connectEdge, `${name}: request sent → Request sent, no Connect`, JSON.stringify(jordan));
+    check(dana.status === 'Connected' && dana.action === 'Message' && !dana.connectEdge, `${name}: connected → Connected, Message`, JSON.stringify(dana));
+    check(sam.status === 'Connected' && sam.action === 'Message' && !sam.connectEdge, `${name}: connected with a stale suggested encounter → Connected, Message`, JSON.stringify(sam));
+    check(jordan.status === 'Request sent' && jordan.action === 'View profile' && !jordan.connectEdge, `${name}: request sent → Request sent, View profile`, JSON.stringify(jordan));
     check(eli.status === 'Wants to connect' && eli.action === 'Respond' && !eli.connectEdge, `${name}: they asked → Wants to connect, Respond`, JSON.stringify(eli));
     check(ana.action === 'Connect' && ana.connectEdge === 'e8', `${name}: new → Connect`, JSON.stringify(ana));
 
@@ -437,6 +474,10 @@ try {
     check(!/Quinn|m-quinn|m-ana|m-eli|e1000|00000000-/.test(text), `${name}: no hidden member and no internal IDs shown`, text.slice(0, 200));
     check(JSON.parse(reads).length > 0 && JSON.parse(reads).every(f => /from_user_id\.eq\.[^,]+,to_user_id\.eq\./.test(f) && f.includes(JSON.parse(reads)[0].split('.eq.')[1].split(',')[0])), `${name}: status is read from the member’s own connections`, reads);
 
+    // No notes are shown: Buildspace has none (encounters carry only event,
+    // date and how people met).
+    check(!/note/i.test(text), `${name}: no notes shown`);
+
     // Expand Riley's events (phone screenshot).
     await evaluate(`[...document.querySelectorAll('#cd-network-history .ch-peer-card')].find(c => /^Riley/.test(c.querySelector('.ch-peer-name').textContent.trim())).querySelector('details').open = true; document.getElementById('cd-network-history').scrollIntoView({ block: 'start' }); true`);
     await sleep(400);
@@ -446,6 +487,34 @@ try {
     await press('#cd-network-history .ch-btn-peer-connect[data-edge-id="e5"]', 'Connect Riley');
     await waitFor(`/Request sent/.test([...document.querySelectorAll('#cd-network-history .ch-peer-card')].find(c => /^Riley/.test(c.querySelector('.ch-peer-name').textContent.trim()))?.innerText || '')`, 'request sent', 4000);
     check((await evaluate(`JSON.stringify(window.__promoted)`)) === '["e5"]', `${name}: Connect promotes that one encounter and shows Request sent`);
+
+    // "Show 3 more" reveals the rest.
+    await press('#cd-network-history .ch-nearify-more > summary', 'Show 3 more');
+    check((await metCards()).every(c => c.shown), `${name}: “Show 3 more” shows everyone else`);
+
+    // Message opens the conversation in Inbox, as the profile's Message does.
+    await press('#cd-network-history .ch-peer-card[data-community-id="' + ID_DANA + '"] .ch-btn-peer-message', 'Message Dana');
+    await waitFor(`document.body.dataset.destination === 'inbox'`, 'Inbox', 8000).catch(() => {});
+    await sleep(1200);
+    // (The fake client can't embed participants' names, so the conversation
+    // is checked by who is in it.)
+    const inbox = await callInPage(function (dana) {
+      const m = document.getElementById('messages-modal');
+      const me = window.currentUserProfile?.id;
+      const convo = (window.supabase.__db.conversations || []).find(c => [c.participant_1_id, c.participant_2_id].sort().join() === [me, dana].sort().join());
+      return { dest: document.body.dataset.destination, shown: !!m && m.getClientRects().length > 0, convo: !!convo, chat: /Start the conversation|Send/.test(m?.innerText || '') };
+    }, ID_DANA);
+    check(inbox.dest === 'inbox' && inbox.shown && inbox.convo && inbox.chat, `${name}: Message opens a conversation with them in Inbox`, JSON.stringify(inbox));
+    await snap(`met-${name}-message`);
+    await openYourNetwork();
+    await press('#cd-network-history .ch-nearify-more > summary', 'Show 3 more');
+
+    // View profile (request already sent).
+    await press('#cd-network-history .ch-peer-card[data-community-id="' + ID_JORDAN + '"] .ch-btn-peer-view', 'View Jordan');
+    await waitFor(`/Jordan/.test(document.getElementById('node-side-panel')?.innerText || '')`, 'Jordan’s profile', 8000).catch(() => {});
+    check(/Jordan/.test(await panelText()), `${name}: View profile opens their profile`);
+    await evaluate(`window.closeNodePanel?.(); true`);
+    await sleep(400);
 
     // 4. Profiles open as before: a stranger's is limited, with Connect.
     await press('#cd-network-history .ch-peer-card[data-community-id="m-ana"] .ch-peer-profile', 'Ana');
@@ -471,6 +540,19 @@ try {
     check(await evaluate(`document.body.classList.contains('buildspace-view-network') && getComputedStyle(document.getElementById('synapse-main-view')).display !== 'none'`),
       `${name}: View Network Map works as before`);
     check(!(await evaluate(`JSON.stringify(window.__bleNotices)`)).includes('unprompted'), `${name}: no Bluetooth notice anywhere unprompted`, await evaluate(`JSON.stringify(window.__bleNotices)`));
+
+    // No encounters: a quiet line at the end of Your Network, not first.
+    await loadHome('no-encounters', VIEWPORTS[name]);
+    await press('#app-nav [data-destination="you"]', 'You');
+    await waitFor(`document.getElementById('btn-open-your-network')`, 'Your Network entry', 8000);
+    await press('#btn-open-your-network', 'Your Network');
+    await waitFor(`document.querySelector('#cd-network-history .ch-nearify-events-empty')`, 'empty state', 10000);
+    await sleep(500);
+    const empty = await callInPage(function () {
+      const section = document.getElementById('cd-network-history');
+      return { last: section.parentElement.lastElementChild === section, first: section.parentElement.firstElementChild === section, text: section.innerText.replace(/\s+/g, ' ').trim(), cards: section.querySelectorAll('.ch-peer-card').length };
+    });
+    check(empty.last && !empty.first && !empty.cards && /No event interactions yet/.test(empty.text), `${name}: with no encounters, a quiet line at the end`, JSON.stringify(empty));
   }
 } catch (error) {
   check(false, 'Run aborted', error.message);

@@ -124,14 +124,15 @@
   }
 
   // "People you met" (nearify-events-panel.js) belongs to Network: the same
-  // section under the people list on phones, tablets and desktop.
+  // section above the people list (at the end when empty) on phones,
+  // tablets and desktop.
   async function syncNetworkHistory(page) {
     if (page !== 'network') {
       window.NearifyEventsPanel?.unmount?.();
       return;
     }
     if (!window.NearifyEventsPanel?.mount) {
-      try { await import('./nearify-events-panel.js?v=met-once-20261027'); } catch (error) {
+      try { await import('./nearify-events-panel.js?v=recently-met-20261027'); } catch (error) {
         console.warn('[AppNav] People you met is unavailable:', error);
       }
     }

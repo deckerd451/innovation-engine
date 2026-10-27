@@ -5,9 +5,11 @@
 // Calls get_nearify_event_peers() RPC (grouped by event) and shows each
 // person once, with the events they were met at ("Met at 2 events") and
 // their actual connection status from the member's own connections rows.
-// Connect (promote_edge_to_connection on a suggested edge) is offered only
-// to people with no connection or request either way. A name opens the
-// person's profile.
+// Most recently met first; the three most recent show, the rest behind
+// "Show N more". Each person has one next action: Message (connected),
+// Respond (they asked), Connect (promote_edge_to_connection on a suggested
+// edge, only with no connection or request either way), or View profile.
+// A name opens the person's profile.
 //
 // Usage (app-nav.js does this when Network opens and closes):
 //   window.NearifyEventsPanel.mount(container);  // styles, skeleton, data
@@ -102,9 +104,13 @@ export async function initNearifyEventsPanel(container) {
     if (status) status.textContent = `${people.length} ${people.length === 1 ? 'person' : 'people'}`;
 
     if (body) {
-      body.innerHTML = `<div class="ch-nearify-peer-list">${people.map(p => _renderPerson(p, relations)).join('')}</div>`;
+      const recent = people.slice(0, RECENT);
+      const more = people.slice(RECENT);
+      body.innerHTML = `<div class="ch-nearify-peer-list">${recent.map(p => _renderPerson(p, relations)).join('')}</div>`
+        + (more.length ? `<details class="ch-nearify-more"><summary>Show ${more.length} more</summary><div class="ch-nearify-peer-list">${more.map(p => _renderPerson(p, relations)).join('')}</div></details>` : '');
       _wireConnectButtons(panel, supabase);
       _wireProfileLinks(panel);
+      _wireMessageButtons(panel);
     }
 
   } catch (err) {
@@ -172,6 +178,9 @@ async function _loadRelations(supabase, me, ids) {
   }
 }
 
+// People shown before "Show N more".
+const RECENT = 3;
+
 const CONNECTED = `<span class="ch-peer-connected-badge"><i class="fas fa-check-circle"></i> Connected</span>`;
 const REQUEST_SENT = `<span class="ch-peer-connected-badge"><i class="fas fa-paper-plane"></i> Request sent</span>`;
 
@@ -193,32 +202,40 @@ function _renderPerson(person, relations) {
     .sort((a, b) => (a.signal_type === 'qr_confirmed' ? 0 : 1) - (b.signal_type === 'qr_confirmed' ? 0 : 1));
   const edge = suggested[0] || person.edges[0];
 
+  // Status, and one next action.
+  const id = person.id ? _esc(person.id) : '';
+  const button = (cls, label) => (id ? `<button type="button" class="btn ${cls}" data-profile-id="${id}" data-peer-name="${name}">${label}</button>` : '');
+  const viewProfile = button('ch-btn-peer-view', 'View profile');
   let action = '';
+  let status = '';
   const relation = relations ? relations.get(String(person.id)) : undefined;
   if (relations === null) {
     // Connection status unavailable: the encounter's own status, as before.
     action = person.edges.some(e => e.status === 'promoted' || e.status === 'confirmed') ? CONNECTED
-      : suggested.length ? _connectButton(suggested[0], name) : '';
+      : suggested.length ? _connectButton(suggested[0], name) : viewProfile;
   } else if (relation === 'connected') {
-    action = CONNECTED;
+    status = '<div class="ch-peer-status ch-peer-status-ok">Connected</div>';
+    action = id ? `<button type="button" class="btn ch-btn-peer-message" data-message-id="${id}" data-peer-name="${name}">Message</button>` : '';
   } else if (relation === 'sent') {
-    action = REQUEST_SENT;
+    status = '<div class="ch-peer-status ch-peer-status-ok">Request sent</div>';
+    action = viewProfile;
   } else if (relation === 'received') {
-    action = person.id
-      ? `<button type="button" class="btn ch-btn-peer-respond" data-profile-id="${_esc(person.id)}" data-peer-name="${name}">Respond</button>`
-      : '';
+    status = '<div class="ch-peer-status">Wants to connect</div>';
+    action = button('ch-btn-peer-respond', 'Respond');
   } else if (suggested.length) {
     action = _connectButton(suggested[0], name);
+  } else {
+    action = viewProfile;
   }
 
-  const status = relation === 'received' ? `<div class="ch-peer-status">Wants to connect</div>` : '';
+  // Where and when they last met (from the encounters; nothing added). More
+  // than one event lists them all behind "Met at N events".
   const count = person.events.length;
-  const met = count === 1
-    ? `Met at ${_esc(person.events[0].name)}`
-    : `Met at ${count} events`;
+  const last = person.events[0];
+  const lastMet = `${count === 1 ? 'Met' : 'Last met'} at ${_esc(last.name)}${last.when ? ` · ${_esc(_formatDate(last.when))}` : ''}`;
   const history = count === 1
-    ? `<div class="ch-peer-met">${met}${person.events[0].when ? ` · ${_esc(_formatDate(person.events[0].when))}` : ''}</div>`
-    : `<details class="ch-peer-met"><summary>${met}</summary><ul class="ch-peer-events">${person.events.map(e => `<li><span>${_esc(e.name)}</span>${e.when ? ` · <span class="ch-nearify-event-date">${_esc(_formatDate(e.when))}</span>` : ''}</li>`).join('')}</ul></details>`;
+    ? `<div class="ch-peer-met">${lastMet}</div>`
+    : `<div class="ch-peer-met">${lastMet}<details><summary>Met at ${count} events</summary><ul class="ch-peer-events">${person.events.map(e => `<li><span>${_esc(e.name)}</span>${e.when ? ` · <span class="ch-nearify-event-date">${_esc(_formatDate(e.when))}</span>` : ''}</li>`).join('')}</ul></details></div>`;
   const nameMarkup = person.id
     ? `<button type="button" class="ch-peer-name ch-peer-profile" data-profile-id="${_esc(person.id)}" data-peer-name="${name}">${name}</button>`
     : `<div class="ch-peer-name">${name}</div>`;
@@ -246,8 +263,15 @@ function _connectButton(edge, name) {
   return `<button class="btn ch-btn-peer-connect" data-edge-id="${_esc(edge.edge_id)}" data-peer-name="${name}">Connect</button>`;
 }
 
-// A name (and Respond, for a request waiting on the member) opens the
-// person's profile, where the existing connection actions are.
+// Message opens the conversation, as the profile's own Message does.
+function _wireMessageButtons(panel) {
+  panel.querySelectorAll('[data-message-id]').forEach(el => {
+    el.addEventListener('click', () => window.openMessageForUser?.(el.dataset.messageId));
+  });
+}
+
+// A name, View profile and Respond (for a request waiting on the member)
+// open the person's profile, where the existing connection actions are.
 function _wireProfileLinks(panel) {
   panel.querySelectorAll('[data-profile-id]').forEach(el => {
     el.addEventListener('click', () => {
@@ -380,11 +404,16 @@ export function ensureNearifyEventsPanelStyles() {
     .ch-peer-profile{display:block;max-width:100%;padding:0;border:0;background:none;font-family:inherit;text-align:left;cursor:pointer;}
     .ch-peer-profile:hover,.ch-peer-profile:focus-visible{color:#fff;text-decoration:underline;outline:none;}
     .ch-peer-status{font-size:.72rem;color:#fbbf24;}
+    .ch-peer-status-ok{color:#00ff88;}
     /* The encounter line runs under the person, the full width of the card. */
     .ch-peer-met{flex:1 0 100%;box-sizing:border-box;padding-left:calc(32px + .55rem);margin-top:-.3rem;font-size:.72rem;color:#aaa;}
-    .ch-peer-met summary{cursor:pointer;color:#f8a5b4;}
+    .ch-peer-met summary{cursor:pointer;color:#f8a5b4;margin-top:.1rem;}
     .ch-peer-events{list-style:none;margin:.25rem 0 0;padding:0;display:flex;flex-direction:column;gap:.15rem;}
     .ch-peer-events li{color:#ccc;}
+    .ch-btn-peer-message,.ch-btn-peer-view{font-size:.72rem;padding:.3rem .65rem;border-radius:20px;background:rgba(0,224,255,.08);border:1px solid rgba(0,224,255,.35);color:#8beeff;cursor:pointer;}
+    .ch-nearify-more{margin-top:.4rem;}
+    .ch-nearify-more > summary{cursor:pointer;color:#f8a5b4;font-size:.78rem;padding:.35rem .1rem;}
+    .ch-nearify-more > .ch-nearify-peer-list{margin-top:.35rem;}
     .ch-btn-peer-respond{font-size:.72rem;padding:.3rem .65rem;border-radius:20px;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.45);color:#fbbf24;cursor:pointer;}
     .ch-peer-headline{font-size:.72rem;color:#999;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
     .ch-peer-action{flex:0 0 auto;}
@@ -415,6 +444,12 @@ export async function mountNearifyEventsPanel(container) {
   section.innerHTML = renderNearifyEventsPanel();
   container.appendChild(section);
   await initNearifyEventsPanel(section);
+  // With people to show it moves first in Your Network, above the people
+  // list (recent encounters are what a member looks for after an event).
+  // Empty, or unavailable, it stays quietly at the end.
+  if (section.isConnected && section.parentElement === container && section.querySelector('.ch-peer-card')) {
+    container.prepend(section);
+  }
 }
 
 export function unmountNearifyEventsPanel() {

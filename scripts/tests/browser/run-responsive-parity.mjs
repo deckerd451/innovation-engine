@@ -688,7 +688,8 @@ async function expectReach(label, selector, { mustScroll = false } = {}) {
 
 const LAST = {
   explore: '#udc-resource-list .udc-resource-item:last-child',
-  network: '#cd-network-history .ch-peer-card:last-child .ch-btn-peer-connect',
+  // People you met is first in Your Network; the people list ends it.
+  network: '#udc-resource-list .udc-resource-item:last-child',
   inbox: '#conversations-list .conversation-item:last-child',
   you: '#btn-open-profile-editor',
 };
@@ -706,10 +707,10 @@ async function scrollChecks(P) {
     await waitFor(`document.querySelectorAll('#udc-resource-list .udc-resource-item').length === 15`, 'Skills', 6000);
     await expectReach(`${P}: Explore scrolls to the last Skill`, LAST.explore, { mustScroll: phoneLayout() });
   });
-  await step(`${P}: Network scrolls to the last person you met`, async () => {
+  await step(`${P}: Network scrolls to its last person`, async () => {
     await go('network');
     await waitFor(`/HCD Event/.test(document.getElementById('cd-network-history')?.innerText || '')`, 'People you met', 8000);
-    await expectReach(`${P}: Network scrolls to the last person you met`, LAST.network);
+    await expectReach(`${P}: Network scrolls to its last person`, LAST.network);
   });
   await step(`${P}: Inbox scrolls to the last conversation`, async () => {
     await press(NAV('inbox'), 'Inbox');
