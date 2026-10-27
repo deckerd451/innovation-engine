@@ -14,6 +14,10 @@
 //     progress"), and the project screen clears the bottom bar
 //   - someone exploring a project sees what it needs (and what of it they
 //     list) and asks to join from the top; a pending request says so
+//   - Overview's Open task always shows the task, even when a Work filter or
+//     search would hide it; on iPhone Open task and Add a task open a folded
+//     Project tasks section, while ordinary Work navigation leaves it as it
+//     was and does not scroll (PR #301 review)
 //
 //   node scripts/tests/browser/run-project-entry.mjs [outDir]
 import http from 'node:http';
@@ -267,6 +271,7 @@ const seedProject = `(() => {
     { id: 'task-lab', project_id: ID.lab, title: 'Book the next founder session', description: null, status: 'open', priority: 'medium', created_at: iso(-2), updated_at: iso(-2) },
   );
   db.project_members.push({ project_id: ID.harbor, user_id: ID.dana, role: 'member' }, { project_id: ID.harbor, user_id: ID.sam, role: 'member' }, { project_id: 'p-fridge', user_id: ID.me, role: 'pending' });
+  db.projects.push({ id: 'p-empty', title: 'Neighborhood cleanup', description: 'A Saturday morning cleanup.', status: 'active', creator_id: ID.me, created_at: iso(-1) });
   Object.assign(db.projects.find(p => p.id === ID.harbor), { description: 'Planning Charleston’s annual student hackathon: speakers, venue, sponsors and sign-ups.', required_skills: ['Event Planning', 'Public Speaking'] });
   // Record joins and leaves instead of changing anything.
   window.__joined = []; window.joinProjectFromPanel = id => { window.__joined.push(id); };
@@ -419,6 +424,65 @@ try {
       `${name}: filters still narrow the list, and say they are on`, JSON.stringify(list.rows.map(r => r.title)));
     await evaluate(`(() => { const s = document.getElementById('pt-filter-status'); s.value = ''; s.dispatchEvent(new Event('change')); return true; })()`);
 
+    // Review: Open task shows the task even when a filter or search hides it.
+    const shownTask = () => callInPage(function () {
+      const row = document.querySelector('#project-detail-overlay .pt-task .pt-row[aria-expanded="true"]');
+      const detail = row && document.getElementById(row.getAttribute('aria-controls'));
+      const nav = document.getElementById('app-nav');
+      const navTop = nav && nav.getBoundingClientRect().top > 0 && nav.getBoundingClientRect().width >= innerWidth - 1 ? nav.getBoundingClientRect().top : innerHeight;
+      const r = row?.getBoundingClientRect();
+      return {
+        title: row?.querySelector('.pt-task-title')?.textContent.trim() || null,
+        detailShown: !!detail && !detail.hidden && detail.getClientRects().length > 0,
+        onScreen: !!r && r.top >= 0 && r.bottom <= navTop,
+        focused: document.activeElement === row,
+        status: document.getElementById('pt-filter-status')?.value, q: document.getElementById('pt-filter-q')?.value,
+        filterLabel: document.querySelector('.pt-filter-box summary')?.textContent,
+        said: document.querySelector('.pt-sr-status')?.textContent,
+        sectionOpen: document.querySelector('details[data-work-section="tasks"]')?.open ?? null,
+      };
+    });
+    await evaluate(`(() => { const box = document.querySelector('.pt-filter-box'); box.open = true; const s = document.getElementById('pt-filter-status'); s.value = 'done'; s.dispatchEvent(new Event('change')); return true; })()`);
+    await sleep(300);
+    await tab('overview');
+    await evaluate(`document.querySelector('#pd-next [data-next-task]').click(); true`);
+    await sleep(1200);
+    let shown = await shownTask();
+    check(shown.title === 'select speaker(s)' && shown.detailShown && shown.onScreen && shown.focused && shown.status === '' && shown.filterLabel === 'Filter' && shown.said === 'Filters cleared to show “select speaker(s)”.',
+      `${name}: Open task shows the task even with Work filtered to Done (the filter is cleared, and that is said)`, JSON.stringify(shown));
+    await tab(workTab);
+    await evaluate(`(() => { document.querySelector('.pt-filter-box').open = true; const q = document.getElementById('pt-filter-q'); q.value = 'sponsors'; q.dispatchEvent(new Event('input')); return true; })()`);
+    await sleep(400);
+    check(!(await taskList()).rows.some(r => r.title === 'select speaker(s)'), `${name}: (a search that hides the next task)`);
+    await tab('overview');
+    await evaluate(`document.querySelector('#pd-next [data-next-task]').click(); true`);
+    await sleep(1200);
+    shown = await shownTask();
+    check(shown.title === 'select speaker(s)' && shown.detailShown && shown.onScreen && shown.q === '' && /^Filters cleared/.test(shown.said),
+      `${name}: Open task shows the task even when a search hides it`, JSON.stringify(shown));
+
+    if (phone) {
+      // Review: a folded Project tasks section opens for Open task; ordinary
+      // Work navigation leaves it folded and does not scroll.
+      const sectionState = () => callInPage(function () {
+        const o = document.getElementById('project-detail-overlay');
+        return { open: o.querySelector('details[data-work-section="tasks"]')?.open, scrollTop: Math.round(o.scrollTop) };
+      });
+      await evaluate(`(() => { document.querySelector('details[data-work-section="tasks"]').open = false; document.getElementById('project-detail-overlay').scrollTop = 0; return true; })()`);
+      await tab('overview');
+      await evaluate(`document.getElementById('project-detail-overlay').scrollTop = 0; true`);
+      await tab(workTab);
+      await sleep(400);
+      const plain = await sectionState();
+      check(plain.open === false && plain.scrollTop === 0, `${name}: opening Work normally keeps a folded Project tasks section folded, without scrolling`, JSON.stringify(plain));
+      await tab('overview');
+      await evaluate(`document.querySelector('#pd-next [data-next-task]').click(); true`);
+      await sleep(1200);
+      shown = await shownTask();
+      check(shown.sectionOpen === true && shown.title === 'select speaker(s)' && shown.detailShown && shown.onScreen && shown.focused,
+        `${name}: Open task opens a folded Project tasks section and shows the task on screen`, JSON.stringify(shown));
+    }
+
     if (phone) {
       // The end of the project clears the bottom bar.
       const end = await callInPage(function () {
@@ -450,6 +514,29 @@ try {
     }
     await evaluate(`document.getElementById('pd-close-btn')?.click(); true`);
     await sleep(300);
+
+    // Review: Add a task (a project with no tasks yet) opens the add form,
+    // on iPhone even when Project tasks was folded.
+    await openProject('p-empty');
+    const emptyNext = await evaluate(`document.querySelector('#pd-next')?.textContent.replace(/\\s+/g, ' ').trim() || ''`);
+    if (phone) {
+      await tab(workTab);
+      await evaluate(`(() => { document.querySelector('details[data-work-section="tasks"]').open = false; return true; })()`);
+      await tab('overview');
+    }
+    await evaluate(`document.querySelector('#pd-next [data-next-add]').click(); true`);
+    await sleep(900);
+    const adding = await callInPage(function () {
+      const form = [...document.querySelectorAll('#pt-add-form')].find(f => f.getClientRects().length);
+      const input = form?.querySelector('input[name="title"]');
+      const nav = document.getElementById('app-nav');
+      const navTop = nav && nav.getBoundingClientRect().top > 0 && nav.getBoundingClientRect().width >= innerWidth - 1 ? nav.getBoundingClientRect().top : innerHeight;
+      const r = input?.getBoundingClientRect();
+      return { form: !!form && !form.classList.contains('pt-hidden'), focused: !!input && document.activeElement === input, onScreen: !!r && r.top >= 0 && r.bottom <= navTop, sectionOpen: document.querySelector('details[data-work-section="tasks"]')?.open ?? null };
+    });
+    check(/No tasks yet/.test(emptyNext) && adding.form && adding.focused && adding.onScreen && (!phone || adding.sectionOpen === true),
+      `${name}: Add a task opens the add form, focused and on screen${phone ? ', even from a folded Project tasks section' : ''}`, JSON.stringify({ emptyNext, adding }));
+    await evaluate(`document.getElementById('pd-close-btn')?.click(); true`);
 
     // A member who did not create the project: no delete; leave stays.
     await openProject(ID.lab);

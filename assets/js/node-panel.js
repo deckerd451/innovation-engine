@@ -3702,13 +3702,21 @@ window.viewProjectDetails = async function(projectId, initialTab = null, focusTa
         <button type="button" class="pd-next-btn pd-next-btn-quiet" data-next-add>Add a task</button>`;
     }
     card.hidden = false;
+    // These go to a task, so on phones they open the Project tasks section
+    // even if the member folded it; ordinary Work navigation leaves it as it
+    // was and does not scroll (the task or the form brings itself into view).
+    const showTasks = () => {
+      activateTab(workTab());
+      const section = overlay.querySelector('details[data-work-section="tasks"]');
+      if (section) section.open = true;
+    };
     card.querySelector('[data-next-task]')?.addEventListener('click', (event) => {
       const id = event.currentTarget.dataset.nextTask;
-      activateTab(workTab());
+      showTasks();
       tasksPanel?.focusTask(id);
     });
     card.querySelector('[data-next-add]')?.addEventListener('click', () => {
-      activateTab(workTab());
+      showTasks();
       tasksPanel?.openAddForm();
     });
   }

@@ -570,11 +570,26 @@
 
     // Open one task's details, wherever it is in the list, and bring it into
     // view (from the project overview's next step, or a task link).
+    // A filter or search the member left on can hide the task they asked to
+    // open, so it is cleared first (and that is said), never left hiding it.
+    function clearFilters() {
+      clearTimeout(searchDebounce);
+      state.filters = { status: '', priority: '', owner: '', q: '' };
+      ['#pt-filter-status', '#pt-filter-priority', '#pt-filter-owner', '#pt-filter-q'].forEach(sel => {
+        const el = container.querySelector(sel);
+        if (el) el.value = '';
+      });
+    }
+
     function focusTask(id) {
       if (!id) return;
       if (state.loading) { state.pendingFocus = String(id); return; }
       const task = findTask(String(id));
       if (!task) return;
+      if (!applyFilters([task]).length) {
+        clearFilters();
+        announce(`Filters cleared to show “${task.title}”.`);
+      }
       state.expanded.add(String(task.id));
       if (task.status === 'done') state.doneOpen = true;
       renderGroups();

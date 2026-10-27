@@ -78,4 +78,15 @@ assert.match(panel, /rel\.hasPendingRequest \? `[\s\S]{0,200}Waiting for/, 'a pe
 assert.match(panel, /window\.viewProjectDetails = async function\(projectId, initialTab = null, focusTaskId = null\)/, 'a task link opens that task');
 assert.match(panel, /onWorkOn: assistance \? \(task\) => \{ closeOverlay\(\); window\.viewProjectTask\(project\.id, task\.id\); \} : null,/);
 
+// Review (PR #301): Open task always shows the task. A filter or search that
+// would hide it is cleared first, and that is announced.
+assert.match(tasksSource, /if \(!applyFilters\(\[task\]\)\.length\) \{\s*clearFilters\(\);\s*announce\(`Filters cleared to show/);
+assert.match(tasksSource, /state\.filters = \{ status: '', priority: '', owner: '', q: '' \};/);
+// Review (PR #301): Open task and Add a task open a folded Project tasks
+// section on phones; ordinary Work navigation neither opens it nor scrolls.
+assert.match(panel, /const showTasks = \(\) => \{\s*activateTab\(workTab\(\)\);\s*const section = overlay\.querySelector\('details\[data-work-section="tasks"\]'\);\s*if \(section\) section\.open = true;/);
+assert.match(panel, /showTasks\(\);\s*tasksPanel\?\.focusTask\(id\);/);
+assert.match(panel, /showTasks\(\);\s*tasksPanel\?\.openAddForm\(\);/);
+assert.match(panel, /if \(tabName === 'work' && pendingWorkFocus\) openWorkSection\(pendingWorkFocus\);/, 'plain Work navigation does not scroll');
+
 console.log('Project entry and work: all checks passed');
