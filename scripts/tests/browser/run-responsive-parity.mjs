@@ -686,8 +686,8 @@ const phoneLayout = () => current.width < 1024;
 async function scrollChecks(P) {
   await step(`${P}: Home scrolls to its last item`, async () => {
     await go('home');
-    await waitFor(`document.querySelector('${phoneLayout() ? '#mobile-you-content' : '#cd-home'} .home-explore')`, 'Home', 8000);
-    await expectReach(`${P}: Home scrolls to its last item`, `${phoneLayout() ? '#mobile-you-content' : '#cd-home'} .home-explore`);
+    await waitFor(`document.querySelector('${phoneLayout() ? '#mobile-you-content' : '#cd-home'} [data-home="goal"]')`, 'Home', 8000);
+    await expectReach(`${P}: Home scrolls to its last item`, `${phoneLayout() ? '#mobile-you-content' : '#cd-home'} [data-home="goal"]`);
   });
   await step(`${P}: Explore scrolls to the last Skill`, async () => {
     await go('explore');
@@ -769,8 +769,8 @@ async function scrollScenarioChecks() {
       await go('home');
       const e = await edges();
       check(e.navTop === 844 - 60 - 34 && e.home === e.navTop, 'safe area: Home ends at the bottom bar', JSON.stringify(e));
-      await waitFor(`document.querySelector('#mobile-you-content .home-explore')`, 'Home', 8000);
-      await expectReach('safe area: Home scrolls to its last item', '#mobile-you-content .home-explore');
+      await waitFor(`document.querySelector('#mobile-you-content [data-home="goal"]')`, 'Home', 8000);
+      await expectReach('safe area: Home scrolls to its last item', '#mobile-you-content [data-home="goal"]');
     });
     await step('safe area: Explore ends at the bottom bar', async () => {
       await go('explore');
@@ -2313,7 +2313,7 @@ async function homeChecks(P) {
 
   await step(`${P}: Home leads on to Explore`, async () => {
     await go('home');
-    await press(`${root} .home-explore button`, 'Browse everyone in Explore');
+    await press(NAV('explore'), 'Explore tab');
     await waitForPage('explore');
     check(true, `${P}: Home leads on to Explore`);
   });
