@@ -13,7 +13,7 @@
 // connection, a pending request or a hidden member; initials, not photos; no
 // skill fewer than five visible members list; never a theme: themes were
 // replaced by skills), that every visible action works (Explore's own search,
-// the one Browse Explore link, skill views and panels; no category pills and
+// Explore from the navigation, skill views and panels; no category pills and
 // no link to existing connections), and the
 // layout on small, standard and large iPhones, tablet and desktop.
 //
@@ -368,7 +368,7 @@ try {
   check(h.heading === 'Happening in the community', 'an established member’s community section is “Happening in the community”', h.heading);
   check(JSON.stringify(h.sections) === '["attention","happening","picked","mine","goal"]', 'sections: waiting on you, happening, picked for you, your community, goal help', JSON.stringify(h.sections));
   check(/1 person wants to connect with you/.test(h.attention), 'Waiting on you shows the genuine pending request', h.attention);
-  check(!h.search && h.exploreLink === 'Browse Explore' && h.pills === 0, 'no search bar on Home (Explore has it); one quiet Browse Explore link; no category pills duplicating Explore', JSON.stringify({ search: h.search, link: h.exploreLink, pills: h.pills }));
+  check(!h.search && !h.exploreLink && h.pills === 0, 'no search bar or Explore link on Home (Explore is in the navigation); no category pills duplicating Explore', JSON.stringify({ search: h.search, link: h.exploreLink, pills: h.pills }));
   check(h.meetTitle === 'Meet Riley (fixture)', 'a person worth meeting: someone new with something in common', h.meetTitle);
   check(h.meetReasons.includes('Shared interest: Human-Centered Design') && h.meetReasons.includes('Shared skill: Python'), 'the introduction says why, from real shared terms (HCD = human-centered design)', JSON.stringify(h.meetReasons));
   check(h.meetImages === 0 && h.meetInitials === 'RF', 'initials, not a photo', JSON.stringify({ images: h.meetImages, initials: h.meetInitials }));
@@ -387,7 +387,7 @@ try {
   check(/^YOUR COMMUNITY\s*D\(\s*S\(\s*2 people you’re connected to/i.test(h.mine) && /Harborhack 2026 prep\s*You started it/.test(h.mine) && /Startup lab\s*You’re a member/.test(h.mine) && !/Next:|Continue|open task/.test(h.mine),
     'your community: the people you’re connected to and your projects; no ranked task', h.mine);
   let L = await layout();
-  check(L.searchTop == null && L.exploreLinkTop < L.happeningTop && L.happeningTop != null && L.happeningTop < L.viewBottom - 300, 'the first screenful shows Browse Explore and what is happening in the community', JSON.stringify(L));
+  check(L.searchTop == null && L.exploreLinkTop == null && L.happeningTop != null && L.happeningTop < L.viewBottom - 300, 'the first screenful shows what is happening in the community', JSON.stringify(L));
   check(L.mineTop > L.pickedTop && L.pickedTop > L.happeningTop, 'happening first, then picked for you, then your community', JSON.stringify(L));
   check(L.homeHeight <= 2400, `Home stays focused (${L.homeHeight}px of scrolling at iPhone size)`, String(L.homeHeight));
   check(L.overflowX <= 0 && L.bottomClearance >= 32, 'no sideways scrolling; the end of Home clears the navigation', JSON.stringify(L));
@@ -429,10 +429,10 @@ try {
   h = await home();
   check(!/Meet Riley/.test(h.meet), 'Not now sets the introduction aside', h.meet);
 
-  // One way into Explore, where search is.
+  // Explore, where search is, from the navigation.
   await backHome();
-  await press(`${rootSel()} .home-explore [data-home-action="explore"]`, 'Browse Explore');
-  check((await destination()) === 'explore', '“Browse Explore” opens Explore', await destination());
+  await press(`#app-nav [data-destination="explore"]`, 'Explore tab');
+  check((await destination()) === 'explore', 'the Explore tab opens Explore', await destination());
   await evaluate(`(() => { const i = document.getElementById('global-search'); i.focus(); i.value = 'Python'; i.dispatchEvent(new Event('input', { bubbles: true })); return true; })()`);
   await sleep(900);
   const searched = await evaluate(`({ dest: document.body.dataset.destination, shown: !!document.getElementById('global-search')?.getClientRects().length, suggestions: [...document.querySelectorAll('#search-suggestions .search-suggestion-item')].map(i => i.innerText.trim()).slice(0, 6) })`);
@@ -505,7 +505,7 @@ try {
   h = await home();
   check(/Nothing new is open in the community right now\./.test(h.happening) && !h.themes.length && !h.openRows.length && !h.topics.length,
     'says so plainly: no invented counts or activity', h.happening);
-  check(h.exploreLink === 'Browse Explore' && /Harborhack 2026 prep/.test(h.mine), 'Explore is one tap away, and the member’s projects are still there', JSON.stringify({ link: h.exploreLink, mine: h.mine }));
+  check(!h.exploreLink && /Harborhack 2026 prep/.test(h.mine), 'no Explore link on Home, and the member’s projects are still there', JSON.stringify({ link: h.exploreLink, mine: h.mine }));
 
   // ------------------------------------------------------------ other sizes
   for (const name of ['small-phone', 'large-phone', 'tablet', 'desktop']) {

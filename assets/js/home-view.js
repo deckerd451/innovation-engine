@@ -8,8 +8,8 @@
 //
 //   Welcome                   the member's name; "Discover what we could do together."
 //   Waiting on you            inbound only, and only when something needs a reply
-//   (Search lives in Explore; one quiet "Browse Explore" link beside the
-//   welcome leads there.)
+//   (No search or Explore link on Home: Explore, with its search, is in the
+//   navigation.)
 //   Happening in the community  open to everyone, first: projects looking
 //                             for people, open opportunities, and (when no
 //                             one is introduced) skills to find people by
@@ -455,8 +455,8 @@
     const name = displayName(p);
     target.innerHTML = `<div class="home-view" data-layout="${desktop ? 'desktop' : 'phone'}">
       ${desktop
-        ? '<div class="home-welcome"><p class="home-tagline">Discover what we could do together.</p><p class="home-explore"><button type="button" class="home-link" data-home-action="explore">Browse Explore</button></p></div>'
-        : `<header class="home-header"><div class="home-avatar" aria-hidden="true">${esc((name || 'M').slice(0, 1).toUpperCase())}</div><h1 id="mobile-you-title">${name ? `<span class="home-hello">Welcome,</span> <span class="home-name">${esc(name)}</span>` : '<span class="home-name">Welcome</span>'}</h1><p class="home-intro">Discover what we could do together.</p><p class="home-explore"><button type="button" class="home-link" data-home-action="explore">Browse Explore</button></p></header>`}
+        ? '<p class="home-tagline">Discover what we could do together.</p>'
+        : `<header class="home-header"><div class="home-avatar" aria-hidden="true">${esc((name || 'M').slice(0, 1).toUpperCase())}</div><h1 id="mobile-you-title">${name ? `<span class="home-hello">Welcome,</span> <span class="home-name">${esc(name)}</span>` : '<span class="home-name">Welcome</span>'}</h1><p class="home-intro">Discover what we could do together.</p></header>`}
       <section class="home-section home-attention" data-home="attention" aria-labelledby="home-attention-title" hidden></section>
       <div class="home-grid">
         <div class="home-main">
@@ -476,7 +476,6 @@
         </div>
       </div>
     </div>`;
-    target.querySelector('.home-explore [data-home-action="explore"]')?.addEventListener('click', () => window.AppNav?.go?.('explore'));
   }
 
   async function refreshMine() {
