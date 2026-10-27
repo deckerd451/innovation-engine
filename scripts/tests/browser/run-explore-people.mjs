@@ -362,23 +362,97 @@ try {
     const skillIndex = skills.rows.findIndex(row => row.name === 'Public Speaking');
     await evaluate(`(() => { const row = document.querySelectorAll('#udc-resource-list .udc-resource-item')[${skillIndex}]; row.scrollIntoView({ block: 'center' }); row.click(); return true; })()`);
     await waitFor(`/list Public Speaking/.test(document.getElementById('node-side-panel')?.innerText || '')`, 'skill view', 8000).catch(() => {});
-    const lensPeople = await callInPage(function () {
+    await sleep(900); // the panel finishes sliding in
+    const lensView = () => callInPage(function () {
       const panel = document.getElementById('node-side-panel');
+      const nav = document.getElementById('app-nav');
+      const box = el => { const r = el?.getBoundingClientRect(); return r ? { top: Math.round(r.top), bottom: Math.round(r.bottom), height: Math.round(r.height) } : null; };
+      const visible = el => !!el && el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden';
+      const close = panel?.querySelector('.skill-lens-close');
+      const navBox = visible(nav) && getComputedStyle(nav).display !== 'none' ? box(nav) : null;
       return {
         status: panel?.querySelector('[data-skill-lens-status]')?.textContent.trim() || '',
-        names: [...(panel?.querySelectorAll('.node-panel-body button strong') || [])].map(el => el.textContent.trim()),
+        rows: [...(panel?.querySelectorAll('.skill-lens-row') || [])].map(row => ({
+          name: row.querySelector('.skill-lens-name')?.textContent.trim() || '',
+          relation: row.querySelector('.skill-lens-status')?.textContent.trim() || '',
+          initials: row.querySelector('.skill-lens-avatar')?.textContent.trim() || '',
+          label: row.getAttribute('aria-label') || '',
+          height: Math.round(row.getBoundingClientRect().height),
+          width: Math.round(row.getBoundingClientRect().width),
+        })),
+        header: box(panel?.querySelector('.skill-lens-header')),
+        close: close && visible(close) ? { ...box(close), width: Math.round(close.getBoundingClientRect().width), label: close.getAttribute('aria-label'), drawn: !!close.querySelector('svg path') } : null,
+        body: box(panel?.querySelector('.skill-lens-body')),
+        panel: box(panel),
+        navTop: navBox ? navBox.top : null,
+        viewport: innerHeight,
       };
     });
-    check(lensPeople.status === '2 members list Public Speaking.' && JSON.stringify(lensPeople.names.slice().sort()) === '["Dana (fixture)","Riley (."]',
-      `${name}: a skill lists its members: a connection by name, anyone else “First L.”`, JSON.stringify(lensPeople));
-    await sleep(900); // the panel finishes sliding in before the screenshot
+    let lens = await lensView();
+    const lensNames = lens.rows.map(row => row.name).sort();
+    check(lens.status === '2 members list Public Speaking.' && JSON.stringify(lensNames) === '["Dana (fixture)","Riley (."]',
+      `${name}: a skill lists its members: a connection by name, anyone else “First L.”`, JSON.stringify(lens.rows));
+    const dana = lens.rows.find(row => row.name === 'Dana (fixture)');
+    const riley = lens.rows.find(row => row.name === 'Riley (.');
+    check(dana?.relation === 'In your network' && riley?.relation === '' && dana?.label === 'Dana (fixture), In your network' && dana?.initials === 'D(',
+      `${name}: each row keeps initials, name and connection status (“In your network”)`, JSON.stringify(lens.rows));
+    check(lens.rows.every(row => row.height >= 44 && row.height <= 64),
+      `${name}: compact rows, still at least 44px tall to tap`, JSON.stringify(lens.rows.map(row => row.height)));
+    check(lens.close && lens.close.width >= 44 && lens.close.height >= 44 && lens.close.drawn && lens.close.label === 'Close' && lens.header && lens.close.top >= lens.header.top && lens.close.bottom <= lens.header.bottom,
+      `${name}: the header shows the skill, its count and a 44px close button`, JSON.stringify({ header: lens.header, close: lens.close }));
+    if (name === 'phone') {
+      check(lens.navTop != null && lens.panel.bottom <= lens.navTop && lens.header.top >= 0 && lens.header.bottom < lens.navTop - 100,
+        `${name}: the panel sits above the bottom bar, its header on screen`, JSON.stringify(lens));
+    }
     await (name === 'phone' ? phoneShot : shot)(`explore-skill-people-${name}`);
-    await evaluate(`document.querySelector('#node-side-panel button strong:not(:empty)') && [...document.querySelectorAll('#node-side-panel .node-panel-body button')].find(b => /Riley/.test(b.textContent)).click(); true`);
+    // Design lists Eli, who asked to connect: a request, not a connection.
+    await evaluate(`window.openNodePanel({ id: 'skill:Design', type: 'skill', name: 'Design', skillName: 'Design', isSkillLens: true }); true`);
+    await waitFor(`/6 members list Design/.test(document.getElementById('node-side-panel')?.innerText || '')`, 'Design', 8000).catch(() => {});
+    lens = await lensView();
+    check(lens.rows.length === 6 && lens.rows.find(row => row.name === 'Eli (.')?.relation === 'Connection request' && lens.rows.filter(row => row.relation).length === 1,
+      `${name}: a pending request says so and keeps the limited name`, JSON.stringify(lens.rows));
+    // An administrator sees full names, as before.
+    await evaluate(`(() => { window.__isAdminBefore = window.isAdminUser; window.isAdminUser = () => true; window.openNodePanel({ id: 'skill:Public Speaking', type: 'skill', name: 'Public Speaking', skillName: 'Public Speaking', isSkillLens: true }); return true; })()`);
+    await waitFor(`/2 members list Public Speaking/.test(document.getElementById('node-side-panel')?.innerText || '')`, 'admin view', 8000).catch(() => {});
+    await sleep(300);
+    lens = await lensView();
+    check(JSON.stringify(lens.rows.map(row => [row.name, row.relation]).sort()) === '[["Dana (fixture)","In your network"],["Riley (fixture)",""]]',
+      `${name}: an administrator sees full names; status still only from real connections`, JSON.stringify(lens.rows));
+    await evaluate(`(() => { window.isAdminUser = window.__isAdminBefore; return true; })()`);
+    await evaluate(`window.openNodePanel({ id: 'skill:Public Speaking', type: 'skill', name: 'Public Speaking', skillName: 'Public Speaking', isSkillLens: true }); true`);
+    await waitFor(`/Riley \(\./.test(document.getElementById('node-side-panel')?.innerText || '')`, 'member view', 8000).catch(() => {});
+    await evaluate(`[...document.querySelectorAll('#node-side-panel .skill-lens-row')].find(b => /Riley/.test(b.textContent)).click(); true`);
     await waitFor(`/Limited preview/.test(document.getElementById('node-side-panel')?.innerText || '')`, 'profile', 8000).catch(() => {});
     check(/Limited preview/.test(await evaluate(`document.getElementById('node-side-panel')?.innerText || ''`)), `${name}: a stranger from a skill opens their limited profile`);
     await evaluate(`window.closeNodePanel?.(); true`);
     const python = await evaluate(`(async () => { await window.openNodePanel({ id: 'skill:Python', type: 'skill', name: 'Python', skillName: 'Python', isSkillLens: true }); return document.getElementById('node-side-panel')?.innerText || ''; })()`);
     check(/5 members list Python\./.test(python) && !/Quinn|Test Member/.test(python), `${name}: the skill view matches the count: never you or a hidden member`, python.slice(0, 300));
+    // The close button closes the panel.
+    await evaluate(`document.querySelector('#node-side-panel .skill-lens-close').click(); true`);
+    await sleep(500);
+    check(!(await evaluate(`document.getElementById('node-side-panel')?.classList.contains('open')`)), `${name}: Close closes the panel`);
+
+    // A long list scrolls inside the panel, under a header that stays put, and
+    // its last member clears the bottom bar. (Synthetic members, this page only.)
+    await evaluate(`(() => { const db = window.supabase.__db; for (let i = 1; i <= 14; i++) db.community.push({ id: 'm-lab-' + i, user_id: 'auth-lab-' + i, name: 'Lab' + i + ' Fixture', skills: ['Soldering'], interests: [] }); window.openNodePanel({ id: 'skill:Soldering', type: 'skill', name: 'Soldering', skillName: 'Soldering', isSkillLens: true }); return true; })()`);
+    await waitFor(`/14 members list Soldering/.test(document.getElementById('node-side-panel')?.innerText || '')`, 'long list', 8000).catch(() => {});
+    await sleep(600);
+    const headerBefore = (await lensView()).header;
+    await evaluate(`(() => { const b = document.querySelector('#node-side-panel .skill-lens-body'); b.scrollTop = b.scrollHeight; return true; })()`);
+    await sleep(300);
+    const scrolled = await callInPage(function () {
+      const body = document.querySelector('#node-side-panel .skill-lens-body');
+      const rows = [...document.querySelectorAll('#node-side-panel .skill-lens-row')];
+      const last = rows[rows.length - 1].getBoundingClientRect();
+      const b = body.getBoundingClientRect();
+      const nav = document.getElementById('app-nav');
+      const navTop = nav && nav.getClientRects().length && getComputedStyle(nav).display !== 'none' ? nav.getBoundingClientRect().top : innerHeight;
+      return { rows: rows.length, scrolled: body.scrollTop > 0, lastBottom: Math.round(last.bottom), bodyBottom: Math.round(b.bottom), navTop: Math.round(navTop), headerTop: Math.round(document.querySelector('#node-side-panel .skill-lens-header').getBoundingClientRect().top) };
+    });
+    // (Desktop fits all fourteen; its navigation is the left rail.)
+    check(scrolled.rows === 14 && scrolled.lastBottom <= scrolled.bodyBottom && scrolled.headerTop === headerBefore.top && (name !== 'phone' || (scrolled.scrolled && scrolled.lastBottom <= scrolled.navTop)),
+      `${name}: a long list scrolls in the panel; the header stays and the last member clears the bottom bar`, JSON.stringify(scrolled));
+    await (name === 'phone' ? phoneShot : shot)(`explore-skill-people-long-${name}`);
     await evaluate(`window.closeNodePanel?.(); true`);
     await sleep(300);
 

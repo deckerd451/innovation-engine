@@ -43,10 +43,12 @@ assert.match(lens, new RegExp(String.raw`\.from\('community'\)\s*\.select\('id,u
   'the skill view lists and counts only members who are not hidden from discovery');
 assert.match(lens, /String\(person\.id\) === me \|\| \(myAuth && String\(person\.user_id\) === myAuth\)\) return false;/,
   'the skill view leaves out the member themselves, as the count does');
-assert.match(lens, /const fullAccess = isAdmin \|\| connected\.has\(String\(person\.id\)\);\s*const name = fullAccess \? [^:]+ : limitedDisplayName\(person\.name\);/,
+assert.match(lens, /const id = String\(person\.id\);\s*const fullAccess = isAdmin \|\| connected\.has\(id\);\s*const name = fullAccess \? [^:]+ : limitedDisplayName\(person\.name\);/,
   'full names only for accepted connections (and admins); anyone else "First L."');
-assert.match(lens, /\.from\('connections'\)\.select\('from_user_id,to_user_id'\)\s*\.or\([^)]*\)\.eq\('status', 'accepted'\)/,
-  'connected means an accepted connection');
+assert.match(lens, /const connected = new Set\(\(links \|\| \[\]\)\.filter\(link => link\.status === 'accepted'\)/,
+  'connected (full name, "In your network") means an accepted connection; a pending request keeps the limited name');
+assert.match(lens, /\.from\('connections'\)\.select\('from_user_id,to_user_id,status'\)\s*\.or\(`from_user_id\.eq\.\$\{me\},to_user_id\.eq\.\$\{me\}`\)\.in\('status', \['accepted', 'pending'\]\)/,
+  'only the member\'s own connections are read');
 
 // The same rule as the brief, so Home's chips and Explore agree.
 assert.match(read('assets/js/intelligence/daily-brief-engine.js'), new RegExp(String.raw`\.from\('community'\)\s*\.select\([^)]*\)\s*` + HIDDEN_FILTER));
