@@ -1124,7 +1124,9 @@ async function homeRefreshChecks(P, { realTimer = false } = {}) {
       await press(summary, `Home section ${i + 1}`);
     }
     const opened = (await homeState()).open;
-    check(opened.length >= 2, `${P}: Home sections open with a ${phone ? 'tap' : 'click'}`, JSON.stringify(opened));
+    // Goal help is the one collapsed section now (Your community folds only
+    // past four projects; this member has two).
+    check(opened.length >= 1 && opened.includes('Have something in mind?'), `${P}: Home sections open with a ${phone ? 'tap' : 'click'}`, JSON.stringify(opened));
     // A message arriving while Home is just being read shows in "Waiting on
     // you" straight away.
     {
@@ -2178,7 +2180,7 @@ async function homeChecks(P) {
   const root = current.width < 1024 ? '#mobile-you-content' : '#cd-home';
   // Discovery first: Picked for you (a person, then ways to join in) and
   // Happening in the community, then the curiosity invitation, then work.
-  const order = ['attention', 'picked', 'meet', 'join', 'people-route', 'happening', 'profile', 'quiet', 'work', 'goal'];
+  const order = ['attention', 'picked', 'meet', 'join', 'people-route', 'happening', 'profile', 'quiet', 'mine', 'goal'];
   const homeLayout = () => callInPage(function (sel) {
     const host = document.querySelector(sel);
     const shown = (el) => !!el && !el.hidden && el.getClientRects().length > 0;
@@ -2221,8 +2223,8 @@ async function homeChecks(P) {
     check(/Python mentors for a coding club/.test(join) && !/Mentor first-time founders/.test(join),
       `${P}: ways to join in never offer the member's own organization's opportunity`, join);
     const expected = order.filter(name => h.sections.includes(name));
-    check(JSON.stringify(h.sections) === JSON.stringify(expected) && ['picked', 'meet', 'join', 'work', 'goal'].every(name => h.sections.includes(name)),
-      `${P}: sections in order: people and possibilities, then work and goal help`, JSON.stringify(h.sections));
+    check(JSON.stringify(h.sections) === JSON.stringify(expected) && ['picked', 'meet', 'join', 'mine', 'goal'].every(name => h.sections.includes(name)),
+      `${P}: sections in order: people and possibilities, then your community and goal help`, JSON.stringify(h.sections));
     check(h.goalFields === 1, `${P}: one goal field on the page`, String(h.goalFields));
     if (current.width >= 1024) {
       check(h.columns && !h.rail, `${P}: desktop Home uses the width in two columns, without the Next steps rail`, JSON.stringify({ columns: h.columns, rail: h.rail }));
