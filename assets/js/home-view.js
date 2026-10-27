@@ -21,7 +21,9 @@
 //   Your community            the people the member is connected to and the
 //                             projects they are on, each one tap away; tasks
 //                             live in each project's Work, never ranked here
-//   Have something in mind?   goal assistance, quiet and collapsed
+//   Have an idea?             quiet, below the community: an idea's words
+//                             matched against what members list and what
+//                             projects describe, each match with its reason
 //
 // Sections update on their own: an unread count or a new brief never
 // rebuilds Home, so open sections, typed text and scroll stay as they are.
@@ -363,33 +365,145 @@
     el?.querySelectorAll('[data-project-id]').forEach(button => button.addEventListener('click', () => window.viewProjectDetails?.(button.dataset.projectId)));
   }
 
+  // ---------------------------------------------------------------- an idea
+  // "Have an idea?": the idea's distinctive words (task assistance's list of
+  // generic words, assistance-interventions.js, is left out) matched against what
+  // members list and what projects describe. Simple word matching, shown as
+  // such, never a ranking or recommendation. Explore's rules apply: no one
+  // hidden from discovery, never the member; anyone not connected is "First
+  // L." and matched only on the first three skills their limited profile
+  // shows; interests and full names only for connections (and admins).
+  const DONE_PROJECT = new Set(['archived', 'completed', 'cancelled', 'canceled', 'deleted']);
+  // Plurals fold to the singular ("maps" → "map"), but a short word keeps its
+  // s, so a skill like GIS still matches.
+  const ideaWord = (word) => {
+    const w = String(word || '').toLowerCase().replace(/'s$/, '');
+    return w.length > 3 && /[^s]s$/.test(w) ? w.slice(0, -1) : w;
+  };
+  const wordsOf = (text) => (String(text || '').toLowerCase().match(/[a-z0-9]+(?:'[a-z]+)?/g) || []).map(ideaWord);
+
+  function ideaTerms(text) {
+    const generic = window.AssistanceEngine?.isGenericWord || (() => false);
+    return [...new Set(wordsOf(text).filter(word => word.length >= 3 && !/^\d+$/.test(word) && !generic(word) && !generic(`${word}s`)))];
+  }
+
+  function limitedName(raw) {
+    const parts = String(raw || 'Community member').trim().split(/\s+/).filter(Boolean);
+    if (parts.length < 2) return parts[0] || 'Community member';
+    return `${parts[0]} ${parts[parts.length - 1][0]}.`;
+  }
+
+  function matchIdea({ idea, me, myAuth, connected = new Set(), isAdmin = false, people = [], projects = [] }) {
+    const terms = ideaTerms(idea);
+    if (!terms.length) return { terms, people: [], projects: [] };
+    const hits = (entries) => entries.filter(entry => terms.some(term => wordsOf(entry).includes(term)));
+    const seen = new Set();
+    const matchedPeople = [];
+    for (const person of people) {
+      if (!person?.id || person.is_hidden === true) continue;
+      if ((me && String(person.id) === String(me)) || (myAuth && String(person.user_id) === String(myAuth))) continue;
+      const identity = String(person.user_id ?? person.id);
+      if (seen.has(identity)) continue;
+      const full = isAdmin || connected.has(String(person.id));
+      const skills = listedTerms(person.skills);
+      const skillHits = hits(full ? skills : skills.slice(0, 3));
+      const interestHits = full ? hits(listedTerms(person.interests)) : [];
+      if (!skillHits.length && !interestHits.length) continue;
+      seen.add(identity);
+      matchedPeople.push({
+        id: person.id,
+        name: full ? String(person.name || 'Community member').trim() : limitedName(person.name),
+        connected: connected.has(String(person.id)),
+        reason: [skillHits.length ? `Lists ${skillHits.join(', ')}` : '', interestHits.length ? `Interested in ${interestHits.join(', ')}` : ''].filter(Boolean).join(' · '),
+        strength: skillHits.length + interestHits.length,
+      });
+    }
+    const matchedProjects = [];
+    for (const project of projects) {
+      if (!project?.id || !project.title || DONE_PROJECT.has(String(project.status || '').toLowerCase())) continue;
+      const needHits = hits(listedTerms(project.required_skills));
+      const about = new Set(wordsOf(`${project.title} ${project.description || ''}`));
+      const aboutHits = terms.filter(term => about.has(term));
+      if (!needHits.length && aboutHits.length < Math.min(2, terms.length)) continue;
+      matchedProjects.push({
+        id: project.id,
+        title: project.title,
+        reason: needHits.length ? `Needs ${needHits.join(', ')}` : `Mentions ${aboutHits.join(', ')}`,
+        strength: needHits.length + aboutHits.length,
+      });
+    }
+    const order = (key) => (a, b) => b.strength - a.strength || String(a[key]).localeCompare(String(b[key]));
+    return { terms, people: matchedPeople.sort(order('name')).slice(0, 5), projects: matchedProjects.sort(order('title')).slice(0, 3) };
+  }
+
+  async function findForIdea(idea) {
+    const client = window.supabase;
+    const me = profile();
+    if (!client || !me?.id) throw new Error('Not signed in');
+    const [peopleResult, projectsResult, linksResult] = await Promise.all([
+      client.from('community').select('id, user_id, name, skills, interests').or('is_hidden.is.null,is_hidden.eq.false').limit(1000),
+      client.from('projects').select('id, title, description, required_skills, status, creator_id').limit(500),
+      client.from('connections').select('from_user_id, to_user_id').or(`from_user_id.eq.${me.id},to_user_id.eq.${me.id}`).eq('status', 'accepted'),
+    ]);
+    if (peopleResult.error || projectsResult.error) throw (peopleResult.error || projectsResult.error);
+    const connected = new Set((linksResult.data || []).map(row => String(String(row.from_user_id) === String(me.id) ? row.to_user_id : row.from_user_id)));
+    return matchIdea({
+      idea, me: me.id, myAuth: me.user_id, connected,
+      isAdmin: typeof window.isAdminUser === 'function' && window.isAdminUser(),
+      people: peopleResult.data || [], projects: projectsResult.data || [],
+    });
+  }
+
+  function paintIdeaResults(idea, result) {
+    const slot = part('goal')?.querySelector('.home-idea-results');
+    if (!slot) return;
+    const chevron = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
+    const initial = (name) => String(name || '?').trim().charAt(0).toUpperCase() || '?';
+    const row = (attrs, lead, title, meta) => `<li><button type="button" class="home-mine-row" ${attrs}>${lead}<span class="home-mine-text"><strong>${esc(title)}</strong>${meta ? `<span>${esc(meta)}</span>` : ''}</span>${chevron}</button></li>`;
+    const explore = '<div class="home-idea-more"><button type="button" class="home-link" data-idea-explore="people">Browse people</button><button type="button" class="home-link" data-idea-explore="projects">Browse projects</button></div>';
+    if (result === 'error') {
+      slot.innerHTML = '<p class="home-muted">That search couldn’t be done right now. Try again in a moment.</p>';
+    } else if (!result.terms.length) {
+      slot.innerHTML = `<p class="home-muted">Add a word or two about what it involves, like a skill or a topic, so it can be matched.</p>`;
+    } else if (!result.people.length && !result.projects.length) {
+      slot.innerHTML = `<p class="home-muted">No members or projects mention ${esc(result.terms.join(', '))} yet. You can still look around:</p>${explore}`;
+    } else {
+      slot.innerHTML = `<p class="home-muted">Matched on the words ${esc(result.terms.join(', '))} in what members list and projects describe.</p>
+        ${result.people.length ? `<h3 class="home-subheading">People</h3><ul class="home-mine-list">${result.people.map(person => row(`data-idea-person="${esc(person.id)}" data-name="${esc(person.name)}"`, `<span class="home-mine-icon home-idea-face" aria-hidden="true">${esc(initial(person.name))}</span>`, person.name, [person.reason, person.connected ? 'Connected' : ''].filter(Boolean).join(' · '))).join('')}</ul>` : ''}
+        ${result.projects.length ? `<h3 class="home-subheading">Projects</h3><ul class="home-mine-list">${result.projects.map(project => row(`data-idea-project="${esc(project.id)}"`, `<span class="home-mine-icon" aria-hidden="true">${esc(initial(project.title))}</span>`, project.title, project.reason)).join('')}</ul>` : ''}
+        ${explore}`;
+    }
+    slot.querySelectorAll('[data-idea-person]').forEach(button => button.addEventListener('click', () => window.openNodePanel?.({ id: button.dataset.ideaPerson, type: 'person', name: button.dataset.name })));
+    slot.querySelectorAll('[data-idea-project]').forEach(button => button.addEventListener('click', () => window.viewProjectDetails?.(button.dataset.ideaProject)));
+    slot.querySelectorAll('[data-idea-explore]').forEach(button => button.addEventListener('click', () => exploreTab(button.dataset.ideaExplore)));
+    slot.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+
   // Built once per Home: typing here survives every other update.
   function mountGoal() {
     const el = part('goal');
     if (!el || el.dataset.mounted === 'true') return;
     el.dataset.mounted = 'true';
-    // What Get help does (mobile-task-assistance.js openObjective): a
-    // suggested next step with a worksheet for it, shared methods and any
-    // connections whose profiles fit; a draft on this device until saved to
-    // one of the member's projects. It does not create projects.
-    el.innerHTML = `<summary>Have something in mind?</summary>
-      <div class="home-goal-body"><p class="home-muted">Describe a goal to get a suggested next step and a worksheet for it, plus shared methods and any connections whose profiles fit. It stays a draft on this device until you save it to one of your projects.</p><div class="home-goal-form"></div><div class="home-goal-resume"></div></div>`;
-    const target = el.querySelector('.home-goal-form');
-    const mount = () => {
-      if (!document.contains(target)) return;
-      if (!window.MobileGoalDiscovery?.mount) { window.setTimeout(mount, 250); return; }
-      window.MobileGoalDiscovery.mount(target);
-    };
-    mount();
-    paintResume();
-  }
-
-  function paintResume() {
-    const slot = part('goal')?.querySelector('.home-goal-resume');
-    if (!slot) return;
-    const draft = window.MobileTaskAssistance?.latestObjectiveDraft?.();
-    slot.innerHTML = draft ? `<button type="button" class="home-resume">Resume: ${esc(draft.objective)} <span>(draft on this device)</span></button>` : '';
-    slot.querySelector('button')?.addEventListener('click', () => window.MobileTaskAssistance?.openObjective?.(draft.objective));
+    el.innerHTML = `<h2 class="home-heading home-label" id="home-idea-title">Have an idea?</h2>
+      <p class="home-muted">Tell us what you’re thinking about. We’ll help you find people and projects that might fit.</p>
+      <form class="home-idea-form" aria-labelledby="home-idea-title">
+        <label class="home-sr" for="home-idea-input">Your idea</label>
+        <input id="home-idea-input" name="idea" required maxlength="280" autocomplete="off" enterkeyhint="search" placeholder="e.g. A flood map for our neighborhood">
+        <button type="submit">Find people &amp; projects</button>
+      </form>
+      <div class="home-idea-results" aria-live="polite"></div>`;
+    el.querySelector('form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const input = event.currentTarget.querySelector('input');
+      const idea = input.value.trim();
+      if (!idea) return;
+      input.blur();
+      const slot = el.querySelector('.home-idea-results');
+      slot.innerHTML = '<p class="home-muted" role="status">Looking…</p>';
+      let result;
+      try { result = await findForIdea(idea); } catch (error) { console.warn('[Home] idea search unavailable:', error?.message || error); result = 'error'; }
+      if (input.value.trim() === idea) paintIdeaResults(idea, result);
+    });
   }
 
   // Nothing waiting, no one to meet, nothing to join, nothing open in the
@@ -472,7 +586,7 @@
         </div>
         <div class="home-side">
           <section class="home-section home-mine" data-home="mine" aria-labelledby="home-mine-title" hidden></section>
-          <details class="home-section home-goal" data-home="goal"></details>
+          <section class="home-section home-idea" data-home="goal" aria-labelledby="home-idea-title"></section>
         </div>
       </div>
     </div>`;
@@ -546,15 +660,13 @@
 
   // "Write your own objective" (focused assistance) opens goal help here.
   function focusGoal() {
-    const goal = part('goal');
-    if (goal) goal.open = true;
-    document.getElementById('mgd-goal-input')?.focus();
+    document.getElementById('home-idea-input')?.focus();
   }
 
   // chooseNextTask: the rule a project's own overview uses for its next step
   // (node-panel.js); Home itself no longer picks a task.
   window.HomeView = { show, clear, focusGoal, chooseNextTask };
-  window.HomeViewTesting = { taskScore, chooseNextTask, loadMine, wantsCuriosityPrompt };
+  window.HomeViewTesting = { taskScore, chooseNextTask, loadMine, wantsCuriosityPrompt, matchIdea };
 
   window.addEventListener('daily-brief-updated', () => { if (host) calmly(paintSuggestions); });
   window.addEventListener('total-unread-messages-updated', (event) => {
@@ -569,6 +681,5 @@
   ['mobile-assistance-closed', 'project-task-updated', 'capability-outcome-recorded'].forEach(type => window.addEventListener(type, () => {
     if (!showing()) return;
     refreshMine();
-    paintResume();
   }));
 })();

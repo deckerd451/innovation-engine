@@ -653,7 +653,11 @@
     return out.filter(line => line != null).join('\n').replace(/\n{3,}/g, '\n\n').trim();
   }
 
-  const api = { decide, classify, isMeaningful, methodRelevance, personRelevance, projectRelevance, searchTerms, parseNotes, writeNotes, appendProgress, rankMatrix, matrixRows, briefText, distinctiveTerms, eventNameFrom, PLAYBOOKS, OBSTACLES };
+  // Whether a word says nothing about what the work is (Home's idea search
+  // uses the same list).
+  const isGenericWord = (word) => GENERIC.has(lower(word));
+
+  const api = { isGenericWord, decide, classify, isMeaningful, methodRelevance, personRelevance, projectRelevance, searchTerms, parseNotes, writeNotes, appendProgress, rankMatrix, matrixRows, briefText, distinctiveTerms, eventNameFrom, PLAYBOOKS, OBSTACLES };
   window.AssistanceEngine = api;
   window.AssistanceInterventionsTesting = api;
 })();

@@ -110,20 +110,18 @@
 .home-more-cta { color:#9eefff; font-weight:700; }
 .home-more-list[open] .home-more-cta { display:none; }
 
-/* Goal help, collapsed until wanted */
-.home-goal { padding:.15rem 1rem; border:0; background:none; }
-.home-goal > summary { min-height:44px; display:flex; align-items:center; gap:.4rem; color:#a3adc0; font-size:.88rem; font-weight:600; cursor:pointer; }
-.home-goal[open] > summary { color:#c7cfdd; }
-.home-goal > summary { list-style:none; }
-.home-goal > summary::-webkit-details-marker { display:none; }
-.home-goal > summary::after { content:''; width:7px; height:7px; border-right:2px solid currentColor; border-bottom:2px solid currentColor; transform:rotate(45deg) translateY(-2px); transition:transform .15s; }
-.home-goal[open] > summary::after { transform:rotate(225deg) translateY(-2px); }
-.home-goal-body { padding-top:.2rem; }
-.home-goal .mgd-goal-form { display:grid; gap:.5rem; margin-top:.6rem; }
-.home-goal .mgd-goal-form input { min-width:0; border:1px solid rgba(0,224,255,.35); border-radius:9px; background:rgba(0,0,0,.2); color:#fff; padding:.75rem; font-size:16px; }
-.home-goal .mgd-goal-form button { min-height:44px; border:0; border-radius:9px; padding:.65rem .8rem; background:#00e0ff; color:#061018; font:inherit; font-weight:800; cursor:pointer; }
-.home-resume { width:100%; margin-top:.6rem; min-height:44px; padding:.6rem .7rem; border:1px dashed rgba(0,224,255,.35); border-radius:9px; background:transparent; color:#9eefff; font:inherit; font-size:.88rem; text-align:left; cursor:pointer; }
-.home-resume span { color:#a3adc0; font-size:.78rem; }
+/* Have an idea?: quiet, below the community; what matches shows under the form. */
+.home-idea { padding:.75rem 1rem; background:none; border-color:rgba(255,255,255,.09); }
+.home-idea > .home-muted { margin:0 0 .6rem; font-size:.86rem; }
+.home-idea-form { display:flex; flex-wrap:wrap; gap:.5rem; }
+.home-idea-form input { flex:1 1 12rem; min-width:0; min-height:44px; border:1px solid rgba(0,224,255,.3); border-radius:9px; background:rgba(0,0,0,.2); color:#fff; padding:.6rem .75rem; font:inherit; font-size:16px; }
+.home-idea-form button { flex:none; min-height:44px; padding:.55rem .9rem; border:1px solid rgba(0,224,255,.35); border-radius:9px; background:rgba(0,224,255,.08); color:#9eefff; font:inherit; font-size:.88rem; font-weight:800; cursor:pointer; }
+.home-idea-form button:focus-visible, .home-idea-form input:focus-visible { outline:2px solid #00e0ff; outline-offset:2px; }
+.home-idea-results:not(:empty) { margin-top:.75rem; }
+.home-idea-results .home-muted { margin:0 0 .4rem; font-size:.84rem; }
+.home-idea-results .home-subheading { margin:.6rem 0 .1rem; }
+.home-idea-face { border-radius:50%; }
+.home-idea-more { display:flex; flex-wrap:wrap; gap:.25rem 1.25rem; }
 
 /* Small phones: the same page, lighter. Every reason and action stays;
    padding, type and the avatar shrink, and touch targets stay 44px. */

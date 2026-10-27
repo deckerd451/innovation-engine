@@ -1066,13 +1066,13 @@ async function closeDialogRuns() {
 // ── Home during background unread refreshes ──────────────────────────────
 // The unread count refreshes every 30 seconds (and when messages are read).
 // Home keeps what the person is doing: expanded sections, unfinished text in
-// "Have something in mind?", focus and scroll; the Inbox badge still shows
+// "Have an idea?", focus and scroll; the Inbox badge still shows
 // the new count, and "Waiting on you" follows it. (Each refresh once rebuilt
 // Home from scratch.)
 const homeState = () => callInPage(function () {
   const phone = !!document.getElementById('mobile-you-content')?.getClientRects().length;
   const root = document.getElementById(phone ? 'mobile-you-content' : 'cd-home');
-  const input = document.getElementById('mgd-goal-input');
+  const input = document.getElementById('home-idea-input');
   const scroller = phone ? document.querySelector('#mobile-you-screen .mobile-you-scroll') : document.querySelector('#command-dashboard .cd-scroll-area');
   const badge = document.getElementById('app-nav-inbox-badge');
   const waiting = root?.querySelector('[data-home="attention"]');
@@ -1111,13 +1111,12 @@ async function homeRefreshChecks(P, { realTimer = false } = {}) {
     await go('home');
     const phone = current.width < 1024;
     const root = phone ? '#mobile-you-content' : '#cd-home';
-    const input = '#mgd-goal-input';
+    const input = '#home-idea-input';
     await waitUntil(function (sel) { return !!document.querySelector(sel); }, [input], 'Home input', 10000);
-    // Goal help (and Your community's "more projects" when there are many).
-    await waitUntil(function (sel) { return document.querySelectorAll(sel + ' details').length >= 1 && !!document.querySelector(sel + ' [data-home="mine"] .home-mine-row'); }, [root], 'Home sections', 10000);
+    await waitUntil(function (sel) { return !!document.querySelector(sel + ' [data-home="mine"] .home-mine-row'); }, [root], 'Home sections', 10000);
     await sleep(800);
-    // Open every collapsed section on Home (goal help, more projects) with a
-    // real tap or click.
+    // Open every collapsed section on Home (Your community's "more projects",
+    // when there are many) with a real tap or click.
     const count = await callInPage(function (sel) { const all = [...document.querySelectorAll(sel + ' details > summary')]; all.forEach((s, i) => { s.dataset.homeSection = String(i); }); return all.length; }, root);
     for (let i = 0; i < count; i++) {
       const summary = `${root} summary[data-home-section="${i}"]`;
@@ -1125,9 +1124,9 @@ async function homeRefreshChecks(P, { realTimer = false } = {}) {
       await press(summary, `Home section ${i + 1}`);
     }
     const opened = (await homeState()).open;
-    // Goal help is the one collapsed section now (Your community folds only
-    // past four projects; this member has two).
-    check(opened.length >= 1 && opened.includes('Have something in mind?'), `${P}: Home sections open with a ${phone ? 'tap' : 'click'}`, JSON.stringify(opened));
+    // Nothing else on Home is collapsed ("Have an idea?" is always open; Your
+    // community folds only past four projects, and this member has two).
+    check(opened.length === count, `${P}: Home sections open with a ${phone ? 'tap' : 'click'}`, JSON.stringify({ opened, count }));
     // A message arriving while Home is just being read shows in "Waiting on
     // you" straight away.
     {
@@ -1169,7 +1168,7 @@ async function homeRefreshChecks(P, { realTimer = false } = {}) {
     const after = await homeState();
     check(after.badge === expected, `${P}: the Inbox badge shows the new unread count after the ${realTimer ? '30-second ' : ''}refresh`, JSON.stringify({ before: before.badge, after: after.badge }));
     check(after.sameInput && after.value === text && after.focused,
-      `${P}: unfinished text in the Home "Have something in mind?" field stays, still focused`, JSON.stringify({ before, after }));
+      `${P}: unfinished text in the Home "Have an idea?" field stays, still focused`, JSON.stringify({ before, after }));
     check(JSON.stringify(after.open) === JSON.stringify(before.open) && Math.abs(after.inputTop - before.inputTop) <= 1,
       `${P}: expanded sections stay, and what is on screen does not move`, JSON.stringify({ before: [before.open, before.scrollTop, before.inputTop], after: [after.open, after.scrollTop, after.inputTop] }));
     check(after.waiting === before.waiting, `${P}: while typing, "Waiting on you" waits rather than move the field`, JSON.stringify([before.waiting, after.waiting]));
@@ -2174,7 +2173,8 @@ async function accessChecks(P) {
 }
 
 // ── Home (home-view.js): one set of sections at every width ─────────────
-// People and possibilities first, then the member's work and goal help.
+// What is happening and people and possibilities first, then the member's
+// community and "Have an idea?".
 // Someone to meet is a new introduction only: never the member, an existing
 // connection or someone with a request waiting.
 async function homeChecks(P) {
@@ -2195,7 +2195,7 @@ async function homeChecks(P) {
       meet: host?.querySelector('[data-home="meet"] .network-reflection-concierge-title')?.textContent || '',
       columns: main && side ? Math.round(rect(side).left) >= Math.round(rect(main).right) : false,
       rail: shown(rail) && getComputedStyle(rail).display !== 'none',
-      goalFields: document.querySelectorAll('#mgd-goal-input').length,
+      goalFields: document.querySelectorAll('#home-idea-input').length,
     };
   }, root);
 
@@ -2271,17 +2271,14 @@ async function homeChecks(P) {
     await closePanel();
   });
 
-  await step(`${P}: goal help opens from Home and closes when navigating away`, async () => {
+  await step(`${P}: an idea finds people and projects on Home, without the worksheet`, async () => {
     await go('home');
-    await press(`${root} [data-home="goal"] > summary`, 'Have something in mind?');
-    await press('#mgd-goal-input', 'goal field');
+    await press('#home-idea-input', 'idea field');
     await send('Input.insertText', { text: 'Plan a neighborhood hackathon' });
-    await press('.mgd-goal-form button[type="submit"]', 'Get help');
-    await waitFor(`document.querySelector('#mobile-task-assistance #mta-title')`, 'assistance', 8000);
-    check(await usable(NAV('explore')), `${P}: the navigation stays usable while goal help is open`);
-    await press(NAV('explore'), 'Explore');
-    await waitFor(`!document.getElementById('mobile-task-assistance')`, 'assistance to close', 4000);
-    check((await destination()) === 'explore', `${P}: goal help closes when navigating away`);
+    await press(`${root} .home-idea-form button[type="submit"]`, 'Find people & projects');
+    await waitFor(`document.querySelector('${root} .home-idea-results')?.textContent && !/Looking…/.test(document.querySelector('${root} .home-idea-results').textContent)`, 'idea results', 8000);
+    check(!(await evaluate(`!!document.getElementById('mobile-task-assistance')`)) && await usable(NAV('explore')), `${P}: an idea finds people and projects on Home, without the worksheet`);
+    await evaluate(`document.getElementById('home-idea-input').value = ''; document.querySelector('${root} .home-idea-results').innerHTML = ''; true`);
   });
 
   // Codex review: the report (and tasks, suggestions) arriving late while the
@@ -2294,21 +2291,20 @@ async function homeChecks(P) {
       return true;
     })()`);
     await go('home');
-    if (await evaluate(`!document.querySelector('${root} [data-home="goal"]').open`)) await press(`${root} [data-home="goal"] > summary`, 'Have something in mind?');
-    await press('#mgd-goal-input', 'goal field');
+    await press('#home-idea-input', 'goal field');
     await send('Input.insertText', { text: 'Start a robotics club' });
-    const fieldTop = () => evaluate(`Math.round(document.getElementById('mgd-goal-input').getBoundingClientRect().top)`);
+    const fieldTop = () => evaluate(`Math.round(document.getElementById('home-idea-input').getBoundingClientRect().top)`);
     const waitingText = () => evaluate(`(() => { const el = document.querySelector('${root} [data-home="attention"]'); return el && !el.hidden ? el.innerText : ''; })()`);
     const before = await fieldTop();
     await evaluate(`window.__releaseStartData(); window.dispatchEvent(new CustomEvent('project-task-updated')); window.dispatchEvent(new CustomEvent('daily-brief-updated')); true`);
     await sleep(800);
-    const during = { top: await fieldTop(), waiting: await waitingText(), focused: await evaluate(`document.activeElement?.id === 'mgd-goal-input'`) };
+    const during = { top: await fieldTop(), waiting: await waitingText(), focused: await evaluate(`document.activeElement?.id === 'home-idea-input'`) };
     check(during.top === before && !during.waiting && during.focused, `${P}: while typing, late updates do not move the field`, JSON.stringify({ before, during }));
-    await evaluate(`document.getElementById('mgd-goal-input').blur(); true`);
+    await evaluate(`document.getElementById('home-idea-input').blur(); true`);
     await sleep(400);
     const after = await waitingText();
     check(/2 people want to connect with you/.test(after), `${P}: after typing, "Waiting on you" shows what arrived`, after);
-    await evaluate(`window.getStartSequenceData = window.__realStartData; document.getElementById('mgd-goal-input').value = ''; true`);
+    await evaluate(`window.getStartSequenceData = window.__realStartData; document.getElementById('home-idea-input').value = ''; true`);
   });
 
   await step(`${P}: Home leads on to Explore`, async () => {
@@ -2429,12 +2425,12 @@ async function resizeChecks() {
     await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
     await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
     await waitFor(`document.querySelector('#mobile-you-content .home-view')`, 'phone Home', 8000);
-    const phone = await evaluate(`[document.querySelectorAll('.home-view').length, document.querySelectorAll('#mgd-goal-input').length, !!document.querySelector('#cd-home .home-view')].join()`);
+    const phone = await evaluate(`[document.querySelectorAll('.home-view').length, document.querySelectorAll('#home-idea-input').length, !!document.querySelector('#cd-home .home-view')].join()`);
     current = WIDTHS[2];
     await send('Emulation.setDeviceMetricsOverride', { width: 1366, height: 900, deviceScaleFactor: 1, mobile: false });
     await send('Emulation.setTouchEmulationEnabled', { enabled: false });
     await waitFor(`document.querySelector('#cd-home .home-view')`, 'desktop Home again', 8000);
-    const desktop = await evaluate(`[document.querySelectorAll('.home-view').length, document.querySelectorAll('#mgd-goal-input').length, !!document.querySelector('#mobile-you-content .home-view')].join()`);
+    const desktop = await evaluate(`[document.querySelectorAll('.home-view').length, document.querySelectorAll('#home-idea-input').length, !!document.querySelector('#mobile-you-content .home-view')].join()`);
     check(phone === '1,1,false' && desktop === '1,1,false', 'resize: Home moves with the layout and is on the page once', JSON.stringify({ phone, desktop }));
   });
   // Every page keeps only its own content through phone, tablet, iPad

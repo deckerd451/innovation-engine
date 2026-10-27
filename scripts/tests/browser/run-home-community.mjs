@@ -12,7 +12,8 @@
 //     and the projects they are on (each to its own page, where its tasks
 //     and actions are); no ranked task, Continue or task list on Home. With
 //     no connections or projects, Explore is where to find them
-//   - Have something in mind?: quiet and secondary, says what Get help does,
+//   - Have an idea?: quiet and secondary, after Your community (its journey is
+//     run-home-idea.mjs),
 //     and Get help still opens task assistance with the goal
 //
 //   node scripts/tests/browser/run-home-community.mjs [outDir]
@@ -463,27 +464,16 @@ try {
     await evaluate(`document.getElementById('pd-close-btn')?.click(); true`);
     await sleep(400);
 
-    // ---------------------------------------------- Have something in mind?
-    const goal = await callInPage(function (root) {
+    // ---------------------------------------------- Have an idea?
+    const idea = await callInPage(function (root) {
       const el = document.querySelector(`${root} [data-home="goal"]`);
-      const summary = el.querySelector('summary');
-      const heading = document.querySelector(`${root} #home-happening-title`);
-      const s = getComputedStyle(el);
-      return { open: el.open, summary: summary.textContent.trim(), border: s.borderTopStyle, summarySize: parseFloat(getComputedStyle(summary).fontSize), headingSize: parseFloat(getComputedStyle(heading).fontSize),
-        afterWork: !!(document.querySelector(`${root} [data-home="mine"]`).compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING) };
+      const heading = el.querySelector('h2');
+      const big = document.querySelector(`${root} #home-happening-title`);
+      return { tag: el.tagName, heading: heading?.textContent.trim(), size: parseFloat(getComputedStyle(heading).fontSize), bigSize: parseFloat(getComputedStyle(big).fontSize),
+        afterMine: !!(document.querySelector(`${root} [data-home="mine"]`).compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING), worksheet: /worksheet|Get help/i.test(el.innerText) };
     }, root);
-    check(!goal.open && goal.summary === 'Have something in mind?' && goal.border === 'none' && goal.summarySize < goal.headingSize && goal.afterWork,
-      `${name}: “Have something in mind?” is quiet and secondary, after Your community`, JSON.stringify(goal));
-    await press(`${root} [data-home="goal"] > summary`, 'Have something in mind?');
-    const goalText = await evaluate(`document.querySelector('${root} [data-home="goal"]').innerText`);
-    check(/Describe a goal to get a suggested next step and a worksheet for it, plus shared methods and any connections whose profiles fit\. It stays a draft on this device until you save it to one of your projects\./.test(goalText)
-      && !/create(s)? a project|find(s)? collaborators|no project needed/i.test(goalText), `${name}: it says what Get help does, and nothing it doesn’t`, goalText);
-    await evaluate(`(() => { const input = document.querySelector('${root} [data-home="goal"] input[name="goal"]'); input.value = 'Recruit speakers for a student hackathon'; input.closest('form').requestSubmit(); return true; })()`);
-    await waitFor(`document.getElementById('mobile-task-assistance')`, 'task assistance', 8000).catch(() => {});
-    await sleep(800);
-    check(/Recruit speakers for a student hackathon/.test(await evaluate(`document.getElementById('mobile-task-assistance')?.innerText || ''`)), `${name}: Get help still opens task assistance with the goal`);
-    await snap(`get-help-${name}`);
-    await evaluate(`window.MobileTaskAssistance?.close?.(); document.getElementById('mobile-task-assistance')?.remove(); true`);
+    check(idea.heading === 'Have an idea?' && idea.size < idea.bigSize && idea.afterMine && !idea.worksheet,
+      `${name}: “Have an idea?” is quiet and secondary, after Your community`, JSON.stringify(idea));
 
     // ---------------------------------------------- no connections, projects
     await loadHome('established&noconn=1', VIEWPORTS[name]);
