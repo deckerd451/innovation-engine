@@ -344,6 +344,8 @@ body.reflection-resizing #network-reflection { transition:none; }
      Home its sections, Explore the Explore list, Network the people list
      (with "People you met") beside the map. */
   body[data-destination="home"] #command-dashboard #cd-explore { display:none!important; }
+  /* Search belongs to Explore (and Network); Home leads there with one link. */
+  body[data-destination="home"] #command-dashboard #centered-search-container.cd-search { display:none!important; }
   body[data-destination="explore"] #command-dashboard #cd-focus { display:none!important; }
   body[data-destination="network"] #command-dashboard #cd-focus { display:none!important; }
   body[data-destination="network"] #command-dashboard .udc-resource-tab:not([data-resource="people"]) { display:none!important; }
