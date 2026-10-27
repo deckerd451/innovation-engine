@@ -368,7 +368,15 @@ const extra = `(() => {
 
 const ROOT = () => (view.width >= 1024 ? '#cd-home' : '#mobile-you-content');
 async function askIdea(idea) {
-  await evaluate(`(() => { const s = document.querySelector('${ROOT()} [data-home="goal"]'); s.scrollIntoView({ block: 'start' }); const i = s.querySelector('#home-idea-input'); i.value = ${JSON.stringify(idea)}; i.form.requestSubmit(); return true; })()`);
+  // The idea is passed as an argument, never written into page code.
+  await callInPage(function (root, text) {
+    const s = document.querySelector(root + ' [data-home="goal"]');
+    s.scrollIntoView({ block: 'start' });
+    const i = s.querySelector('#home-idea-input');
+    i.value = text;
+    i.form.requestSubmit();
+    return true;
+  }, ROOT(), idea);
   await waitFor(`!/Looking…/.test(document.querySelector('${ROOT()} .home-idea-results')?.textContent || 'Looking…')`, 'idea results', 8000);
   await sleep(300);
   return callInPage(function (root) {
