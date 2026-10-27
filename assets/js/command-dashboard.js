@@ -93,7 +93,7 @@ window.CommandDashboard = (() => {
       return Promise.resolve({ generateDailyBrief: window.generateDailyBrief });
     }
     if (!_briefEnginePromise) {
-      const url = _CD_SCRIPT_BASE + 'intelligence/daily-brief-engine.js?v=skills-replace-themes-20261027';
+      const url = _CD_SCRIPT_BASE + 'intelligence/daily-brief-engine.js?v=home-community-20261027';
       _briefEnginePromise = import(url).catch(err => {
         _briefEnginePromise = null;
         throw err;

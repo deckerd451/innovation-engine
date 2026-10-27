@@ -264,7 +264,7 @@ const home = () => callInPage(function (root) {
   const all = [...document.querySelectorAll(`${root} [data-home]`)].filter(visible).map(el => el.dataset.home);
   const meet = document.querySelector(`${root} [data-home="meet"]`);
   return {
-    sections: all.filter(name => ['attention', 'picked', 'happening', 'profile', 'quiet', 'work', 'goal'].includes(name)),
+    sections: all.filter(name => ['attention', 'picked', 'happening', 'profile', 'quiet', 'mine', 'goal'].includes(name)),
     parts: all,
     header: (document.querySelector(`${root} .home-header`)?.textContent || '').replace(/\s+/g, ' ').trim(),
     heading: (() => { const h = document.querySelector(`${root} #home-happening-title`); return visible(h) ? h.textContent.trim() : ''; })(),
@@ -291,12 +291,14 @@ const home = () => callInPage(function (root) {
     connectionsLinks: [...document.querySelectorAll(`${root} button, ${root} a`)].filter(visible).map(b => b.textContent.trim()).filter(t => /Find people in Explore|People$/.test(t)),
     exploreLink: (() => { const b = document.querySelector(`${root} .home-explore button`); return visible(b) ? b.textContent.trim() : ''; })(),
     themes: [...document.querySelectorAll(`${root} .home-theme, ${root} [data-theme]`)].filter(visible).map(b => b.innerText.replace(/\s+/g, ' ').trim()),
-    openRows: [...document.querySelectorAll(`${root} [data-home="happening"] .home-open-row`)].filter(visible).map(b => b.innerText.replace(/\s+/g, ' ').trim()),
+    // Each community card as "Title Meta" (its kind, description and match
+    // are checked separately).
+    openRows: [...document.querySelectorAll(`${root} [data-home="happening"] .home-invite`)].filter(visible).map(b => [b.querySelector('.home-invite-title')?.textContent, b.querySelector('.home-invite-meta')?.textContent].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim()),
     topics: [...document.querySelectorAll(`${root} .home-topic`)].filter(visible).map(b => b.textContent.trim()),
     happening: text('[data-home="happening"]'),
     profile: text('[data-home="profile"]'),
     quiet: text('[data-home="quiet"]'),
-    work: text('[data-home="work"]'),
+    mine: text('[data-home="mine"]'),
     all: document.querySelector(root)?.innerText || '',
     pills: document.querySelectorAll(`${root} .home-lens, ${root} [data-lens]`).length,
     search: visible(document.querySelector(`${root} .home-search`)),
@@ -333,7 +335,7 @@ const layout = () => callInPage(function (root, phone) {
   const result = {
     viewBottom: Math.round(viewBottom),
     searchTop: top('.home-search'), exploreLinkTop: top('.home-explore'),
-    pickedTop: top('[data-home="picked"]'), happeningTop: top('[data-home="happening"]'), workTop: top('[data-home="work"]'),
+    pickedTop: top('[data-home="picked"]'), happeningTop: top('[data-home="happening"]'), mineTop: top('[data-home="mine"]'),
     homeHeight: scroller ? scroller.scrollHeight : Math.round(document.querySelector(root).scrollHeight),
     overflowX: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth,
   };
@@ -364,7 +366,7 @@ try {
   check(/Welcome, Test Member/.test(h.header) && /Discover what we could do together\./.test(h.header), 'a warm welcome by name, with one short invitation', h.header);
   check(h.headerLayout?.nameOneLine && !h.headerLayout.nameUnderButtons && !h.headerLayout.introUnderButtons, 'the name sits on one line and nothing in the welcome runs under the header buttons', JSON.stringify(h.headerLayout));
   check(h.heading === 'Happening in the community', 'an established member’s community section is “Happening in the community”', h.heading);
-  check(JSON.stringify(h.sections) === '["attention","picked","happening","work","goal"]', 'sections: waiting on you, picked for you, happening, your work, goal help', JSON.stringify(h.sections));
+  check(JSON.stringify(h.sections) === '["attention","picked","happening","mine","goal"]', 'sections: waiting on you, picked for you, happening, your community, goal help', JSON.stringify(h.sections));
   check(/1 person wants to connect with you/.test(h.attention), 'Waiting on you shows the genuine pending request', h.attention);
   check(h.search && h.exploreLink === 'Browse Explore' && h.pills === 0, 'search and one quiet Browse Explore link; no category pills duplicating Explore', JSON.stringify({ link: h.exploreLink, pills: h.pills }));
   check(h.meetTitle === 'Meet Riley (fixture)', 'a person worth meeting: someone new with something in common', h.meetTitle);
@@ -382,10 +384,11 @@ try {
   check(h.openRows.some(r => /^Judge the spring pitch night Tidewater Schools · Closes /.test(r)) && !h.openRows.some(r => /Expired grant|My own posting|Python mentor/.test(r)),
     'open opportunities with their organization and deadline; never expired, your own, or one already picked', JSON.stringify(h.openRows));
   check(!h.topics.length && !h.connectionsLinks.length, 'with someone to meet, no people-finding fallback is needed', JSON.stringify({ topics: h.topics, links: h.connectionsLinks }));
-  check(/^YOUR WORK\s*Next: select speaker\(s\)/i.test(h.work) && /2 projects · 1 more open task/.test(h.work), 'your work: the next task and a one-line summary', h.work);
+  check(/^YOUR COMMUNITY\s*D\(\s*S\(\s*2 people you’re connected to/i.test(h.mine) && /Harborhack 2026 prep\s*You started it/.test(h.mine) && /Startup lab\s*You’re a member/.test(h.mine) && !/Next:|Continue|open task/.test(h.mine),
+    'your community: the people you’re connected to and your projects; no ranked task', h.mine);
   let L = await layout();
   check(L.searchTop != null && L.exploreLinkTop < L.viewBottom && L.pickedTop != null && L.pickedTop < L.viewBottom - 120, 'the first screenful shows search, Browse Explore and Picked for you', JSON.stringify(L));
-  check(L.workTop > L.happeningTop && L.happeningTop > L.pickedTop, 'discovery comes before your work', JSON.stringify(L));
+  check(L.mineTop > L.happeningTop && L.happeningTop > L.pickedTop, 'discovery comes before your community', JSON.stringify(L));
   check(L.homeHeight <= 2400, `Home stays focused (${L.homeHeight}px of scrolling at iPhone size)`, String(L.homeHeight));
   check(L.overflowX <= 0 && L.bottomClearance >= 32, 'no sideways scrolling; the end of Home clears the navigation', JSON.stringify(L));
   await evaluate(`(() => { const s = document.querySelector('#mobile-you-screen .mobile-you-scroll'); s.scrollTop = 700; return true; })()`);
@@ -393,13 +396,10 @@ try {
   await phoneShot('established-iphone-scrolled');
 
   // Actions on Home
-  await evaluate(`(() => { window.__calls = []; const vt = window.viewProjectTask; window.viewProjectTask = (...a) => { window.__calls.push(['task', ...a]); }; return true; })()`);
-  await press(`${rootSel()} [data-home="work"] [data-next-task]`, 'Continue');
-  check(JSON.stringify(await evaluate('window.__calls')) === JSON.stringify([['task', '${PROJECT}', '${TASK}']]).replace('${PROJECT}', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa').replace('${TASK}', 'dddddddd-dddd-4ddd-8ddd-dddddddddddd'),
-    'Continue opens the next task', JSON.stringify(await evaluate('window.__calls')));
-  await press(`${rootSel()} [data-home="work"] details > summary`, 'work summary');
-  const expanded = await evaluate(`document.querySelector('${rootSel()} [data-home="work"]').innerText`);
-  check(/Your other open tasks/.test(expanded) && /Your projects/.test(expanded) && /Book the venue/.test(expanded), 'Your work expands to other tasks and projects', expanded);
+  await evaluate(`(() => { window.__calls = []; window.viewProjectDetails = (...a) => { window.__calls.push(['project', ...a]); }; return true; })()`);
+  await press(`${rootSel()} [data-home="mine"] [data-project-id]`, 'Harborhack');
+  check(JSON.stringify(await evaluate('window.__calls')) === JSON.stringify([['project', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa']]),
+    'a project in Your community opens that project', JSON.stringify(await evaluate('window.__calls')));
   await press(`${rootSel()} [data-join="0"]`, 'Take a look');
   await waitFor(`/HCD Event/.test(document.getElementById('node-side-panel')?.innerText || '')`, 'project panel', 6000).catch(() => {});
   check(/HCD Event/.test(await panelText()), 'Take a look opens the project', (await panelText()).slice(0, 120));
@@ -478,7 +478,7 @@ try {
   await loadHome('newcomer');
   h = await home();
   await phoneShot('newcomer-iphone-top');
-  check(JSON.stringify(h.sections) === '["happening","profile","goal"]', 'what is happening first; no picks, no work, nothing waiting', JSON.stringify(h.sections));
+  check(JSON.stringify(h.sections) === '["happening","profile","mine","goal"]', 'what is happening first; no picks, nothing waiting; where to find people and projects', JSON.stringify(h.sections));
   check(h.heading === 'Start anywhere' && /What’s open in your community right now\. Nothing to set up first\./.test(h.happening), 'a newcomer is welcomed with “Start anywhere”', h.happening.slice(0, 160));
   check(!h.themes.length && h.openRows.length >= 3 && !/Themes people are exploring|General Projects/.test(h.all), 'real projects and opportunities to explore right away; no themes', JSON.stringify({ themes: h.themes, rows: h.openRows }));
   check(['design', 'python'].every(skill => h.topics.map(t => t.toLowerCase()).includes(skill)) && !h.topics.some(t => /beekeeping|woodworking/i.test(t)), 'a way to browse people by shared skills, never a one-person or hidden-inflated skill', JSON.stringify(h.topics));
@@ -505,7 +505,7 @@ try {
   h = await home();
   check(/Nothing new is open in the community right now\./.test(h.happening) && !h.themes.length && !h.openRows.length && !h.topics.length,
     'says so plainly: no invented counts or activity', h.happening);
-  check(h.exploreLink === 'Browse Explore' && /Next: select speaker/.test(h.work), 'Explore is one tap away, and the member’s work is still there', JSON.stringify({ link: h.exploreLink, work: h.work }));
+  check(h.exploreLink === 'Browse Explore' && /Harborhack 2026 prep/.test(h.mine), 'Explore is one tap away, and the member’s projects are still there', JSON.stringify({ link: h.exploreLink, mine: h.mine }));
 
   // ------------------------------------------------------------ other sizes
   for (const name of ['small-phone', 'large-phone', 'tablet', 'desktop']) {
@@ -513,7 +513,7 @@ try {
     await loadHome('established', VIEWPORTS[name]);
     h = await home();
     L = await layout();
-    check(h.sections[0] === 'attention' && h.sections.indexOf('picked') < h.sections.indexOf('work') && h.sections.indexOf('happening') < h.sections.indexOf('work'), `${name}: discovery before your work`, JSON.stringify(h.sections));
+    check(h.sections[0] === 'attention' && h.sections.indexOf('picked') < h.sections.indexOf('mine') && h.sections.indexOf('happening') < h.sections.indexOf('mine'), `${name}: discovery before your community`, JSON.stringify(h.sections));
     if (view.width < 1024) check(h.headerLayout?.nameOneLine && !h.headerLayout.nameUnderButtons && !h.headerLayout.introUnderButtons, `${name}: the welcome fits, clear of the header buttons`, JSON.stringify(h.headerLayout));
     check(h.meetReasons.length === 2 && h.join.every(item => item.reasons.length) && h.pickActions.every(a => a === 'Take a look|Not now'), `${name}: every reason and action is still on each pick`, JSON.stringify({ reasons: h.meetReasons, join: h.join, actions: h.pickActions }));
     if (name === 'small-phone') await phoneShot('established-small-phone');

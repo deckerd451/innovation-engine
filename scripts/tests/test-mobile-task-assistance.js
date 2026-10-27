@@ -15,7 +15,10 @@ assert.match(js, /window\.viewProjectTask = open/);
 assert.match(js, /openObjective/);
 assert.match(discover, /MobileTaskAssistance\?\.openObjective\(goal\)/);
 assert.doesNotMatch(discover, /searchGoal|renderPackageCard/, 'objective entry must not run a separate assistance flow');
-assert.match(home, /viewProjectTask\(target\.dataset\.nextProject, target\.dataset\.nextTask\)/);
+// A task opens assistance from its project's Work (node-panel.js); Home no
+// longer picks a task to open it from.
+assert.match(fs.readFileSync('assets/js/node-panel.js', 'utf8'), /window\.viewProjectTask\(project\.id, task\.id\)/);
+assert.doesNotMatch(home, /viewProjectTask/);
 assert.match(js, /AssistanceEngine/);
 
 // Data access stays inside existing tables and RLS; the client narrows only.

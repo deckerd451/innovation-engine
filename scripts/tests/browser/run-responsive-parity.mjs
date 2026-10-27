@@ -1015,16 +1015,17 @@ async function closeDialogChecks(P, safeTop, safeBottom) {
     ['Settings', `window.SettingsModal.open(); true`, '#settings-close-btn', isOpen.settings],
     ['Actions', `window.UnifiedNotifications.showPanel('actions'); true`, '#close-unified-panel', `!!document.getElementById('close-unified-panel')?.getClientRects().length`],
   ];
-  if (current.width < 1024) others.push(['goal assistance', `(() => { document.querySelector('#mobile-you-content [data-next-task]')?.click(); return true; })()`, '#mobile-task-assistance .mta-close', `!!document.querySelector('#mobile-task-assistance .mta-close')`]);
+  // Task assistance (a task's "Work on this or report progress"), opened
+  // through the same task link the project's Work uses.
+  if (current.width < 1024) others.push(['goal assistance', `(() => { window.viewProjectTask('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'dddddddd-dddd-4ddd-8ddd-dddddddddddd'); return true; })()`, '#mobile-task-assistance .mta-close', `!!document.querySelector('#mobile-task-assistance .mta-close')`]);
   for (const [name, open, selector, isShown] of others) {
     await step(`${P}: ${name} closes with its X below the safe area`, async () => {
       await go('home');
-      if (name === 'goal assistance') await waitFor(`document.querySelector('#mobile-you-content [data-next-task]')`, 'next task', 8000);
+      if (name === 'goal assistance') await waitFor(`typeof window.viewProjectTask === 'function'`, 'task assistance', 8000);
       // Twice: a tap must not move the X for next time (a click effect once
       // made clicked buttons position: relative).
       const seen = [];
       for (let round = 0; round < 2; round++) {
-        if (name === 'goal assistance' && round) await waitFor(`document.querySelector('#mobile-you-content [data-next-task]')`, 'next task', 8000);
         await evaluate(open);
         await waitFor(isShown, name, 8000);
         await sleep(400);
@@ -1111,11 +1112,11 @@ async function homeRefreshChecks(P, { realTimer = false } = {}) {
     const root = phone ? '#mobile-you-content' : '#cd-home';
     const input = '#mgd-goal-input';
     await waitUntil(function (sel) { return !!document.querySelector(sel); }, [input], 'Home input', 10000);
-    // Goal help, and Your work's one list of other tasks and projects.
-    await waitUntil(function (sel) { return document.querySelectorAll(sel + ' details').length >= 2; }, [root], 'Home sections', 10000);
+    // Goal help (and Your community's "more projects" when there are many).
+    await waitUntil(function (sel) { return document.querySelectorAll(sel + ' details').length >= 1 && !!document.querySelector(sel + ' [data-home="mine"] .home-mine-row'); }, [root], 'Home sections', 10000);
     await sleep(800);
-    // Open every collapsed section on Home (goal help, other tasks, projects)
-    // with a real tap or click.
+    // Open every collapsed section on Home (goal help, more projects) with a
+    // real tap or click.
     const count = await callInPage(function (sel) { const all = [...document.querySelectorAll(sel + ' details > summary')]; all.forEach((s, i) => { s.dataset.homeSection = String(i); }); return all.length; }, root);
     for (let i = 0; i < count; i++) {
       const summary = `${root} summary[data-home-section="${i}"]`;
@@ -1123,7 +1124,9 @@ async function homeRefreshChecks(P, { realTimer = false } = {}) {
       await press(summary, `Home section ${i + 1}`);
     }
     const opened = (await homeState()).open;
-    check(opened.length >= 2, `${P}: Home sections open with a ${phone ? 'tap' : 'click'}`, JSON.stringify(opened));
+    // Goal help is the one collapsed section now (Your community folds only
+    // past four projects; this member has two).
+    check(opened.length >= 1 && opened.includes('Have something in mind?'), `${P}: Home sections open with a ${phone ? 'tap' : 'click'}`, JSON.stringify(opened));
     // A message arriving while Home is just being read shows in "Waiting on
     // you" straight away.
     {
@@ -2177,7 +2180,7 @@ async function homeChecks(P) {
   const root = current.width < 1024 ? '#mobile-you-content' : '#cd-home';
   // Discovery first: Picked for you (a person, then ways to join in) and
   // Happening in the community, then the curiosity invitation, then work.
-  const order = ['attention', 'picked', 'meet', 'join', 'people-route', 'happening', 'profile', 'quiet', 'work', 'goal'];
+  const order = ['attention', 'picked', 'meet', 'join', 'people-route', 'happening', 'profile', 'quiet', 'mine', 'goal'];
   const homeLayout = () => callInPage(function (sel) {
     const host = document.querySelector(sel);
     const shown = (el) => !!el && !el.hidden && el.getClientRects().length > 0;
@@ -2220,8 +2223,8 @@ async function homeChecks(P) {
     check(/Python mentors for a coding club/.test(join) && !/Mentor first-time founders/.test(join),
       `${P}: ways to join in never offer the member's own organization's opportunity`, join);
     const expected = order.filter(name => h.sections.includes(name));
-    check(JSON.stringify(h.sections) === JSON.stringify(expected) && ['picked', 'meet', 'join', 'work', 'goal'].every(name => h.sections.includes(name)),
-      `${P}: sections in order: people and possibilities, then work and goal help`, JSON.stringify(h.sections));
+    check(JSON.stringify(h.sections) === JSON.stringify(expected) && ['picked', 'meet', 'join', 'mine', 'goal'].every(name => h.sections.includes(name)),
+      `${P}: sections in order: people and possibilities, then your community and goal help`, JSON.stringify(h.sections));
     check(h.goalFields === 1, `${P}: one goal field on the page`, String(h.goalFields));
     if (current.width >= 1024) {
       check(h.columns && !h.rail, `${P}: desktop Home uses the width in two columns, without the Next steps rail`, JSON.stringify({ columns: h.columns, rail: h.rail }));
@@ -2338,7 +2341,7 @@ async function homeQuietChecks(P) {
     await go('home');
     await waitFor(`!document.querySelector('${root} [data-home="quiet"]')?.hidden`, 'quiet Home', 10000);
     const sections = await callInPage(function (sel) { return [...document.querySelectorAll(sel + ' [data-home]')].filter(el => !el.hidden && el.getClientRects().length).map(el => el.dataset.home); }, root);
-    check(JSON.stringify(sections.filter(name => name !== 'attention' && name !== 'profile')) === '["quiet","goal"]', `${P}: a quiet Home shows the getting-started step and goal help`, JSON.stringify(sections));
+    check(JSON.stringify(sections.filter(name => name !== 'attention' && name !== 'profile')) === '["quiet","mine","goal"]', `${P}: a quiet Home shows the getting-started step, your community and goal help`, JSON.stringify(sections));
     await press(`${root} [data-home-action="share"]`, 'Share what you’re looking for');
     await waitForPage('you');
     check(true, `${P}: the getting-started step opens You (Right now)`);
@@ -2356,15 +2359,23 @@ async function assistanceChecks(P) {
     });
     return;
   }
-  await step(`${P}: goal assistance opens from Home and closes when navigating away`, async () => {
+  await step(`${P}: task assistance opens from a project's Work and closes when navigating away`, async () => {
     await go('home');
-    await waitFor(`document.querySelector('#mobile-you-content [data-next-task]')`, 'next task', 8000);
-    await press('#mobile-you-content [data-next-task]', 'Get help with this');
+    // Home lists the member's projects; a task opens assistance from its
+    // project's Work.
+    await waitFor(`document.querySelector('#mobile-you-content [data-home="mine"] [data-project-id="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"]')`, 'Your community', 8000);
+    await press('#mobile-you-content [data-home="mine"] [data-project-id="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"]', 'Harborhack');
+    await waitFor(`document.querySelector('#pd-tabs [data-tab="work"]')`, 'project', 8000);
+    await press('#pd-tabs [data-tab="work"]', 'Work');
+    await waitFor(`document.querySelector('.pt-task[data-task-id="dddddddd-dddd-4ddd-8ddd-dddddddddddd"] .pt-row')`, 'tasks', 8000);
+    await press('.pt-task[data-task-id="dddddddd-dddd-4ddd-8ddd-dddddddddddd"] .pt-row', 'select speaker(s)');
+    await waitFor(`document.querySelector('.pt-task[data-task-id="dddddddd-dddd-4ddd-8ddd-dddddddddddd"] [data-action="work"]')?.getClientRects().length`, 'task actions', 8000);
+    await press('.pt-task[data-task-id="dddddddd-dddd-4ddd-8ddd-dddddddddddd"] [data-action="work"]', 'Work on this or report progress');
     await waitFor(`document.querySelector('#mobile-task-assistance #mta-title')`, 'assistance', 8000);
     check(await usable(NAV('explore')), `${P}: the navigation stays reachable during assistance`);
     await press(NAV('explore'), 'Explore');
     await waitFor(`!document.getElementById('mobile-task-assistance')`, 'assistance to close', 4000);
-    check((await destination()) === 'explore', `${P}: goal assistance opens from Home and closes when navigating away`);
+    check((await destination()) === 'explore', `${P}: task assistance opens from a project's Work and closes when navigating away`);
   });
 }
 

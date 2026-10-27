@@ -29,6 +29,6 @@ assert.match(panel, /navRect\.width >= window\.innerWidth - 1/, 'the desktop sid
 assert.match(panel, /--pd-safe-bottom/, 'safe-area fallback must not be double-counted when navigation is visible');
 assert.match(swipe, /Math\.abs\(rawDy\) <= Math\.abs\(rawDx\)/, 'vertical page scrolling must not be captured as a dismiss drag');
 assert.match(swipe, /closest\?\.\('\.swipe-handle'\)/, 'dismiss gestures should start only from the explicit handle');
-assert.match(html, /assets\/css\/mobile-project-scroll\.css\?v=project-entry-20261027/, 'scroll fix stylesheet must be loaded (cache tag bumped with each change)');
+assert.match(html, /assets\/css\/mobile-project-scroll\.css\?v=home-community-20261027/, 'scroll fix stylesheet must be loaded (cache tag bumped with each change)');
 
 console.log('✅ Mobile project scrolling contracts passed');

@@ -155,7 +155,7 @@ function _getConciergeCandidate(brief, profile) {
  */
 async function _loadBriefEngine() {
   if (!_briefEnginePromise) {
-    const url = _SCRIPT_BASE + 'intelligence/daily-brief-engine.js?v=skills-replace-themes-20261027';
+    const url = _SCRIPT_BASE + 'intelligence/daily-brief-engine.js?v=home-community-20261027';
     _briefEnginePromise = import(url).catch(err => {
       _briefEnginePromise = null;   // allow retry
       throw err;

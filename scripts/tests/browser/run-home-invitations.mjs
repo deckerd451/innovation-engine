@@ -20,7 +20,8 @@
 // content never scrolls underneath the status bar. At the bottom, in iPhone
 // Safari (no bottom safe area) and the installed app (34px), "Browse
 // everyone in Explore" clears the navigation by the same comfortable amount,
-// and the next task's Continue is an outlined action that still opens it.
+// and Home picks no task: Your community lists the member's projects, each
+// opening its project.
 //
 // CHROME_PATH overrides the browser; HOME_TEST_ROOT serves another checkout
 // (used for the "before" run against unfixed code). Screenshots go to outDir.
@@ -240,7 +241,7 @@ const scrollHome = (y) => callInPage(function (top) {
 
 const EXCLUDED = ['Harborhack 2026 prep', 'Startup lab', 'Investor day', 'Climate data archive', 'Python study group', 'Mentor first-time founders', 'Climate grant reviewer'];
 // The bottom of Home, scrolled to the end: its last section against the
-// bottom navigation, and how loud the next task's Continue button is.
+// bottom navigation, and what Your community offers.
 const bottomEdge = () => callInPage(function () {
   const scroller = document.querySelector('#mobile-you-screen .mobile-you-scroll');
   scroller.scrollTop = scroller.scrollHeight;
@@ -248,18 +249,12 @@ const bottomEdge = () => callInPage(function () {
   const sections = [...document.querySelectorAll('#mobile-you-content .home-view [data-home]')].filter(el => !el.hidden && el.getClientRects().length);
   const link = sections[sections.length - 1].getBoundingClientRect();
   const nav = document.getElementById('app-nav').getBoundingClientRect();
-  const card = document.querySelector('#mobile-you-content .home-next');
-  const button = card?.querySelector('.home-primary');
-  const style = button ? getComputedStyle(button) : null;
   return {
     linkBottom: Math.round(link.bottom),
     navTop: Math.round(nav.top),
     clearance: Math.round(nav.top - link.bottom),
-    continueLabel: button?.textContent.trim() || '',
-    continueOpensTask: !!button?.dataset.nextTask,
-    continueWidth: button ? Math.round(button.getBoundingClientRect().width) : 0,
-    cardWidth: card ? Math.round(card.getBoundingClientRect().width) : 0,
-    continueBackground: style?.backgroundColor || '',
+    nextTask: !!document.querySelector('#mobile-you-content [data-next-task], #mobile-you-content .home-next'),
+    projectRows: [...document.querySelectorAll('#mobile-you-content [data-home="mine"] [data-project-id]')].map(b => b.querySelector('strong')?.textContent.trim()),
     sections: [...document.querySelectorAll('#mobile-you-content [data-home]')].filter(el => !el.hidden && el.getClientRects().length).map(el => el.dataset.home),
   };
 });
@@ -310,9 +305,8 @@ try {
     await phoneShot(`member-${mode.name}-bottom`);
     bottoms[mode.name] = edge;
     check(edge.clearance >= 32, `${mode.name}: the end of Home has comfortable clearance above the navigation`, JSON.stringify(edge));
-    check(edge.continueLabel === 'Continue' && edge.continueOpensTask, `${mode.name}: Continue is still there and opens the next task`, JSON.stringify(edge));
-    check(edge.continueWidth < edge.cardWidth && edge.continueBackground !== 'rgb(0, 224, 255)', `${mode.name}: Continue is an outlined action, not a full-width solid button`, JSON.stringify(edge));
-    check(JSON.stringify(edge.sections.filter(name => ['join', 'work', 'goal'].includes(name))) === '["join","work","goal"]', `${mode.name}: section order is unchanged`, JSON.stringify(edge.sections));
+    check(!edge.nextTask && edge.projectRows.includes('Harborhack 2026 prep'), `${mode.name}: no ranked next task; Your community lists the member’s projects`, JSON.stringify(edge));
+    check(JSON.stringify(edge.sections.filter(name => ['join', 'mine', 'goal'].includes(name))) === '["join","mine","goal"]', `${mode.name}: section order: ways to join in, your community, goal help`, JSON.stringify(edge.sections));
   }
   check(bottoms.safari.clearance === bottoms.installed.clearance, 'the end of Home has the same clearance in Safari and the installed app', JSON.stringify({ safari: bottoms.safari.clearance, installed: bottoms.installed.clearance }));
 
