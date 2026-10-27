@@ -11,8 +11,8 @@
 //   - quiet-community: the member's own work and nothing open in the community
 // It checks what is shown and why, the privacy rules (never yourself, a
 // connection, a pending request or a hidden member; initials, not photos; no
-// skill fewer than five visible members list; no catch-all or thinly
-// supported themes), that every visible action works (Explore's own search,
+// skill fewer than five visible members list; never a theme: themes were
+// replaced by skills), that every visible action works (Explore's own search,
 // the one Browse Explore link, skill views and panels; no category pills and
 // no link to existing connections), and the
 // layout on small, standard and large iPhones, tablet and desktop.
@@ -162,8 +162,9 @@ const boot = `${fixtures}\n${fake}\n(() => {
     // An administrator's bucket for unsorted projects, not a theme.
     { id: 'th-general', title: 'General Projects', participant_count: 6, origin_type: 'admin', created_at: soon(-1), expires_at: soon(300) },
   ];
-  // Who takes part, as discoverable members see it: Climate 4, Food 3,
-  // Civic 2 + hidden Quinn (below three), General Projects 6 (never shown).
+  seed.theme_circles = seed.active_themes_summary.map(theme => ({ ...theme, status: 'active' }));
+  // Historical theme rows stay in the database, but themes were replaced by
+  // skills: none of these ever reaches Home or Explore.
   seed.theme_participants = [
     ...['m-ana', 'm-bo', 'm-cy', 'm-dee'].map(id => ({ theme_id: 'th-climate', community_id: id })),
     ...['m-ana', 'm-bo', riley.id].map(id => ({ theme_id: 'th-food', community_id: id })),
@@ -289,7 +290,7 @@ const home = () => callInPage(function (root) {
     })),
     connectionsLinks: [...document.querySelectorAll(`${root} button, ${root} a`)].filter(visible).map(b => b.textContent.trim()).filter(t => /Find people in Explore|People$/.test(t)),
     exploreLink: (() => { const b = document.querySelector(`${root} .home-explore button`); return visible(b) ? b.textContent.trim() : ''; })(),
-    themes: [...document.querySelectorAll(`${root} .home-theme`)].filter(visible).map(b => b.innerText.replace(/\s+/g, ' ').trim()),
+    themes: [...document.querySelectorAll(`${root} .home-theme, ${root} [data-theme]`)].filter(visible).map(b => b.innerText.replace(/\s+/g, ' ').trim()),
     openRows: [...document.querySelectorAll(`${root} [data-home="happening"] .home-open-row`)].filter(visible).map(b => b.innerText.replace(/\s+/g, ' ').trim()),
     topics: [...document.querySelectorAll(`${root} .home-topic`)].filter(visible).map(b => b.textContent.trim()),
     happening: text('[data-home="happening"]'),
@@ -375,9 +376,7 @@ try {
     'a project worth joining comes first, with its reason', JSON.stringify(h.join));
   check(h.join[1]?.kind === 'Opportunity' && /Python mentor/.test(h.join[1].name) && h.join[1].reasons.some(r => /^Matches what you listed: python/.test(r)) && h.join[1].reasons.some(r => /^Closes /.test(r)),
     'then an opportunity worth exploring, with its match and real deadline', JSON.stringify(h.join[1]));
-  check(JSON.stringify(h.themes) === '["Climate resilience 4 people","Food access 3 people"]', 'themes only with three or more discoverable members, counted honestly; never expired', JSON.stringify(h.themes));
-  check(!/General Projects/.test(h.all), 'an administrative catch-all theme never appears, whatever its size');
-  check(!h.themes.some(t => /Civic tech/.test(t)), 'a hidden member never lifts a theme over the threshold (2 visible + 1 hidden)', JSON.stringify(h.themes));
+  check(!h.themes.length && !/Themes people are exploring|Climate resilience|Food access|Civic tech|General Projects|\btheme/i.test(h.all), 'no themes on Home: themes were replaced by skills', JSON.stringify(h.themes));
   check(h.openRows.some(r => /^Flood map for West Ashley Needs GIS, Python/.test(r)) && h.openRows.some(r => /^Community fridge network/.test(r)) && !h.openRows.some(r => /HCD Event|Finished archive|Harborhack/.test(r)),
     'projects open to collaborators, with what they need; never one already picked, finished or your own', JSON.stringify(h.openRows));
   check(h.openRows.some(r => /^Judge the spring pitch night Tidewater Schools · Closes /.test(r)) && !h.openRows.some(r => /Expired grant|My own posting|Python mentor/.test(r)),
@@ -416,10 +415,6 @@ try {
   await press(`${rootSel()} [data-home="happening"] [data-opportunity="0"]`, 'Judge row');
   await waitFor(`/Judge the spring/.test(document.getElementById('node-side-panel')?.innerText || '')`, 'opportunity panel', 6000).catch(() => {});
   check(/Judge the spring pitch night/.test(await panelText()), 'an open opportunity opens its details', (await panelText()).slice(0, 120));
-  await backHome();
-  await evaluate(`(() => { window.__selected = []; const ec = window.ExplorerCoordinator; if (ec) { const sc = ec.selectContext.bind(ec); ec.selectContext = (type, ctx) => { window.__selected.push([type, ctx?.id]); return sc(type, ctx); }; } return true; })()`);
-  await press(`${rootSel()} [data-home="happening"] [data-theme="1"]`, 'Food access theme');
-  check(JSON.stringify(await evaluate('window.__selected')) === '[["theme","th-food"]]', 'a theme opens its own theme view in the explorer (not Skills)', JSON.stringify(await evaluate('window.__selected')));
   await backHome();
   // Not now: set aside for today, and the next one moves up.
   await press(`${rootSel()} [data-skip="1"]`, 'Not now on the opportunity');
@@ -465,17 +460,18 @@ try {
   await sleep(600);
   check((await destination()) === 'explore' && /Design/.test(await panelText()), 'a skill opens Explore’s skill view', (await panelText()).slice(0, 120));
   await backHome();
-  await press(`${rootSel()} [data-home-action="topics"]`, 'Explore these topics');
-  check((await destination()) === 'explore' && (await activeTab()) === 'themes', '“Explore these topics” opens Explore’s topics', JSON.stringify({ dest: await destination(), tab: await activeTab() }));
+  await press(`${rootSel()} [data-home-action="topics"]`, 'See all skills');
+  check((await destination()) === 'explore' && (await activeTab()) === 'themes', '“See all skills” opens Explore → Skills', JSON.stringify({ dest: await destination(), tab: await activeTab() }));
   // Explore's own Skills list and skill view: hidden members never count or show.
   await waitFor(`/Woodworking/.test(document.getElementById('udc-resource-list')?.innerText || '')`, 'Explore skills', 8000).catch(() => {});
   const exploreSkills = await evaluate(`[...document.querySelectorAll('#udc-resource-list .udc-resource-item')].map(row => row.innerText.replace(/\\s+/g, ' ').trim())`);
-  check(exploreSkills.some(row => /^Woodworking 4 people/.test(row)), 'Explore counts a skill without hidden members (Woodworking: 4, not 5)', JSON.stringify(exploreSkills));
+  check(exploreSkills.some(row => /^Woodworking 4 members/.test(row)), 'Explore counts a skill without hidden members (Woodworking: 4, not 5)', JSON.stringify(exploreSkills));
+  check(!exploreSkills.some(row => /Climate resilience|Food access|Civic tech|General Projects/.test(row)), 'Explore → Skills lists member skills, never theme titles', JSON.stringify(exploreSkills));
   check(!exploreSkills.some(row => /Taxidermy/.test(row)), 'a skill only a hidden member lists never appears in Explore', JSON.stringify(exploreSkills));
   await evaluate(`window.openNodePanel({ id: 'skill:Woodworking', type: 'skill', name: 'Woodworking', skillName: 'Woodworking', isSkillLens: true }); true`);
   await waitFor(`/list Woodworking/.test(document.getElementById('node-side-panel')?.innerText || '')`, 'skill view', 6000).catch(() => {});
   const lens = await panelText();
-  check(/4 people list Woodworking\./.test(lens) && !/Quinn/.test(lens), 'the skill view never lists or counts a hidden member', lens.slice(0, 200));
+  check(/4 members list Woodworking\./.test(lens) && !/Quinn/.test(lens), 'the skill view never lists or counts a hidden member', lens.slice(0, 200));
 
   // ------------------------------------------------------------ newcomer
   console.log('\nNewcomer (nothing listed, no connections, no projects)');
@@ -484,7 +480,7 @@ try {
   await phoneShot('newcomer-iphone-top');
   check(JSON.stringify(h.sections) === '["happening","profile","goal"]', 'what is happening first; no picks, no work, nothing waiting', JSON.stringify(h.sections));
   check(h.heading === 'Start anywhere' && /What’s open in your community right now\. Nothing to set up first\./.test(h.happening), 'a newcomer is welcomed with “Start anywhere”', h.happening.slice(0, 160));
-  check(h.themes.length === 2 && h.openRows.length >= 3 && !/General Projects/.test(h.all), 'real themes, projects and opportunities to explore right away; no catch-all filler', JSON.stringify({ themes: h.themes, rows: h.openRows }));
+  check(!h.themes.length && h.openRows.length >= 3 && !/Themes people are exploring|General Projects/.test(h.all), 'real projects and opportunities to explore right away; no themes', JSON.stringify({ themes: h.themes, rows: h.openRows }));
   check(['design', 'python'].every(skill => h.topics.map(t => t.toLowerCase()).includes(skill)) && !h.topics.some(t => /beekeeping|woodworking/i.test(t)), 'a way to browse people by shared skills, never a one-person or hidden-inflated skill', JSON.stringify(h.topics));
   check(/What are you curious about\?/.test(h.profile) && /optional/.test(h.profile), 'an optional invitation to personalize, below discovery', h.profile);
   check(!/Meet /.test(h.all), 'no individual introductions without real evidence');
@@ -508,7 +504,7 @@ try {
   await loadHome('quiet-community');
   h = await home();
   check(/Nothing new is open in the community right now\./.test(h.happening) && !h.themes.length && !h.openRows.length && !h.topics.length,
-    'says so plainly: no invented themes, counts or activity', h.happening);
+    'says so plainly: no invented counts or activity', h.happening);
   check(h.exploreLink === 'Browse Explore' && /Next: select speaker/.test(h.work), 'Explore is one tap away, and the member’s work is still there', JSON.stringify({ link: h.exploreLink, work: h.work }));
 
   // ------------------------------------------------------------ other sizes

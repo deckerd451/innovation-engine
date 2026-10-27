@@ -13,7 +13,7 @@
 //                             opportunity, each with its reason; omitted
 //                             when nothing qualifies (skill chips below
 //                             are then the way to find people)
-//   Happening in the community  open to everyone: themes, projects looking
+//   Happening in the community  open to everyone: projects looking
 //                             for people, open opportunities, and (when no
 //                             one is introduced) skills to find people by
 //   What are you curious about?  only when nothing is listed; optional
@@ -265,12 +265,11 @@
     const suggestions = digest().homeSuggestions?.({ ownProjectIds }) || {};
     const community = suggestions.community;
     if (suggestions.status !== 'ready' || !community) { setSection('happening', ''); return; }
-    const themes = community.themes.slice(0, 3);
     const projects = community.projects.slice(0, 2);
     const opportunities = community.opportunities.slice(0, 2);
     // Skills open a way to people when Home has no one to introduce.
     const skills = part('meet')?.hidden !== false ? community.skills.slice(0, 6) : [];
-    const empty = !themes.length && !projects.length && !opportunities.length && !skills.length;
+    const empty = !projects.length && !opportunities.length && !skills.length;
     if (empty && quietNow()) { setSection('happening', ''); return; }
     // A newcomer (nothing picked for them, no projects yet) starts here.
     const newcomer = part('picked')?.hidden !== false && !!state.work && state.work !== 'error' && !state.work.projects.length;
@@ -279,16 +278,11 @@
       ? '<h2 class="home-heading" id="home-happening-title" tabindex="-1">Start anywhere</h2><p class="home-sub">What’s open in your community right now. Nothing to set up first.</p>'
       : '<h2 class="home-heading" id="home-happening-title" tabindex="-1">Happening in the community</h2><p class="home-sub">Open to everyone.</p>'}
       ${empty ? '<p class="home-muted">Nothing new is open in the community right now.</p>' : ''}
-      ${themes.length ? `<h3 class="home-subheading">Themes people are exploring</h3><ul class="home-themes">${themes.map((theme, index) => `<li><button type="button" class="home-theme" data-theme="${index}"><strong>${esc(theme.title)}</strong>${theme.participantCount ? `<span>${theme.participantCount} ${theme.participantCount === 1 ? 'person' : 'people'}</span>` : ''}</button></li>`).join('')}</ul>` : ''}
       ${projects.length ? `<h3 class="home-subheading">Projects looking for people</h3><ul class="home-open-list">${projects.map((project, index) => row(`data-project="${index}"`, project.title, project.needs.length ? `Needs ${project.needs.join(', ')}` : '')).join('')}</ul>` : ''}
       ${opportunities.length ? `<h3 class="home-subheading">Open opportunities</h3><ul class="home-open-list">${opportunities.map((opp, index) => row(`data-opportunity="${index}"`, opp.title, [opp.organization, opp.deadline ? `Closes ${shortDate(opp.deadline)}` : 'No deadline'].filter(Boolean).join(' · '))).join('')}</ul>` : ''}
       ${skills.length ? `<h3 class="home-subheading">Find people by what they do</h3><ul class="home-topics">${skills.map((skill, index) => `<li><button type="button" class="home-topic" data-skill="${index}">${esc(skill.label)}</button></li>`).join('')}</ul>
-        <button type="button" class="home-action" data-home-action="topics">Explore these topics</button>` : ''}`);
+        <button type="button" class="home-action" data-home-action="topics">See all skills</button>` : ''}`);
     const el = part('happening');
-    el?.querySelectorAll('[data-theme]').forEach(button => button.addEventListener('click', () => {
-      const theme = themes[Number(button.dataset.theme)];
-      open({ type: 'theme', entityId: theme.id, name: theme.title });
-    }));
     el?.querySelectorAll('[data-project]').forEach(button => button.addEventListener('click', () => {
       const project = projects[Number(button.dataset.project)];
       open({ type: 'project', entityId: project.id, name: project.title });
@@ -371,7 +365,7 @@
   function quietNow() {
     const status = digest().homeSuggestions?.().status || 'unavailable';
     const community = digest().homeSuggestions?.().community;
-    const communityEmpty = !community || !['themes', 'projects', 'opportunities', 'skills'].some(key => community[key]?.length);
+    const communityEmpty = !community || !['projects', 'opportunities', 'skills'].some(key => community[key]?.length);
     return status !== 'loading' && !!state.work && communityEmpty
       && ['attention', 'meet', 'join', 'work'].every(name => part(name)?.hidden !== false);
   }

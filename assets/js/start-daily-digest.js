@@ -155,7 +155,7 @@ function _getConciergeCandidate(brief, profile) {
  */
 async function _loadBriefEngine() {
   if (!_briefEnginePromise) {
-    const url = _SCRIPT_BASE + 'intelligence/daily-brief-engine.js?v=home-clarity-20261026';
+    const url = _SCRIPT_BASE + 'intelligence/daily-brief-engine.js?v=skills-replace-themes-20261027';
     _briefEnginePromise = import(url).catch(err => {
       _briefEnginePromise = null;   // allow retry
       throw err;
@@ -1897,7 +1897,6 @@ function _homeCommunity(brief, { ownProjectIds, joinIn }) {
   const own = new Set([...(ownProjectIds || [])].map(String));
   const open = id => !shown.has(id) && !_conciergeDismissed.has(id);
   return {
-    themes: community.themes || [],
     projects: (community.projects || []).filter(item => open(`project:${item.id}`) && !own.has(String(item.id))),
     opportunities: (community.opportunities || []).filter(item => open(`opportunity:${item.id}`)),
     skills: community.skills || [],

@@ -433,33 +433,54 @@ async function renderSkillLensPanel(skillData) {
     // schema. Some deployed projects do not have full_name/username, and
     // skills has existed as both JSON and text, so filtering locally avoids
     // turning a valid skill click into a schema error.
-    // Members hidden from discovery are never listed or counted here.
-    const { data, error } = await client
-      .from('community')
-      .select('id,name,skills')
-      .or('is_hidden.is.null,is_hidden.eq.false')
-      .limit(1000);
+    // Members hidden from discovery are never listed or counted here, nor
+    // the member themselves or a second row for one person, the same people
+    // Explore → Skills counts (command-dashboard.js _loadSkills).
+    const me = currentUserProfile?.id != null ? String(currentUserProfile.id) : null;
+    const myAuth = currentUserProfile?.user_id != null ? String(currentUserProfile.user_id) : null;
+    const [{ data, error }, { data: links }] = await Promise.all([
+      client
+        .from('community')
+        .select('id,user_id,name,skills')
+        .or('is_hidden.is.null,is_hidden.eq.false')
+        .limit(1000),
+      me
+        ? client.from('connections').select('from_user_id,to_user_id')
+          .or(`from_user_id.eq.${me},to_user_id.eq.${me}`).eq('status', 'accepted')
+        : Promise.resolve({ data: [] }),
+    ]);
     if (error) throw error;
+    const connected = new Set((links || []).map(link => String(link.from_user_id) === me ? String(link.to_user_id) : String(link.from_user_id)));
+    const seen = new Set();
     const people = (data || []).filter(person => {
+      if (!person?.id || String(person.id) === me || (myAuth && String(person.user_id) === myAuth)) return false;
+      const identity = String(person.user_id ?? person.id);
+      if (seen.has(identity)) return false;
       const skills = Array.isArray(person.skills)
         ? person.skills
         : String(person.skills || '').split(',').map(value => value.trim()).filter(Boolean);
-      return skills.some(value => value.toLowerCase() === skill.toLowerCase());
+      const listed = skills.some(value => String(value).trim().toLowerCase() === skill.toLowerCase());
+      if (listed) seen.add(identity);
+      return listed;
     });
     if (!people.length) {
       status.textContent = `No one lists ${skill} yet.`;
       return;
     }
-    status.textContent = `${people.length} ${people.length === 1 ? 'person' : 'people'} list ${skill}.`;
+    status.textContent = `${people.length} ${people.length === 1 ? 'member lists' : 'members list'} ${skill}.`;
+    // Full names only for accepted connections (and admins); anyone else is
+    // "First L.", as in search, Explore → People and the profile preview.
+    const isAdmin = typeof window.isAdminUser === 'function' && window.isAdminUser();
     const list = document.createElement('div');
     list.style.cssText = 'display:flex;flex-direction:column;gap:.55rem;margin-top:.8rem;';
     people.forEach(person => {
-      const name = String(person.full_name || person.name || person.username || 'Community member').trim();
+      const fullAccess = isAdmin || connected.has(String(person.id));
+      const name = fullAccess ? String(person.name || 'Community member').trim() : limitedDisplayName(person.name);
       const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || '?';
       const button = document.createElement('button');
       button.type = 'button';
       button.style.cssText = 'display:flex;align-items:center;gap:.7rem;width:100%;padding:.65rem .7rem;border:1px solid rgba(0,224,255,.16);border-radius:9px;background:rgba(0,224,255,.05);color:#fff;text-align:left;font:inherit;cursor:pointer;';
-      button.innerHTML = `<span aria-hidden="true" style="display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:rgba(0,224,255,.18);color:#a9f3ff;font-size:.72rem;font-weight:800;">${escapeHtml(initials)}</span><span style="min-width:0;"><strong style="display:block;font-size:.82rem;">${escapeHtml(name)}</strong><small style="color:rgba(255,255,255,.5);">View profile</small></span>`;
+      button.innerHTML = `<span aria-hidden="true" style="display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:rgba(0,224,255,.18);color:#a9f3ff;font-size:.72rem;font-weight:800;">${escapeHtml(initials)}</span><span style="min-width:0;"><strong style="display:block;font-size:.82rem;">${escapeHtml(name)}</strong><small style="color:rgba(255,255,255,.5);">${fullAccess ? 'Connected' : 'View profile'}</small></span>`;
       button.addEventListener('click', () => window.openNodePanel?.({ id: person.id, type: 'person', name }));
       list.appendChild(button);
     });

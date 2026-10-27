@@ -21,9 +21,10 @@ assert(rpc.includes("'participating_count'") && rpc.includes("'participating_nea
 assert(/tp\.engagement_level\s*=\s*'participating'/.test(rpc) && rpc.includes('tp.participation_expires_at > now()'), 'RPC must require current explicit participation');
 assert(discovery.includes("rpc('confirm_theme_participation'") && discovery.includes("rpc('stop_theme_participation'"), 'UI must use server RPCs');
 assert(panel.includes("rpc('confirm_theme_participation'") && panel.includes("rpc('stop_theme_participation'"), 'theme panel must use server RPCs');
-assert(dashboardPane.includes("selectContext?.('theme'") && dashboardPane.includes('isThemeLens: true'), 'theme search must preserve context and open canonical lens');
-assert(dashboardPane.includes("from('theme_circles')"), 'theme search must load full lens data');
-assert(index.includes('data-resource="themes"'), 'mobile dashboard must retain Themes in the advanced resource panel');
+// Themes were replaced by skills: search no longer offers themes (the
+// participation RPCs above and their history stay).
+assert(!/from\(["']theme_circles["']\)/.test(dashboardPane) && !dashboardPane.includes('isThemeLens'), 'search no longer offers themes');
+assert(index.includes('data-resource="themes"'), 'the Skills tab keeps its original resource key');
 assert(mobileNav.includes("themes:") && mobileNav.includes('openThemeDiscoveryModal'), 'mobile Themes tab must reuse discovery');
 assert(discovery.includes('isThemeLens: true') && discovery.includes('openNodePanel'), 'discovery cards must open canonical theme lens');
 assert(discovery.includes("I'm interested") && discovery.includes("I'm participating"), 'UI copy missing');
