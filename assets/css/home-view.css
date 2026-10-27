@@ -32,7 +32,7 @@
 .home-link { min-height:44px; padding:.5rem 0; border:0; background:none; color:#9eefff; font:inherit; font-weight:700; text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
 .home-dismiss { min-height:44px; margin-left:auto; padding:.5rem .4rem; border:0; background:none; color:#a3adc0; font:inherit; font-size:.86rem; font-weight:600; cursor:pointer; }
 .home-action:focus-visible, .home-primary:focus-visible, .home-link:focus-visible, .home-dismiss:focus-visible, .home-section summary:focus-visible,
-.home-project:focus-visible, .home-theme:focus-visible, .home-open-row:focus-visible, .home-topic:focus-visible,
+.home-project:focus-visible, .home-open-row:focus-visible, .home-topic:focus-visible,
 .home-search-go:focus-visible { outline:2px solid #00e0ff; outline-offset:2px; }
 
 /* Waiting on you: compact and noticeable, only when something needs a reply */
@@ -77,11 +77,6 @@
 .home-meet-card .network-reflection-concierge-link { margin-left:auto; border:0; background:none; color:#a3adc0; }
 
 /* Happening in the community */
-.home-themes { display:flex; gap:.5rem; margin:0 -1rem 0 0; padding:0 1rem 2px 0; list-style:none; overflow-x:auto; scrollbar-width:none; }
-.home-themes::-webkit-scrollbar { display:none; }
-.home-theme { min-width:9.5rem; min-height:64px; display:grid; align-content:center; gap:.15rem; padding:.6rem .8rem; border:1px solid rgba(255,255,255,.12); border-radius:12px; background:rgba(10,14,39,.45); color:#fff; font:inherit; text-align:left; cursor:pointer; }
-.home-theme strong { font-size:.92rem; line-height:1.3; }
-.home-theme span { color:#a3adc0; font-size:.78rem; }
 .home-open-list { margin:0; padding:0; list-style:none; }
 .home-open-row { width:100%; min-height:52px; display:flex; align-items:center; justify-content:space-between; gap:.75rem; padding:.55rem 0; border:0; border-top:1px solid rgba(255,255,255,.08); background:none; color:#fff; font:inherit; text-align:left; cursor:pointer; }
 .home-open-list li:first-child .home-open-row { border-top:0; }
@@ -153,7 +148,6 @@
   .home-view[data-layout="desktop"] { padding:.4rem 1rem 2rem; }
   /* The dashboard's own search sits above Home on desktop: one search box. */
   .home-view[data-layout="desktop"] .home-search { display:none; }
-  .home-view[data-layout="desktop"] .home-themes { margin-right:0; padding-right:0; flex-wrap:wrap; }
   .home-view[data-layout="desktop"] .home-grid { grid-template-columns:minmax(0, 1.6fr) minmax(0, 1fr); align-items:start; }
   .home-view[data-layout="desktop"] .home-picks { grid-template-columns:repeat(auto-fill, minmax(15rem, 1fr)); }
 }

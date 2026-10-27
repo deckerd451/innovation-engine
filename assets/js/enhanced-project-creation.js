@@ -126,7 +126,7 @@ export function initEnhancedProjectCreation() {
 }
 
 // Show enhanced project creation modal
-export async function showEnhancedProjectCreation(preselectedThemeId = null, preselectedThemeName = null) {
+export async function showEnhancedProjectCreation() {
   console.log('🚀 Opening enhanced project creation modal');
 
   // Remove existing modal if present
@@ -351,27 +351,6 @@ export async function showEnhancedProjectCreation(preselectedThemeId = null, pre
               </div>
             </div>
 
-            <!-- Theme Selection -->
-            <div style="margin-bottom: 1.5rem;">
-              <label style="display: block; color: rgba(255, 255, 255, 0.8); margin-bottom: 0.5rem; font-weight: 600;">
-                <i class="fas fa-bullseye" style="color: #00e0ff;"></i> Theme Circle (optional)
-              </label>
-              <select id="enhanced-project-theme" style="
-                width: 100%;
-                padding: 0.875rem;
-                background: rgba(0, 224, 255, 0.05);
-                border: 2px solid rgba(0, 224, 255, 0.3);
-                border-radius: 8px;
-                color: white;
-                font-size: 1rem;
-              ">
-                <option value="">No theme (standalone project)</option>
-              </select>
-              <small style="color: rgba(255, 255, 255, 0.6); display: block; margin-top: 0.5rem;">
-                Link this project to an active theme to help others discover it
-              </small>
-            </div>
-
             <!-- Action Buttons -->
             <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
               <button type="button" onclick="goBackToTemplates()" style="
@@ -467,8 +446,7 @@ export async function showEnhancedProjectCreation(preselectedThemeId = null, pre
     #enhanced-project-name:focus,
     #enhanced-project-description:focus,
     #selected-skills:focus-within,
-    #skill-input:focus,
-    #enhanced-project-theme:focus {
+    #skill-input:focus {
       border-color: rgba(0, 224, 255, 0.6);
       outline: none;
       box-shadow: 0 0 0 3px rgba(0, 224, 255, 0.1);
@@ -479,7 +457,7 @@ export async function showEnhancedProjectCreation(preselectedThemeId = null, pre
   document.body.appendChild(modal);
 
   // Initialize the modal
-  await initializeEnhancedModal(preselectedThemeId, preselectedThemeName);
+  initializeEnhancedModal();
 
   // Add event listeners
   setupEnhancedModalEventListeners();
@@ -488,90 +466,13 @@ export async function showEnhancedProjectCreation(preselectedThemeId = null, pre
 }
 
 // Initialize modal with data
-async function initializeEnhancedModal(preselectedThemeId, preselectedThemeName) {
-  // Load themes into dropdown
-  await loadThemesIntoEnhancedDropdown(preselectedThemeId);
-  
+// (Projects are no longer linked to themes: themes were replaced by skills.)
+function initializeEnhancedModal() {
   // Populate skill suggestions
   populateSkillSuggestions();
   
   // Setup skill input
   setupSkillInput();
-}
-
-// Load themes into enhanced dropdown
-async function loadThemesIntoEnhancedDropdown(preselectedThemeId = null) {
-  const dropdown = document.getElementById('enhanced-project-theme');
-  if (!dropdown) return;
-
-  try {
-    // Safe query: no status filter (column may not exist), use expires_at
-    const now = new Date().toISOString();
-    const { data: themes, error } = await supabase
-      .from('theme_circles')
-      .select('id, title, tags, expires_at, created_at')
-      .or(`expires_at.is.null,expires_at.gt.${now}`)
-      .order('title', { ascending: true });
-
-    if (error) {
-      console.warn('[Project Modal] theme_circles query failed:', error.message);
-    }
-
-    // Clear existing options except the first one
-    dropdown.innerHTML = '<option value="">No theme (standalone project)</option>';
-
-    // Add theme circle options
-    if (themes && themes.length > 0) {
-      themes.forEach(theme => {
-        const option = document.createElement('option');
-        option.value = theme.id;
-        const tags = theme.tags && theme.tags.length > 0 ? ` [${theme.tags.join(', ')}]` : '';
-        option.textContent = `${theme.title}${tags}`;
-        
-        if (preselectedThemeId && theme.id === preselectedThemeId) {
-          option.selected = true;
-        }
-        
-        dropdown.appendChild(option);
-      });
-    }
-
-    // Fallback: add aggregated skills from community table
-    const { data: people } = await supabase.from('community').select('skills');
-    if (people) {
-      const skillCounts = new Map();
-      const skillLabels = new Map();
-      people.forEach(p => {
-        const items = Array.isArray(p.skills) ? p.skills
-          : (typeof p.skills === 'string' && p.skills.trim()) ? p.skills.split(',') : [];
-        items.forEach(s => {
-          const skill = String(s || '').trim();
-          if (!skill) return;
-          const key = skill.toLowerCase();
-          skillCounts.set(key, (skillCounts.get(key) || 0) + 1);
-          if (!skillLabels.has(key)) skillLabels.set(key, skill);
-        });
-      });
-      const existingTitles = new Set((themes || []).map(t => (t.title || '').toLowerCase()));
-      const sorted = [...skillCounts.entries()]
-        .filter(([k, c]) => c >= 2 && !existingTitles.has(k))
-        .sort((a, b) => b[1] - a[1]);
-      sorted.forEach(([key, count]) => {
-        const option = document.createElement('option');
-        option.value = key;
-        option.textContent = `${skillLabels.get(key)} (${count} people)`;
-        if (preselectedThemeId && key === preselectedThemeId) {
-          option.selected = true;
-        }
-        dropdown.appendChild(option);
-      });
-    }
-
-    const totalOptions = dropdown.options.length - 1;
-    console.log(`[Project Modal] loaded ${totalOptions} themes`);
-  } catch (err) {
-    console.error('Error loading themes dropdown:', err);
-  }
 }
 
 // Populate skill suggestions
@@ -830,7 +731,6 @@ window.createEnhancedProject = async function(event) {
     // Get form data
     const name = document.getElementById('enhanced-project-name').value.trim();
     const description = document.getElementById('enhanced-project-description').value.trim();
-    const themeId = document.getElementById('enhanced-project-theme').value || null;
     const skills = getSelectedSkills();
 
     if (!name || !description) {
@@ -844,11 +744,6 @@ window.createEnhancedProject = async function(event) {
       creator_id: currentUserProfile.id,
       status: 'active'
     };
-
-    // Add theme if selected
-    if (themeId) {
-      projectData.theme_id = themeId;
-    }
 
     console.log('📝 Project data:', projectData);
 
@@ -886,8 +781,7 @@ window.createEnhancedProject = async function(event) {
         id: data[0].id,
         name: name,
         description: description,
-        skills: skills,
-        themeId: themeId
+        skills: skills
       }
     });
     document.dispatchEvent(projectCreatedEvent);

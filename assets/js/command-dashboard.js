@@ -9,7 +9,7 @@
  *   1. Unified Tier Controller   — switches tier, updates graph + dashboard
  *   2. Asset Summary             — tier-aware stats from in-memory graph data
  *   3. Intelligence Cards        — delegates to window.generateDailyBrief()
- *   4. Your Resources            — people/projects/themes with "Show in Graph"
+ *   4. Your Resources            — people/projects/skills with "Show in Graph"
  *
  * DATA SOURCES (no new DB schema, reuse window.supabase patterns):
  *   - window.synapseCore.nodes / links  (already loaded by synapse)
@@ -31,10 +31,11 @@ window.CommandDashboard = (() => {
       label: 'You',
       desc:  'Direct connections only. This is your network.',
       statsLabel: 'Your Network',
+      // The Skills tab keeps its original 'themes' key (data-resource).
       resourcesLabel: {
         people:        'Your People',
         projects:      'Your Projects',
-        themes:        'Your Skills',
+        themes:        'Skills in the community',
         organizations: 'Your Organizations',
         opportunities: 'Your Opportunities',
       },
@@ -47,7 +48,7 @@ window.CommandDashboard = (() => {
       resourcesLabel: {
         people:        'Nearby People',
         projects:      'Nearby Projects',
-        themes:        'Community Skills',
+        themes:        'Skills in the community',
         organizations: 'Nearby Organizations',
         opportunities: 'Nearby Opportunities',
       },
@@ -60,7 +61,7 @@ window.CommandDashboard = (() => {
       resourcesLabel: {
         people:        'Everyone',
         projects:      'All Projects',
-        themes:        'All Skills',
+        themes:        'Skills in the community',
         organizations: 'All Organizations',
         opportunities: 'All Opportunities',
       },
@@ -92,7 +93,7 @@ window.CommandDashboard = (() => {
       return Promise.resolve({ generateDailyBrief: window.generateDailyBrief });
     }
     if (!_briefEnginePromise) {
-      const url = _CD_SCRIPT_BASE + 'intelligence/daily-brief-engine.js?v=home-trust-20261022';
+      const url = _CD_SCRIPT_BASE + 'intelligence/daily-brief-engine.js?v=skills-replace-themes-20261027';
       _briefEnginePromise = import(url).catch(err => {
         _briefEnginePromise = null;
         throw err;
@@ -130,7 +131,7 @@ window.CommandDashboard = (() => {
     myOrgIds: null,              // Set<string> — orgs the user belongs to
     myOrgPendingIds: null,       // Set<string> — join requests awaiting review
     opportunities: null,         // Array — all opportunities from Supabase
-    themes: null,                // Array<{id, label, count}> — aggregated themes/skills
+    skills: null,                // Array<{id, label, count}> — skills discoverable members list (Explore → Skills)
   };
 
   /* ── Element shortcuts ──────────────────────────────────────── */
@@ -205,7 +206,7 @@ window.CommandDashboard = (() => {
     // Non-blocking: re-renders compact status once data arrives.
     _loadEnrichedData();
 
-    // Re-render status when the graph finishes loading (themes count and
+    // Re-render status when the graph finishes loading (counts and
     // graph-based fallback depend on graph nodes/edges being available).
     window.addEventListener('unified-network-ready', () => {
       _renderCompactStatus(_currentTier);
@@ -714,8 +715,8 @@ window.CommandDashboard = (() => {
         _enrichedData.opportunities = oppResult.data;
       }
 
-      // Build themes list from theme_circles + aggregated community skills
-      await _loadThemes();
+      // Explore → Skills: what discoverable members list
+      await _loadSkills();
       if (!isCurrentLoad()) return;
 
       // Re-render compact status and resources now that we have accurate data
@@ -727,94 +728,50 @@ window.CommandDashboard = (() => {
   }
 
   /**
-   * Load themes from theme_circles + aggregated community skills.
-   * Produces a sorted list of { id, label, count } items.
+   * Explore → Skills: the skills members list on their profiles (themes and
+   * theme circles were replaced by skills). Each skill counts the distinct
+   * discoverable members who list it, never the member themselves and never
+   * a second row for one person, so the count matches the people the skill
+   * opens (node-panel.js renderSkillLensPanel). Sorted by count, then name.
    */
-  async function _loadThemes() {
-    const themes = new Map(); // key → { id, label, count }
-    let circleRows = 0;
-    let fallbackRows = 0;
-
-    // 1. Theme circles — use only columns known to exist
-    if (window.supabase) {
-      try {
-        const now = new Date().toISOString();
-        const { data: circles, error } = await window.supabase
-          .from('theme_circles')
-          .select('id, title, description, expires_at, created_at')
-          .or(`expires_at.is.null,expires_at.gt.${now}`)
-          .order('created_at', { ascending: false })
-          .limit(50);
-
-        if (error) {
-          console.warn('[Themes] theme_circles query failed:', error.message);
-        } else if (circles && circles.length > 0) {
-          circleRows = circles.length;
-          circles.forEach(c => {
-            const label = (c.title || '').trim();
-            if (label) {
-              themes.set(label.toLowerCase(), { id: c.id, label, count: 0 });
-            }
-          });
-        }
-      } catch (e) {
-        console.warn('[Themes] theme_circles fetch error:', e.message);
+  async function _loadSkills() {
+    if (!window.supabase) return;
+    try {
+      // Members hidden from discovery never count toward a skill, as on
+      // every other discovery surface (search, matching, the brief).
+      const { data: people, error } = await window.supabase
+        .from('community')
+        .select('id, user_id, skills')
+        .or('is_hidden.is.null,is_hidden.eq.false');
+      if (error) {
+        console.warn('[Skills] community.skills query failed:', error.message);
+        return;
       }
-      console.log(`[Themes] theme_circles rows: ${circleRows}`);
+      const selfAuth = _profile?.user_id != null ? String(_profile.user_id) : null;
+      const members = new Map(); // key → Set of member identities
+      const labels = new Map();
+      (people || []).forEach(p => {
+        if (!p?.id || String(p.id) === String(_userId) || (selfAuth && String(p.user_id) === selfAuth)) return;
+        const identity = String(p.user_id ?? p.id);
+        const items = Array.isArray(p.skills)
+          ? p.skills
+          : (typeof p.skills === 'string' && p.skills.trim()) ? p.skills.split(',') : [];
+        items.forEach(s => {
+          const skill = String(s || '').trim();
+          if (!skill) return;
+          const key = skill.toLowerCase();
+          if (!members.has(key)) { members.set(key, new Set()); labels.set(key, skill); }
+          members.get(key).add(identity);
+        });
+      });
+      // Every real skill, including one-person skills, so a skill a member
+      // follows from Home is always here.
+      _enrichedData.skills = [...members.entries()]
+        .map(([key, ids]) => ({ id: key, label: labels.get(key), count: ids.size }))
+        .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+    } catch (e) {
+      console.warn('[Skills] community.skills fetch error:', e.message);
     }
-
-    // 2. Aggregate skills directly from community table (always works,
-    //    does not depend on graphDataStore being loaded)
-    if (window.supabase) {
-      try {
-        // Members hidden from discovery never count toward a skill, as on
-        // every other discovery surface (search, matching, the brief).
-        const { data: people, error } = await window.supabase
-          .from('community')
-          .select('skills')
-          .or('is_hidden.is.null,is_hidden.eq.false');
-
-        if (error) {
-          console.warn('[Themes] community.skills query failed:', error.message);
-        } else if (people) {
-          const skillCounts = new Map();
-          const skillLabels = new Map();
-
-          people.forEach(p => {
-            const src = p.skills;
-            const items = Array.isArray(src)
-              ? src
-              : (typeof src === 'string' && src.trim()) ? src.split(',') : [];
-            items.forEach(s => {
-              const skill = String(s || '').trim();
-              if (!skill) return;
-              const key = skill.toLowerCase();
-              skillCounts.set(key, (skillCounts.get(key) || 0) + 1);
-              if (!skillLabels.has(key)) skillLabels.set(key, skill);
-            });
-          });
-
-          // Keep every real skill, including one-person skills. Today mode is
-          // often where a member follows a specific skill, and dropping it
-          // here makes the Themes tab appear empty after that selection.
-          skillCounts.forEach((count, key) => {
-            if (themes.has(key)) {
-              // Update count on existing theme circle
-              themes.get(key).count = count;
-            } else {
-              fallbackRows++;
-              themes.set(key, { id: key, label: skillLabels.get(key) || key, count });
-            }
-          });
-        }
-      } catch (e) {
-        console.warn('[Themes] community.skills fallback error:', e.message);
-      }
-      if (fallbackRows > 0) console.log(`[Themes] fallback used: community.skills (${fallbackRows} added)`);
-    }
-
-    _enrichedData.themes = [...themes.values()].sort((a, b) => b.count - a.count);
-    console.log(`[Themes] final theme count: ${_enrichedData.themes.length}`);
   }
 
   /* ================================================================
@@ -1148,7 +1105,8 @@ window.CommandDashboard = (() => {
 
   /**
    * _switchResourceTab(resourceType)
-   * Programmatically activate a resource tab (people / projects / themes).
+   * Programmatically activate a resource tab (people / projects / skills;
+   * the Skills tab keeps its original 'themes' key).
    * Mirrors the click handler in _wireResourceTabs().
    */
   function _switchResourceTab(resourceType) {
@@ -1385,7 +1343,7 @@ window.CommandDashboard = (() => {
   }
 
   /* ================================================================
-     SECTION 3: YOUR RESOURCES (people / projects / themes)
+     SECTION 3: YOUR RESOURCES (people / projects / skills)
      ================================================================ */
 
   function _renderResources(tier) {
@@ -1417,8 +1375,8 @@ window.CommandDashboard = (() => {
               ? `<span class="udc-resource-stub-badge">sample</span>`
               : item.joinable
                 ? `<button class="udc-resource-join-btn" data-id="${item.id}" data-name="${_escapeHtml(item.name)}" type="button" title="Request to join ${_escapeHtml(item.name)}">Join</button>`
-              : `<button class="udc-resource-show-btn" data-id="${item.id}" title="${['people','themes'].includes(_activeResourceTab) ? 'Show in graph' : 'View details'}" aria-label="Show ${_escapeHtml(item.name)}">
-                  <i class="fas ${['people','themes'].includes(_activeResourceTab) ? 'fa-crosshairs' : 'fa-info-circle'}"></i>
+              : `<button class="udc-resource-show-btn" data-id="${item.id}" title="${_activeResourceTab === 'people' ? 'Show in graph' : _activeResourceTab === 'themes' ? 'See who lists this' : 'View details'}" aria-label="Show ${_escapeHtml(item.name)}">
+                  <i class="fas ${_activeResourceTab === 'people' ? 'fa-crosshairs' : _activeResourceTab === 'themes' ? 'fa-users' : 'fa-info-circle'}"></i>
                 </button>`
             }
           </div>
@@ -1437,6 +1395,11 @@ window.CommandDashboard = (() => {
       } else if (window.unifiedNetworkIntegration?.openFallbackPanel) {
         window.unifiedNetworkIntegration.openFallbackPanel({ id });
       }
+    }
+
+    // A skill opens the people who list it, in the canonical side panel.
+    function _openSkill(name) {
+      window.openNodePanel?.({ id: `skill:${name}`, type: 'skill', name, skillName: name, isSkillLens: true });
     }
 
     // Organization rows can request membership without leaving Explore.
@@ -1471,7 +1434,7 @@ window.CommandDashboard = (() => {
     });
 
     // Wire "Show in Graph" buttons — for people, focus in graph;
-    // for projects/orgs/themes, set as context lens (highlights related people)
+    // for projects/orgs, set as context lens (highlights related people)
     const TAB_TYPE = {
       projects:      'project',
       organizations: 'organization',
@@ -1491,13 +1454,8 @@ window.CommandDashboard = (() => {
             _openPanelForNode(id, 'person');
           }
         } else if (_activeResourceTab === 'themes') {
-          // In Today, the graph is hidden, so open the canonical right panel
-          // with matching people. Network mode keeps the existing graph lens.
-          const name = btn.closest('.udc-resource-item')?.querySelector('.udc-resource-name')?.textContent || id;
-          if (document.body.classList.contains('buildspace-view-today') && window.openNodePanel) {
-            window.openNodePanel({ id: `skill:${name}`, type: 'skill', name, skillName: name, isSkillLens: true });
-          } else if (window.ExplorerCoordinator) window.ExplorerCoordinator.selectContext('theme', { id, label: name });
-          else if (window.SynapseContext) window.SynapseContext.setTheme(name);
+          // A skill opens the people who list it.
+          _openSkill(btn.closest('.udc-resource-item')?.querySelector('.udc-resource-name')?.textContent || id);
         } else if (_activeResourceTab === 'projects') {
           const name = btn.closest('.udc-resource-item')?.querySelector('.udc-resource-name')?.textContent || 'Project';
           if (window.ExplorerCoordinator) window.ExplorerCoordinator.selectContext('project', { id, label: name });
@@ -1541,11 +1499,7 @@ window.CommandDashboard = (() => {
             _openPanelForNode(id, 'person');
           }
         } else if (_activeResourceTab === 'themes') {
-          const name = row.querySelector('.udc-resource-name')?.textContent || id;
-          if (document.body.classList.contains('buildspace-view-today') && window.openNodePanel) {
-            window.openNodePanel({ id: `skill:${name}`, type: 'skill', name, skillName: name, isSkillLens: true });
-          } else if (window.ExplorerCoordinator) window.ExplorerCoordinator.selectContext('theme', { id, label: name });
-          else if (window.SynapseContext) window.SynapseContext.setTheme(name);
+          _openSkill(row.querySelector('.udc-resource-name')?.textContent || id);
         } else if (_activeResourceTab === 'projects') {
           const name = row.querySelector('.udc-resource-name')?.textContent || 'Project';
           if (window.ExplorerCoordinator) window.ExplorerCoordinator.selectContext('project', { id, label: name });
@@ -1700,12 +1654,12 @@ window.CommandDashboard = (() => {
         .slice(0, 20);
 
     } else if (resourceType === 'themes') {
-      // Themes come from Supabase + aggregated skills, not graph nodes
-      const themes = _enrichedData.themes;
-      if (!themes || themes.length === 0) return [];
-      return themes
+      // Skills come from Supabase (_loadSkills), not graph nodes
+      const skills = _enrichedData.skills;
+      if (!skills || skills.length === 0) return [];
+      return skills
         .slice(0, 15)
-        .map(t => ({ id: t.id, name: t.label, meta: `${t.count} people` }));
+        .map(t => ({ id: t.id, name: t.label, meta: `${t.count} ${t.count === 1 ? 'member' : 'members'}` }));
 
     } else if (resourceType === 'organizations') {
       // Organizations come from Supabase, not graph nodes
@@ -1839,7 +1793,7 @@ window.CommandDashboard = (() => {
      ================================================================ */
 
   /** Types that support in-panel creation */
-  const _ADDABLE_TYPES = new Set(['projects', 'organizations', 'opportunities', 'themes']);
+  const _ADDABLE_TYPES = new Set(['projects', 'organizations', 'opportunities']);
 
   /** Show/hide the add button depending on active tab */
   function _updateAddButtonVisibility(resourceType) {
@@ -2147,16 +2101,6 @@ window.CommandDashboard = (() => {
             <i class="fas fa-plus"></i> Post
           </button>
         </div>`;
-    } else if (resourceType === 'themes') {
-      formHTML = `
-        <div class="udc-add-form-label"><i class="fas fa-palette" style="margin-right:0.3em;"></i>New Theme</div>
-        <input type="text" id="udc-add-name" placeholder="Theme name…" maxlength="60" autocomplete="off" />
-        <div class="udc-add-form-actions">
-          <button type="button" class="udc-add-form-cancel" id="udc-add-cancel">Cancel</button>
-          <button type="button" class="udc-add-form-submit" id="udc-add-submit">
-            <i class="fas fa-plus"></i> Add Theme
-          </button>
-        </div>`;
     }
 
     formEl.innerHTML = formHTML;
@@ -2264,11 +2208,6 @@ window.CommandDashboard = (() => {
         window.supabase.from('opportunities').insert(oppData).select().single().then(_applyOpportunityInsertResult);
       }
       const meta = opType ? `${opType}${desc ? ' · ' + desc.slice(0, 30) : ''}` : undefined;
-      _showAddConfirmation(resourceType, name, meta);
-    } else {
-      // Themes remain a lightweight local suggestion until a canonical,
-      // permission-aware theme creation workflow is available.
-      const meta = desc.slice(0, 40) || undefined;
       _showAddConfirmation(resourceType, name, meta);
     }
 

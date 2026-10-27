@@ -1062,18 +1062,6 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         bg: 'rgba(168,85,247,0.15)',
         border: 'rgba(168,85,247,0.4)',
         action() { showQuickCreateOrgModal(); }
-      },
-      themes: {
-        label: 'New Theme',
-        icon: 'fa-palette',
-        color: '#ffaa00',
-        bg: 'rgba(255,170,0,0.15)',
-        border: 'rgba(255,170,0,0.4)',
-        action() {
-          if (typeof window.openThemeCreator === 'function') {
-            window.openThemeCreator();
-          }
-        }
       }
     };
 
@@ -1227,8 +1215,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     const typeMap = {
       'people': 'person',
       'projects': 'project',
-      'organizations': 'organization',
-      'themes': 'theme'
+      'organizations': 'organization'
     };
     return typeMap[category] || null;
   }
@@ -1238,8 +1225,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       all: { gradient: "#00e0ff, #0080ff", bg: "rgba(0,224,255,0.15)", border: "1px solid rgba(0,224,255,0.3)", text: "#00e0ff" },
       people: { gradient: "#00e0ff, #0080ff", bg: "rgba(0,224,255,0.15)", border: "1px solid rgba(0,224,255,0.3)", text: "#00e0ff" },
       organizations: { gradient: "#a855f7, #8b3fd9", bg: "rgba(168,85,247,0.15)", border: "1px solid rgba(168,85,247,0.3)", text: "#a855f7" },
-      projects: { gradient: "#00ff88, #00cc6a", bg: "rgba(0,255,136,0.15)", border: "1px solid rgba(0,255,136,0.3)", text: "#00ff88" },
-      themes: { gradient: "#ffaa00, #ff8800", bg: "rgba(255,170,0,0.15)", border: "1px solid rgba(255,170,0,0.3)", text: "#ffaa00" }
+      projects: { gradient: "#00ff88, #00cc6a", bg: "rgba(0,255,136,0.15)", border: "1px solid rgba(0,255,136,0.3)", text: "#00ff88" }
     };
     return colors[category] || colors.all;
   }
@@ -1249,14 +1235,13 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       all: "Search everything...",
       people: "Search people by name, bio, or skill...",
       organizations: "Search organizations...",
-      projects: "Search projects...",
-      themes: "Search themes..."
+      projects: "Search projects..."
     };
     return placeholders[category] || placeholders.all;
   }
 
   const SEARCH_TYPE_TO_MODE = {
-    people: 'people', projects: 'projects', themes: 'themes',
+    people: 'people', projects: 'projects',
     organizations: 'organizations', opportunities: 'opportunities',
   };
 
@@ -1278,30 +1263,6 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       coordinator?.selectPerson?.({ id: entity.id, label, node: { ...entity, type: 'person' } });
     } else if (type === 'projects') {
       await coordinator?.selectContext?.('project', { id: entity.id, label });
-    } else if (type === 'themes') {
-      await coordinator?.selectContext?.('theme', { id: entity.id, label });
-      // Preserve the context lens selection, then open the one canonical
-      // theme lens panel so theme participation actions are reachable from
-      // the normal search flow on mobile and desktop.
-      if (state.supabase && typeof window.openNodePanel === 'function') {
-        const { data: theme, error: themeError } = await state.supabase
-          .from('theme_circles')
-          .select('*')
-          .eq('id', entity.id)
-          .single();
-        if (!themeError && theme) {
-          await window.openNodePanel({
-            ...theme,
-            id: `theme:${theme.id}`,
-            type: 'theme',
-            name: theme.title,
-            relatedProjects: [],
-            isThemeLens: true
-          });
-        } else {
-          console.warn('[DashboardPane] Theme lens unavailable:', themeError?.message || 'theme not found');
-        }
-      }
     } else if (type === 'organizations') {
       await coordinator?.selectContext?.('organization', { id: entity.id, label });
     } else if (type === 'opportunities') {
@@ -1488,25 +1449,6 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         }
       }
       
-      if (category === "all" || category === "themes") {
-        const { data, error } = await state.supabase
-          .from("theme_circles")
-          .select("id, title, description")
-          .or(`title.ilike.%${q}%,description.ilike.%${q}%`)
-          .limit(5);
-        
-        if (error) console.error('Theme suggestion search error:', error);
-        if (data) {
-          suggestions.push(...data.map(item => ({
-            type: "themes",
-            icon: "fa-palette",
-            color: "#ffaa00",
-            title: item.title,
-            subtitle: item.description ? item.description.substring(0, 60) + "..." : "Theme",
-            data: item
-          })));
-        }
-      }
 
       if (category === "all" || category === "opportunities") {
         // Same visibility contract as Explore -> Opps and opportunities.html's
@@ -1655,7 +1597,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
     try {
       const q = query.toLowerCase();
-      let people = null, organizations = null, projects = null, themes = null, opportunities = null;
+      let people = null, organizations = null, projects = null, opportunities = null;
 
       // Search based on category
       if (category === "all" || category === "people") {
@@ -1695,16 +1637,6 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         }
       }
 
-      if (category === "all" || category === "themes") {
-        const { data, error } = await state.supabase
-          .from("theme_circles")
-          .select("*")
-          .or(`title.ilike.%${q}%,description.ilike.%${q}%`)
-          .limit(10);
-        if (error) console.warn("Themes search error:", error);
-        else themes = data;
-      }
-
       if (category === "all" || category === "opportunities") {
         // Same visibility contract as Explore -> Opps and opportunities.html's
         // global browse/search: status must be 'open', is_public must be
@@ -1722,7 +1654,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       }
 
       const filteredPeople = (people || []).filter((p) => p.id !== state.communityProfile?.id);
-      const totalResults = filteredPeople.length + (organizations?.length || 0) + (projects?.length || 0) + (themes?.length || 0) + (opportunities?.length || 0);
+      const totalResults = filteredPeople.length + (organizations?.length || 0) + (projects?.length || 0) + (opportunities?.length || 0);
 
       if (totalResults === 0) {
         list.innerHTML = `<div style="text-align:center; color:#aaa; padding:2rem;">
@@ -1832,77 +1764,6 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         </div>`;
       }
 
-      // Render Themes section with tabs (similar to organizations)
-      if (category === "all" || category === "themes") {
-        const themeCards = themes && themes.length > 0 
-          ? themes.map((theme) => themeCard(theme))
-          : [];
-        
-        html += `<div style="margin-bottom:2rem;">
-          <h3 style="color:#ffaa00; font-size:1.1rem; font-weight:700; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;">
-            <i class="fas fa-palette"></i> Themes
-          </h3>
-          
-          <!-- Theme Tabs -->
-          <div class="search-tab-bar" style="gap:0.5rem; margin-bottom:1.5rem; border-bottom:1px solid rgba(255,170,0,0.2); padding-bottom:0.5rem;">
-            <button class="theme-search-tab active-theme-tab" data-theme-tab="search" 
-              style="padding:0.6rem 1.2rem; background:rgba(255,170,0,0.15); border:none; border-bottom:3px solid #ffaa00; 
-              color:#ffaa00; cursor:pointer; font-weight:600; font-size:0.85rem; border-radius:6px 6px 0 0; transition:all 0.2s;">
-              <i class="fas fa-search"></i> Search Results ${themeCards.length > 0 ? `(${themeCards.length})` : ''}
-            </button>
-            <button class="theme-search-tab" data-theme-tab="discover" 
-              style="padding:0.6rem 1.2rem; background:transparent; border:none; border-bottom:3px solid transparent; 
-              color:rgba(255,170,0,0.7); cursor:pointer; font-weight:600; font-size:0.85rem; border-radius:6px 6px 0 0; transition:all 0.2s;">
-              <i class="fas fa-compass"></i> Discover Themes
-            </button>
-            <button class="theme-search-tab" data-theme-tab="my-themes" 
-              style="padding:0.6rem 1.2rem; background:transparent; border:none; border-bottom:3px solid transparent; 
-              color:rgba(255,170,0,0.7); cursor:pointer; font-weight:600; font-size:0.85rem; border-radius:6px 6px 0 0; transition:all 0.2s;">
-              <i class="fas fa-user-tag"></i> My Themes
-            </button>
-          </div>
-          
-          <!-- Tab Content -->
-          <div id="theme-tab-content-search">
-            ${themeCards.length > 0 
-              ? themeCards.join("") 
-              : `<div style="text-align:center; padding:2rem; color:#888;">
-                  <i class="fas fa-search" style="font-size:2rem; opacity:0.3; margin-bottom:0.5rem;"></i>
-                  <p>No themes found matching "${escapeHtml(query)}"</p>
-                </div>`
-            }
-          </div>
-        </div>`;
-        
-        // Setup tab switching after rendering - inline to avoid scope issues
-        setTimeout(() => {
-          const tabs = document.querySelectorAll('.theme-search-tab');
-          if (tabs.length) {
-            tabs.forEach(tab => {
-              tab.addEventListener('click', async () => {
-                // Update tab styles
-                tabs.forEach(t => {
-                  t.style.background = 'transparent';
-                  t.style.borderBottomColor = 'transparent';
-                  t.style.color = 'rgba(255,170,0,0.7)';
-                  t.classList.remove('active-theme-tab');
-                });
-                tab.style.background = 'rgba(255,170,0,0.15)';
-                tab.style.borderBottomColor = '#ffaa00';
-                tab.style.color = '#ffaa00';
-                tab.classList.add('active-theme-tab');
-                
-                // Load tab content
-                const tabName = tab.dataset.themeTab;
-                if (typeof loadThemeSearchTabContent === 'function') {
-                  await loadThemeSearchTabContent(tabName);
-                }
-              });
-            });
-          }
-        }, 100);
-      }
-
 
       if (opportunities?.length) {
         html += `<div style="margin-bottom:2rem;">
@@ -1919,7 +1780,6 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         ...filteredPeople.map(data => [`people:${data.id}`, { type: 'people', title: data.name, data }]),
         ...(organizations || []).map(data => [`organizations:${data.id}`, { type: 'organizations', title: data.name, data }]),
         ...(projects || []).map(data => [`projects:${data.id}`, { type: 'projects', title: data.title, data }]),
-        ...(themes || []).map(data => [`themes:${data.id}`, { type: 'themes', title: data.title || data.name, data }]),
         ...(opportunities || []).map(data => [`opportunities:${data.id}`, { type: 'opportunities', title: data.title, data }]),
       ]);
       list.querySelectorAll('.search-entity-result').forEach(row => row.addEventListener('click', event => {
@@ -2154,119 +2014,6 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
 
   // Create organization from search interface
   window.createOrganizationFromSearch = async function(event) {
-
-  // Setup theme search tabs
-  function setupThemeSearchTabs() {
-    const tabs = document.querySelectorAll('.theme-search-tab');
-    if (!tabs.length) return;
-    
-    tabs.forEach(tab => {
-      tab.addEventListener('click', async () => {
-        // Update tab styles
-        tabs.forEach(t => {
-          t.style.background = 'transparent';
-          t.style.borderBottomColor = 'transparent';
-          t.style.color = 'rgba(255,170,0,0.7)';
-          t.classList.remove('active-theme-tab');
-        });
-        tab.style.background = 'rgba(255,170,0,0.15)';
-        tab.style.borderBottomColor = '#ffaa00';
-        tab.style.color = '#ffaa00';
-        tab.classList.add('active-theme-tab');
-        
-        // Load tab content
-        const tabName = tab.dataset.themeTab;
-        await loadThemeSearchTabContent(tabName);
-      });
-    });
-  }
-
-  // Load theme tab content
-  async function loadThemeSearchTabContent(tabName) {
-    const content = $('theme-tab-content-search');
-    if (!content) return;
-    
-    if (tabName === 'search') {
-      // Search results are already loaded, just show them
-      return;
-    }
-    
-    content.innerHTML = `<div style="text-align:center; padding:2rem;">
-      <i class="fas fa-spinner fa-spin" style="font-size:2rem; color:#ffaa00;"></i>
-      <p style="color:#aaa; margin-top:1rem;">Loading...</p>
-    </div>`;
-    
-    try {
-      if (tabName === 'discover') {
-        // Load all active themes
-        const { data: themes, error } = await state.supabase
-          .from('theme_circles')
-          .select('*')
-          .eq('status', 'active')
-          .gt('expires_at', new Date().toISOString())
-          .order('activity_score', { ascending: false })
-          .limit(20);
-        
-        if (error) throw error;
-        
-        if (!themes || themes.length === 0) {
-          content.innerHTML = `<div style="text-align:center; padding:3rem;">
-            <i class="fas fa-compass" style="font-size:3rem; color:rgba(255,170,0,0.3); margin-bottom:1rem;"></i>
-            <p style="color:#888;">No active themes available</p>
-          </div>`;
-          return;
-        }
-        
-        const themeCards = themes.map(theme => themeCard(theme));
-        content.innerHTML = themeCards.join('');
-        
-      } else if (tabName === 'my-themes') {
-        if (!state.communityProfile) {
-          content.innerHTML = `<div style="text-align:center; padding:3rem;">
-            <i class="fas fa-user-tag" style="font-size:3rem; color:rgba(255,170,0,0.3); margin-bottom:1rem;"></i>
-            <p style="color:#888;">Please log in to see your themes</p>
-          </div>`;
-          return;
-        }
-        
-        // Get user's theme participations
-        const { data: participations, error: partError } = await state.supabase
-          .from('theme_participants')
-          .select('theme_id')
-          .eq('community_id', state.communityProfile.id);
-        
-        if (partError) throw partError;
-        
-        if (!participations || participations.length === 0) {
-          content.innerHTML = `<div style="text-align:center; padding:3rem;">
-            <i class="fas fa-user-tag" style="font-size:3rem; color:rgba(255,170,0,0.3); margin-bottom:1rem;"></i>
-            <p style="color:#888;">You haven't joined any themes yet</p>
-            <p style="color:#666; font-size:0.9rem;">Discover themes to find ones to join!</p>
-          </div>`;
-          return;
-        }
-        
-        const themeIds = participations.map(p => p.theme_id);
-        const { data: themes, error: themesError } = await state.supabase
-          .from('theme_circles')
-          .select('*')
-          .in('id', themeIds);
-        
-        if (themesError) throw themesError;
-        
-        const themeCards = themes.map(theme => themeCard(theme));
-        content.innerHTML = themeCards.join('');
-      }
-      
-    } catch (error) {
-      console.error('Error loading theme tab content:', error);
-      content.innerHTML = `<div style="text-align:center; padding:2rem; color:#ff6b6b;">
-        <i class="fas fa-exclamation-triangle" style="font-size:2rem; margin-bottom:0.5rem;"></i>
-        <p>Error loading content</p>
-        <p style="font-size:0.85rem; opacity:0.8;">${escapeHtml(error.message || String(error))}</p>
-      </div>`;
-    }
-  }
 
     event.preventDefault();
     
@@ -2582,78 +2329,6 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       alert('Failed to withdraw request: ' + error.message);
     }
   };
-
-  // Helper function to open theme details from search results
-  window.openThemeDetails = async function(themeId) {
-    try {
-      // Close the search modal
-      closeModal('quick-connect-modal');
-      
-      // Switch to synapse view if not already there
-      const synapseBtn = document.querySelector('[data-view="synapse"]');
-      if (synapseBtn && !synapseBtn.classList.contains('active')) {
-        synapseBtn.click();
-        // Wait for synapse to initialize
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
-      
-      // Check if openThemeCard is available
-      if (typeof window.openThemeCard !== 'function') {
-        console.warn('openThemeCard not available yet, waiting for synapse initialization...');
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-      
-      if (typeof window.openThemeCard === 'function') {
-        // Fetch the full theme data
-        const { data: theme, error } = await state.supabase
-          .from('theme_circles')
-          .select('*')
-          .eq('id', themeId)
-          .single();
-        
-        if (error) throw error;
-        
-        // Create a theme node object that matches the synapse format
-        const themeNode = {
-          id: `theme:${theme.id}`,
-          theme_id: theme.id,
-          type: 'theme',
-          title: theme.title,
-          name: theme.title,
-          description: theme.description,
-          tags: theme.tags || [],
-          expires_at: theme.expires_at,
-          projects: [], // Will be populated by openThemeCard
-          x: window.innerWidth / 2,
-          y: window.innerHeight / 2
-        };
-        
-        // Call the synapse function
-        window.openThemeCard(themeNode);
-      } else {
-        console.error('openThemeCard function not available');
-        alert('Please wait for the synapse view to load, then try again.');
-      }
-    } catch (error) {
-      console.error('Error opening theme details:', error);
-      alert('Failed to open theme details: ' + error.message);
-    }
-  };
-
-  // Helper function to render theme cards
-  function themeCard(theme) {
-    return `<div class="result-card search-entity-result" data-search-type="themes" data-search-id="${escapeHtml(theme.id)}" style="padding:1rem; background:rgba(255,170,0,0.08); border:1px solid rgba(255,170,0,0.25); border-radius:8px; margin-bottom:0.75rem; cursor:pointer; transition:all 0.2s;">
-      <div style="display:flex; align-items:center; gap:1rem;">
-        <div style="width:48px; height:48px; background:rgba(255,170,0,0.2); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.5rem;">
-          <i class="fas fa-palette" style="color:#ffaa00;"></i>
-        </div>
-        <div style="flex:1;">
-          <div style="color:#fff; font-weight:600; margin-bottom:0.25rem;">${escapeHtml(theme.title || theme.name || "Untitled Theme")}</div>
-          <div style="color:#aaa; font-size:0.85rem;">${escapeHtml(theme.description || "").slice(0, 100)}${(theme.description || "").length > 100 ? "..." : ""}</div>
-        </div>
-      </div>
-    </div>`;
-  }
 
   async function loadSuggestedConnections() {
     const list = $("quick-connect-list");
@@ -3491,45 +3166,9 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     const form = $("project-form");
     if (form) {
       form.style.display = "block";
-      await loadThemesIntoProjectDropdown();
     }
   }
 
-  async function loadThemesIntoProjectDropdown() {
-    const dropdown = $("project-theme");
-    if (!dropdown || !state.supabase) return;
-
-    try {
-      const { data: themes, error } = await state.supabase
-        .from("theme_circles")
-        .select("id, title, tags, expires_at")
-        .eq("status", "active")
-        .gt("expires_at", new Date().toISOString())
-        .order("title", { ascending: true });
-
-      if (error) {
-        console.error("Error loading themes:", error);
-        return;
-      }
-
-      dropdown.innerHTML = '<option value="">No theme (standalone project)</option>';
-
-      if (themes && themes.length > 0) {
-        themes.forEach((theme) => {
-          const option = document.createElement("option");
-          option.value = theme.id;
-          const tags = theme.tags && theme.tags.length > 0 ? ` [${theme.tags.join(", ")}]` : "";
-          option.textContent = `${theme.title}${tags}`;
-          dropdown.appendChild(option);
-        });
-        console.log(`✅ Loaded ${themes.length} themes into project form`);
-      } else {
-        console.log("ℹ️ No active themes available");
-      }
-    } catch (err) {
-      console.error("Error loading themes dropdown:", err);
-    }
-  }
 
   function hideCreateProjectForm() {
     $("project-form") && ($("project-form").style.display = "none");
@@ -3541,7 +3180,6 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     const name = $("project-name")?.value?.trim();
     const description = $("project-description")?.value?.trim();
     const skills = $("project-skills")?.value?.trim() || "";
-    const themeId = $("project-theme")?.value || null;
 
     if (!name || !description) return;
 
@@ -3556,11 +3194,6 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         creator_id: state.communityProfile.id,
         status: "active",
       };
-
-      if (themeId) {
-        projectData.theme_id = themeId;
-        console.log(`✅ Creating project with theme: ${themeId}`);
-      }
 
       const { data: newProject, error } = await state.supabase.from("projects").insert(projectData).select().single();
       if (error) throw error;
@@ -3581,7 +3214,6 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       $("project-name").value = "";
       $("project-description").value = "";
       $("project-skills").value = "";
-      if ($("project-theme")) $("project-theme").value = "";
 
       hideCreateProjectForm();
       await loadProjects();

@@ -9,6 +9,12 @@
 //     member hidden from discovery; the People count is the directory's
 //   - a stranger opens their profile, with Connect
 //   - Network lists exactly the member's connections and requests, as before
+//   - Explore → Skills lists the skills discoverable members list (themes and
+//     theme circles were replaced by skills, so never a theme title, though
+//     the fixture still holds theme rows), each counted once per member other
+//     than the member themselves; a skill opens exactly those members, full
+//     names only for accepted connections and "First L." for anyone else
+//   - search never offers themes
 //
 //   node scripts/tests/browser/run-explore-people.mjs [outDir]
 import http from 'node:http';
@@ -190,6 +196,12 @@ const boot = `${fixtures}\n${fake}\n(() => {
     Object.assign(seed.community[0], { skills: ['Welding'], interests: ['Sailing'] });
     window.__immediate = {};
   }
+  // Historical theme rows stay in the database; none of them is ever shown.
+  seed.theme_circles = [
+    { id: 'th-civic', title: 'Civic tech', description: 'Civic tech theme', status: 'active', created_at: soon(-2), expires_at: soon(30) },
+    { id: 'th-climate', title: 'Climate resilience', description: 'Climate theme', status: 'active', created_at: soon(-1), expires_at: soon(30) },
+  ];
+  seed.theme_participants = ['m-ana', 'm-bo', 'm-cy', me].map(id => ({ theme_id: 'th-civic', community_id: id }));
   seed.community_with_last_seen = seed.community.map(row => ({ ...row }));
   window.supabase = window.createFakeSupabase(seed, { session: { access_token: 'fixture', user: { id: 'auth-me', email: 'member@example.test' } } });
   const rpc = window.supabase.rpc;
@@ -325,6 +337,61 @@ try {
     await openPage('explore');
     const again = await peopleList();
     check(again.rows.length === explore.rows.length && again.rows.some(r => r.name === 'Riley (.'), `${name}: back in Explore, the directory again`, JSON.stringify(again.rows.map(r => r.name)));
+
+    // Explore → Skills: the skills members list, never themes.
+    await evaluate(`document.querySelector('#udc-resource-tabs [data-resource="themes"]').click(); true`);
+    await waitFor(`/Woodworking/.test(document.getElementById('udc-resource-list')?.innerText || '')`, 'skills', 8000).catch(() => {});
+    const skills = await peopleList();
+    const skillMeta = new Map(skills.rows.map(row => [row.name, row.meta]));
+    check(skills.tab === 'themes' && skills.label === 'Skills in the community', `${name}: Explore → Skills is the community's skills`, JSON.stringify({ tab: skills.tab, label: skills.label }));
+    check(!skills.rows.some(row => /Civic tech|Climate resilience/.test(row.name)) && !/theme/i.test(JSON.stringify([skills.label, skills.rows])),
+      `${name}: never a theme or theme circle, though theme rows exist`, JSON.stringify(skills.rows.map(r => r.name)));
+    // Python: Riley, Ana, Bo, Cy, Dee; never the member (who lists Python) or
+    // hidden Quinn. Woodworking: four visible members, Quinn hidden. Taxidermy
+    // only Quinn lists. Public Speaking: Dana and Riley, two spellings.
+    check(skillMeta.get('Python') === '5 members' && skillMeta.get('Woodworking') === '4 members' && skillMeta.get('Beekeeping') === '1 member' && !skillMeta.has('Taxidermy'),
+      `${name}: each skill counts discoverable members other than you, once each`, JSON.stringify([...skillMeta]));
+    check(skillMeta.get('Public Speaking') === '2 members' && !skills.rows.some(row => row.name === 'Public speaking'),
+      `${name}: one skill however members capitalize it`, JSON.stringify([...skillMeta]));
+    check(skills.rows[0]?.meta === '6 members' && skills.rows[0]?.name === 'Design', `${name}: the most-listed skill first`, JSON.stringify(skills.rows.slice(0, 3)));
+    const addVisible = await evaluate(`(() => { const b = document.getElementById('udc-add-resource-btn'); return !!b && b.getClientRects().length > 0 && getComputedStyle(b).display !== 'none'; })()`);
+    check(!addVisible, `${name}: no way to add a theme from Skills`);
+    await (name === 'phone' ? phoneShot : shot)(`explore-skills-${name}`);
+
+    // A skill opens exactly the members it counts, as the directory names them.
+    const skillIndex = skills.rows.findIndex(row => row.name === 'Public Speaking');
+    await evaluate(`(() => { const row = document.querySelectorAll('#udc-resource-list .udc-resource-item')[${skillIndex}]; row.scrollIntoView({ block: 'center' }); row.click(); return true; })()`);
+    await waitFor(`/list Public Speaking/.test(document.getElementById('node-side-panel')?.innerText || '')`, 'skill view', 8000).catch(() => {});
+    const lensPeople = await callInPage(function () {
+      const panel = document.getElementById('node-side-panel');
+      return {
+        status: panel?.querySelector('[data-skill-lens-status]')?.textContent.trim() || '',
+        names: [...(panel?.querySelectorAll('.node-panel-body button strong') || [])].map(el => el.textContent.trim()),
+      };
+    });
+    check(lensPeople.status === '2 members list Public Speaking.' && JSON.stringify(lensPeople.names.slice().sort()) === '["Dana (fixture)","Riley (."]',
+      `${name}: a skill lists its members: a connection by name, anyone else “First L.”`, JSON.stringify(lensPeople));
+    await sleep(900); // the panel finishes sliding in before the screenshot
+    await (name === 'phone' ? phoneShot : shot)(`explore-skill-people-${name}`);
+    await evaluate(`document.querySelector('#node-side-panel button strong:not(:empty)') && [...document.querySelectorAll('#node-side-panel .node-panel-body button')].find(b => /Riley/.test(b.textContent)).click(); true`);
+    await waitFor(`/Limited preview/.test(document.getElementById('node-side-panel')?.innerText || '')`, 'profile', 8000).catch(() => {});
+    check(/Limited preview/.test(await evaluate(`document.getElementById('node-side-panel')?.innerText || ''`)), `${name}: a stranger from a skill opens their limited profile`);
+    await evaluate(`window.closeNodePanel?.(); true`);
+    const python = await evaluate(`(async () => { await window.openNodePanel({ id: 'skill:Python', type: 'skill', name: 'Python', skillName: 'Python', isSkillLens: true }); return document.getElementById('node-side-panel')?.innerText || ''; })()`);
+    check(/5 members list Python\./.test(python) && !/Quinn|Test Member/.test(python), `${name}: the skill view matches the count: never you or a hidden member`, python.slice(0, 300));
+    await evaluate(`window.closeNodePanel?.(); true`);
+    await sleep(300);
+
+    // Search offers people, projects, organizations and opportunities; never themes.
+    await evaluate(`(() => { const i = document.getElementById('global-search'); i.focus(); i.value = 'civic'; i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); i.dispatchEvent(new KeyboardEvent('keypress', { key: 'Enter', bubbles: true })); return true; })()`);
+    await sleep(2500);
+    const searchText = await callInPage(function () {
+      return [...document.querySelectorAll('body *')].filter(el => el.getClientRects().length && el.children.length === 0).map(el => el.textContent.trim()).filter(Boolean).join(' | ');
+    });
+    check(/No results for "civic"|Search Results/.test(searchText) && !/Themes|Discover Themes|My Themes|Civic tech/.test(searchText),
+      `${name}: search never offers themes`, searchText.slice(0, 300));
+    await evaluate(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); true`);
+    await sleep(400);
   }
 } catch (error) {
   check(false, 'Run aborted', error.message);
