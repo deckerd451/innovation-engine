@@ -44,8 +44,23 @@
       return false;
     }
 
+    // PostgREST or(): comma-separated conditions, each either column.op.value
+    // or an and(...) group of them (commas inside the group belong to it).
+    function splitTopLevel(expression) {
+      const parts = [];
+      let depth = 0, current = '';
+      for (const ch of String(expression)) {
+        if (ch === '(') depth += 1;
+        if (ch === ')') depth -= 1;
+        if (ch === ',' && depth === 0) { parts.push(current); current = ''; } else current += ch;
+      }
+      if (current) parts.push(current);
+      return parts;
+    }
     function parseOr(expression) {
-      return String(expression).split(',').map(part => {
+      return splitTopLevel(expression).map(part => {
+        const group = part.match(/^and\((.*)\)$/);
+        if (group) return { and: parseOr(group[1]) };
         const [column, op, ...rest] = part.split('.');
         return { column, op, value: rest.join('.') };
       });
@@ -67,7 +82,7 @@
         gte(column, value) { filters.push(row => row[column] != null && String(row[column]) >= String(value)); return api; },
         in(column, values) { filters.push(row => values.includes(row[column])); return api; },
         contains(column, values) { filters.push(row => values.every(v => (row[column] || []).includes(v))); return api; },
-        or(expression) { const parts = parseOr(expression); filters.push(row => parts.some(p => matches(row, p))); return api; },
+        or(expression) { const parts = parseOr(expression); filters.push(row => parts.some(p => (p.and ? p.and.every(q => matches(row, q)) : matches(row, p)))); return api; },
         ilike(column, pattern) { filters.push(row => ilike(row[column], pattern)); return api; },
         order(column, opts = {}) { order = { column, asc: opts.ascending !== false }; return api; },
         limit(n) { limitN = n; return api; },

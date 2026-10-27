@@ -131,7 +131,7 @@
       return;
     }
     if (!window.NearifyEventsPanel?.mount) {
-      try { await import('./nearify-events-panel.js?v=network-dest-20261017'); } catch (error) {
+      try { await import('./nearify-events-panel.js?v=met-once-20261027'); } catch (error) {
         console.warn('[AppNav] People you met is unavailable:', error);
       }
     }

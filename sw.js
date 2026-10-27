@@ -4,7 +4,7 @@
    - Never caches Supabase traffic
 */
 
-const VERSION = "v41-nav-four-tabs-20261027";
+const VERSION = "v42-met-once-20261027";
 const CACHE_NAME = `innovation-engine-shell-${VERSION}`;
 
 // Keep install cache minimal and stable.

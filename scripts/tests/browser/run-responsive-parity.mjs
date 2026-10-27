@@ -227,7 +227,8 @@ const boot = `${fixtures}\n${fake}\n(() => {
   seed.opportunities = [{ id: '40000000-0000-4000-8000-0000000000a1', title: 'Mentor first-time founders', description: 'Fixture opportunity', status: 'open', is_public: true, application_deadline: null, organization_id: '30000000-0000-4000-8000-0000000000a1', created_at: '2026-09-02T00:00:00Z' }];
   // People you met: two events. Sam shared a large photo with consent (a full
   // size upload, 1067px); Riley's photo has no consent, so initials show;
-  // Dana is already connected.
+  // Dana and Sam are already connected (so they show Connected, not Connect);
+  // Riley is not.
   const [, dana, sam, riley] = seed.community;
   Object.assign(sam, { image_url: '/images/bubbleh512.png', photo_visible: true, photo_consent_at: '2026-09-01T00:00:00Z' });
   Object.assign(riley, { image_url: '/images/bubbleh.png', photo_visible: true, photo_consent_at: null });
@@ -553,9 +554,9 @@ async function contentChecks(P) {
       `${P}: You over Network adds no second People you met`, JSON.stringify({ before, state, after }));
   });
   await step(`${P}: People you met → Connect sends a request`, async () => {
-    await press('#cd-network-history .ch-btn-peer-connect[data-edge-id="e1000000-0000-4000-8000-000000000001"]', 'Connect (Sam)');
-    await waitFor(`/Request sent/.test(document.querySelector('#cd-network-history .ch-peer-card[data-edge-id="e1000000-0000-4000-8000-000000000001"]')?.innerText || '')`, 'request sent', 4000);
-    check(await evaluate(`window.__promoted.join() === 'e1000000-0000-4000-8000-000000000001'`), `${P}: People you met → Connect sends a request`);
+    await press('#cd-network-history .ch-btn-peer-connect[data-edge-id="e1000000-0000-4000-8000-000000000003"]', 'Connect (Riley)');
+    await waitFor(`/Request sent/.test(document.querySelector('#cd-network-history .ch-peer-card[data-edge-id="e1000000-0000-4000-8000-000000000003"]')?.innerText || '')`, 'request sent', 4000);
+    check(await evaluate(`window.__promoted.join() === 'e1000000-0000-4000-8000-000000000003'`), `${P}: People you met → Connect sends a request`);
   });
   if (current.mobile) {
     await step(`${P}: Network → View map opens the map`, async () => {
