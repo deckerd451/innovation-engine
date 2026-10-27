@@ -47,7 +47,7 @@ assert.match(nav, /unread > 0/);
 assert.match(home, /Your projects/);
 assert.match(home, /Your community/);
 assert.match(home, /window\.viewProjectDetails\?\.\(button\.dataset\.projectId\)/);
-assert.match(home, /Have something in mind\?/);
+assert.match(home, /Have an idea\?/);
 assert.doesNotMatch(home, /profile\.(bio|intent)|p\?\.(bio|intent) *\?/);
 assert.match(youCss, /z-index: 700/);
 

@@ -89,10 +89,11 @@ async function shot(name) {
 }
 // Tap at the element's centre after scrolling it into view. Fails if a
 // different surface owns that point (ghost screens, tab bar overlap).
-async function openGoalHelp() {
-  if (await evaluate(`!document.querySelector('#mobile-you-content [data-home="goal"]')?.open`)) {
-    await tap('#mobile-you-content [data-home="goal"] > summary', 'Have something in mind?');
-  }
+// Home's "Have an idea?" finds people and projects and no longer opens the
+// objective worksheet; the worksheet is kept (and still tested here), opened
+// directly the way it is for a typed objective.
+async function openObjective(text) {
+  await evaluate(`window.MobileTaskAssistance.openObjective(${JSON.stringify(text)}); true`);
 }
 
 // Home lists the member's projects (Your community) rather than picking a
@@ -143,7 +144,7 @@ const surfaceReport = () => evaluate(`(() => {
     overlays: document.querySelectorAll('#mobile-task-assistance').length,
     youVisible: visible(document.getElementById('mobile-you-screen')) && !document.getElementById('mobile-you-screen').hidden,
     centreOwner: centre?.closest('#mobile-task-assistance') ? 'assistance' : centre?.closest('#mobile-you-screen') ? 'my-space' : centre?.closest('#command-dashboard') ? 'dashboard' : centre?.closest('#synapse-main-view') ? 'graph' : (centre?.id || centre?.tagName),
-    goalForms: document.querySelectorAll('.mgd-goal-form').length,
+    goalForms: document.querySelectorAll('.home-idea-form').length,
     bodyScroll: document.scrollingElement.scrollHeight > innerHeight + 2 && getComputedStyle(document.body).overflow !== 'hidden',
   };
 })()`);
@@ -270,10 +271,7 @@ try {
   check(s.overlays === 0 && s.goalForms === 1 && s.centreOwner === 'my-space', 'Repeated navigation leaves exactly one surface and one objective entry', JSON.stringify(s));
 
   // Scenario H / C: unfamiliar objective, no community knowledge.
-  // Goal help is collapsed on Home until wanted.
-  await openGoalHelp();
-  await type('#mgd-goal-input', 'Learn conversational Spanish before my trip in May');
-  await tap('.mgd-goal-form button', 'Get help');
+  await openObjective('Learn conversational Spanish before my trip in May');
   await waitFor(`document.querySelector('#mta-title')`, 'objective assistance');
   await sleep(500);
   check(await evaluate(`/What’s in the way right now/.test(document.getElementById('mobile-task-assistance').textContent) && /doesn’t have a guide/.test(document.getElementById('mobile-task-assistance').textContent)`), 'Unfamiliar objective: one clarifying question with an honest limitation');
@@ -292,10 +290,7 @@ try {
   await tap('[data-mta-close]', 'Close');
 
   // Scenario B: business idea validation, demo method labelled.
-  await openGoalHelp();
-  await evaluate(`document.getElementById('mgd-goal-input').value = ''`);
-  await type('#mgd-goal-input', 'Validate my business idea for a campus food app');
-  await tap('.mgd-goal-form button', 'Get help');
+  await openObjective('Validate my business idea for a campus food app');
   await waitFor(`/validating an idea/.test(document.querySelector('.mta-interpretation')?.textContent || '')`, 'validation assistance');
   await waitFor(`!/Checking shared methods/.test(document.querySelector('[data-mta-community-body]')?.textContent || '')`, 'community help');
   const validationCommunity = await evaluate(`document.querySelector('[data-mta-community-body]').textContent`);
@@ -321,7 +316,7 @@ try {
   await tap('[data-mta-own-objective]', 'Safe alternative');
   await sleep(500);
   s = await surfaceReport();
-  check(s.overlays === 0 && s.centreOwner === 'my-space' && await evaluate(`document.activeElement?.id === 'mgd-goal-input'`), 'Denied task offers a safe alternative: own-objective entry, focused', JSON.stringify(s));
+  check(s.overlays === 0 && s.centreOwner === 'my-space' && await evaluate(`document.activeElement?.id === 'home-idea-input'`), 'Denied task offers a safe alternative: Home’s idea entry, focused', JSON.stringify(s));
   // Desktop regression smoke: the mobile surfaces stay out of the way and
   // the existing project-task path is still what a task link opens.
   await send('Emulation.setDeviceMetricsOverride', { width: 1366, height: 900, deviceScaleFactor: 1, mobile: false });

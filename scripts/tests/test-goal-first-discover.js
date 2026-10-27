@@ -8,9 +8,10 @@ const home = read('assets/js/home-view.js');
 const memory = read('assets/js/capability-memory.js');
 const css = read('assets/css/mobile-goal-discovery.css');
 
-// Home offers goal help, collapsed, at every width (home-view.js).
-assert.match(home, /<summary>Have something in mind\?<\/summary>/);
-assert.match(home, /window\.MobileGoalDiscovery\.mount\(target\)/);
+// Home's "Have an idea?" finds people and projects (home-view.js) and no
+// longer mounts the objective form; the objective module itself is kept.
+assert.match(home, /Have an idea\?/);
+assert.doesNotMatch(home, /MobileGoalDiscovery|openObjective/);
 assert.match(html, /Browse the community/);
 assert.match(html, /mobile-goal-discovery\.js/);
 assert.match(discover, /What are you trying to accomplish\?/);

@@ -4,7 +4,7 @@
    - Never caches Supabase traffic
 */
 
-const VERSION = "v38-home-no-explore-link-20261027";
+const VERSION = "v39-home-idea-20261027";
 const CACHE_NAME = `innovation-engine-shell-${VERSION}`;
 
 // Keep install cache minimal and stable.
