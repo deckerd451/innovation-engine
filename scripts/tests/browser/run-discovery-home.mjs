@@ -291,7 +291,9 @@ const home = () => callInPage(function (root) {
     connectionsLinks: [...document.querySelectorAll(`${root} button, ${root} a`)].filter(visible).map(b => b.textContent.trim()).filter(t => /Find people in Explore|People$/.test(t)),
     exploreLink: (() => { const b = document.querySelector(`${root} .home-explore button`); return visible(b) ? b.textContent.trim() : ''; })(),
     themes: [...document.querySelectorAll(`${root} .home-theme, ${root} [data-theme]`)].filter(visible).map(b => b.innerText.replace(/\s+/g, ' ').trim()),
-    openRows: [...document.querySelectorAll(`${root} [data-home="happening"] .home-open-row`)].filter(visible).map(b => b.innerText.replace(/\s+/g, ' ').trim()),
+    // Each community card as "Title Meta" (its kind, description and match
+    // are checked separately).
+    openRows: [...document.querySelectorAll(`${root} [data-home="happening"] .home-invite`)].filter(visible).map(b => [b.querySelector('.home-invite-title')?.textContent, b.querySelector('.home-invite-meta')?.textContent].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim()),
     topics: [...document.querySelectorAll(`${root} .home-topic`)].filter(visible).map(b => b.textContent.trim()),
     happening: text('[data-home="happening"]'),
     profile: text('[data-home="profile"]'),
@@ -382,7 +384,7 @@ try {
   check(h.openRows.some(r => /^Judge the spring pitch night Tidewater Schools · Closes /.test(r)) && !h.openRows.some(r => /Expired grant|My own posting|Python mentor/.test(r)),
     'open opportunities with their organization and deadline; never expired, your own, or one already picked', JSON.stringify(h.openRows));
   check(!h.topics.length && !h.connectionsLinks.length, 'with someone to meet, no people-finding fallback is needed', JSON.stringify({ topics: h.topics, links: h.connectionsLinks }));
-  check(/^YOUR WORK\s*Next: select speaker\(s\)/i.test(h.work) && /2 projects · 1 more open task/.test(h.work), 'your work: the next task and a one-line summary', h.work);
+  check(/^YOUR WORK\s*Next: select speaker\(s\)/i.test(h.work) && /2 projects · 2 open tasks/.test(h.work) && /See all your work/.test(h.work), 'your work: the next task, a one-line summary and a way to the rest', h.work);
   let L = await layout();
   check(L.searchTop != null && L.exploreLinkTop < L.viewBottom && L.pickedTop != null && L.pickedTop < L.viewBottom - 120, 'the first screenful shows search, Browse Explore and Picked for you', JSON.stringify(L));
   check(L.workTop > L.happeningTop && L.happeningTop > L.pickedTop, 'discovery comes before your work', JSON.stringify(L));
@@ -399,7 +401,7 @@ try {
     'Continue opens the next task', JSON.stringify(await evaluate('window.__calls')));
   await press(`${rootSel()} [data-home="work"] details > summary`, 'work summary');
   const expanded = await evaluate(`document.querySelector('${rootSel()} [data-home="work"]').innerText`);
-  check(/Your other open tasks/.test(expanded) && /Your projects/.test(expanded) && /Book the venue/.test(expanded), 'Your work expands to other tasks and projects', expanded);
+  check(/Your projects/.test(expanded) && /Harborhack 2026 prep\s*2 open tasks/.test(expanded) && /Startup lab/.test(expanded) && !/Book the venue/.test(expanded), 'Your work opens to your projects and their open tasks, not a task list on Home', expanded);
   await press(`${rootSel()} [data-join="0"]`, 'Take a look');
   await waitFor(`/HCD Event/.test(document.getElementById('node-side-panel')?.innerText || '')`, 'project panel', 6000).catch(() => {});
   check(/HCD Event/.test(await panelText()), 'Take a look opens the project', (await panelText()).slice(0, 120));

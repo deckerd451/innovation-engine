@@ -1517,15 +1517,28 @@ function _buildProjectsForYou({ userProfile, projects, memberships, maxItems }) 
  * counts and deadlines those rows carry.
  *
  *   projects       projects open to collaborators ('open', 'recruiting'),
- *                  never the member's own, joined or requested ones
+ *                  never the member's own, joined or requested ones, with
+ *                  what they say about themselves and how many are on them
  *   opportunities  public, open, not past their deadline; never the
- *                  member's own or their managed organization's
+ *                  member's own or their managed organization's, with their
+ *                  own description, type and listed skills when they have them
  *   skills         skills listed by at least COMMUNITY_SKILL_MIN_MEMBERS
  *                  visible members (hidden members are already excluded
  *                  by the community query), so no chip points at one person
  */
 const _COMMUNITY_OPEN_PROJECT_STATUSES = new Set(['open', 'recruiting']);
 const COMMUNITY_SKILL_MIN_MEMBERS = 5;
+// What a project or opportunity says about itself, as its owner wrote it:
+// whitespace collapsed and at most about two lines. Nothing when it is
+// missing or only repeats the title.
+function _communityAbout(description, title) {
+  const text = String(description || '').replace(/\s+/g, ' ').trim();
+  if (!text || text.toLowerCase() === String(title || '').trim().toLowerCase()) return null;
+  if (text.length <= 160) return text;
+  const cut = text.slice(0, 160);
+  return `${cut.slice(0, Math.max(cut.lastIndexOf(' '), 120)).replace(/[\s,;:.\-–—]+$/, '')}…`;
+}
+
 function _buildCommunityOpen({ userProfile, projects, opportunities, organizations, community, memberships, now }) {
   const me = userProfile?.id != null ? String(userProfile.id) : null;
   const myAuth = userProfile?.user_id != null ? String(userProfile.user_id) : null;
@@ -1541,6 +1554,10 @@ function _buildCommunityOpen({ userProfile, projects, opportunities, organizatio
       id: String(project.id),
       title: project.title,
       needs: (Array.isArray(project.required_skills) ? project.required_skills : []).map(skill => String(skill).trim()).filter(Boolean).slice(0, 3),
+      about: _communityAbout(project.description, project.title),
+      // The people on it: its creator and accepted members (a pending
+      // request is not), from the membership rows the brief already read.
+      people: new Set([...(project.creator_id != null ? [String(project.creator_id)] : []), ...(memberships?.projectTeamIds?.get(String(project.id)) || [])]).size,
     }));
 
   const orgNames = new Map((organizations || []).map(org => [String(org.id), org.name]));
@@ -1555,6 +1572,9 @@ function _buildCommunityOpen({ userProfile, projects, opportunities, organizatio
       title: opp.title,
       organization: opp.organization_id ? orgNames.get(String(opp.organization_id)) || null : null,
       deadline: opp.application_deadline || null,
+      about: _communityAbout(opp.description, opp.title),
+      kind: opp.opportunity_type ? String(opp.opportunity_type).trim() || null : null,
+      needs: (Array.isArray(opp.skills) ? opp.skills : []).map(skill => String(skill).trim()).filter(Boolean).slice(0, 3),
     }));
 
   // Distinct members per skill, the member themselves not counted.

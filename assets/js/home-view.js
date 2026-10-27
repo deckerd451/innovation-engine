@@ -129,6 +129,18 @@
     }));
   }
 
+  // The terms themselves, from the same shapes.
+  function listedTerms(value) {
+    if (Array.isArray(value)) return value.flatMap(listedTerms);
+    const text = String(value ?? '').trim();
+    if (!text) return [];
+    try {
+      const parsed = JSON.parse(text);
+      if (Array.isArray(parsed)) return parsed.flatMap(listedTerms);
+    } catch (_) { /* a plain or comma-separated string */ }
+    return text.split(',').map(term => term.trim()).filter(Boolean);
+  }
+
   // Skills and interests arrive as an array, a JSON array string or a
   // comma-separated string; blank entries are not listed terms.
   function listed(value) {
@@ -273,13 +285,34 @@
     if (empty && quietNow()) { setSection('happening', ''); return; }
     // A newcomer (nothing picked for them, no projects yet) starts here.
     const newcomer = part('picked')?.hidden !== false && !!state.work && state.work !== 'error' && !state.work.projects.length;
-    const row = (attrs, title, meta) => `<li><button type="button" class="home-open-row" ${attrs}><span><strong>${esc(title)}</strong>${meta ? `<span>${esc(meta)}</span>` : ''}</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></li>`;
+    // Each one is a short invitation, the whole card one tap: what it is,
+    // what it says about itself, what it needs or who runs it, and which of
+    // that the member lists. Only what the rows hold; a sparse one is just
+    // its kind and title.
+    const mine = new Set(listedTerms(profile()?.skills).map(term => term.toLowerCase()));
+    const youList = (needs) => {
+      const hits = (needs || []).filter(need => mine.has(String(need).toLowerCase()));
+      return hits.length ? `You list ${hits.join(', ')}` : '';
+    };
+    const card = (attrs, kind, title, about, meta, match) => `<li><button type="button" class="home-invite" ${attrs}>
+      <span class="home-invite-kind">${esc(kind)}</span>
+      <strong class="home-invite-title">${esc(title)}</strong>
+      ${about ? `<span class="home-invite-about">${esc(about)}</span>` : ''}
+      ${meta ? `<span class="home-invite-meta">${esc(meta)}</span>` : ''}
+      ${match ? `<span class="home-invite-match">${esc(match)}</span>` : ''}
+    </button></li>`;
+    const projectCard = (project, index) => card(`data-project="${index}"`,
+      ['Project', project.people > 1 ? `${project.people} people` : ''].filter(Boolean).join(' · '),
+      project.title, project.about, project.needs.length ? `Needs ${project.needs.join(', ')}` : '', youList(project.needs));
+    const opportunityCard = (opp, index) => card(`data-opportunity="${index}"`,
+      ['Opportunity', opp.kind ? opp.kind.charAt(0).toUpperCase() + opp.kind.slice(1) : ''].filter(Boolean).join(' · '),
+      opp.title, opp.about, [opp.organization, opp.deadline ? `Closes ${shortDate(opp.deadline)}` : ''].filter(Boolean).join(' · '), youList(opp.needs));
     setSection('happening', `${newcomer
       ? '<h2 class="home-heading" id="home-happening-title" tabindex="-1">Start anywhere</h2><p class="home-sub">What’s open in your community right now. Nothing to set up first.</p>'
       : '<h2 class="home-heading" id="home-happening-title" tabindex="-1">Happening in the community</h2><p class="home-sub">Open to everyone.</p>'}
       ${empty ? '<p class="home-muted">Nothing new is open in the community right now.</p>' : ''}
-      ${projects.length ? `<h3 class="home-subheading">Projects looking for people</h3><ul class="home-open-list">${projects.map((project, index) => row(`data-project="${index}"`, project.title, project.needs.length ? `Needs ${project.needs.join(', ')}` : '')).join('')}</ul>` : ''}
-      ${opportunities.length ? `<h3 class="home-subheading">Open opportunities</h3><ul class="home-open-list">${opportunities.map((opp, index) => row(`data-opportunity="${index}"`, opp.title, [opp.organization, opp.deadline ? `Closes ${shortDate(opp.deadline)}` : 'No deadline'].filter(Boolean).join(' · '))).join('')}</ul>` : ''}
+      ${projects.length ? `<h3 class="home-subheading">Projects looking for people</h3><ul class="home-invites">${projects.map(projectCard).join('')}</ul>` : ''}
+      ${opportunities.length ? `<h3 class="home-subheading">Open opportunities</h3><ul class="home-invites">${opportunities.map(opportunityCard).join('')}</ul>` : ''}
       ${skills.length ? `<h3 class="home-subheading">Find people by what they do</h3><ul class="home-topics">${skills.map((skill, index) => `<li><button type="button" class="home-topic" data-skill="${index}">${esc(skill.label)}</button></li>`).join('')}</ul>
         <button type="button" class="home-action" data-home-action="topics">See all skills</button>` : ''}`);
     const el = part('happening');
@@ -306,7 +339,6 @@
     }
     if (!work) { setSection('work', ''); return; }
     const task = chooseNextTask(work.tasks);
-    const others = work.tasks.filter(item => item !== task).slice(0, 5);
     const attempt = work.attempts.find(item => ['planned', 'in_progress'].includes(item.outcome_status));
     const results = work.attempts.filter(item => ['succeeded', 'not_succeeded'].includes(item.outcome_status)).length;
     const update = task ? lastUpdate(task) : '';
@@ -315,16 +347,23 @@
       ? `<div class="home-next"><div><strong class="home-title">Next: ${esc(task.title)}</strong><p class="home-muted">${esc(task.project?.title || 'Project task')} · ${task.status === 'in_progress' ? 'In progress' : 'Not started'}</p>${update ? `<p class="home-update">Last update: ${esc(update)}</p>` : ''}</div><button type="button" class="home-primary" data-next-project="${esc(task.project_id)}" data-next-task="${esc(task.id)}">Continue</button></div>`
       : attempt
         ? `<div class="home-next"><div><strong class="home-title">${esc(attempt.goal || 'A method you started')}</strong><p class="home-muted">Waiting on a result</p></div><button type="button" class="home-primary" data-next-project="${esc(attempt.project_id)}" data-next-tab="work">Record what happened</button></div>`
-        : '';
-    const counts = [
+        : '<p class="home-muted home-next-none">No open tasks right now.</p>';
+    // One line of what is there (loadWork reads at most 50 open tasks), and
+    // the rest one tap away, by project: Home never lists every task.
+    const open = work.tasks.length;
+    const openByProject = new Map();
+    work.tasks.forEach(item => openByProject.set(String(item.project_id), (openByProject.get(String(item.project_id)) || 0) + 1));
+    const summary = [
       work.projects.length ? `${work.projects.length} project${work.projects.length === 1 ? '' : 's'}` : '',
-      others.length ? `${others.length} more open task${others.length === 1 ? '' : 's'}` : '',
+      open ? `${open >= 50 ? '50+' : open} open task${open === 1 ? '' : 's'}` : '',
     ].filter(Boolean).join(' · ');
-    const projectList = work.projects.map(project => `<button type="button" class="home-project" data-project-id="${esc(project.id)}"><strong>${esc(project.title || 'Untitled project')}</strong><span>${esc(project.status || 'active')}</span></button>`).join('');
+    const projectList = work.projects.map(project => {
+      const count = openByProject.get(String(project.id)) || 0;
+      return `<button type="button" class="home-project" data-project-id="${esc(project.id)}"${count ? ' data-project-tab="tasks"' : ''}><strong>${esc(project.title || 'Untitled project')}</strong><span>${count ? `${count} open task${count === 1 ? '' : 's'}` : esc(project.status || 'active')}</span></button>`;
+    }).join('');
     setSection('work', `<h2 class="home-heading home-label">Your work</h2>${next}
-      ${counts ? `<details class="home-more-list"><summary>${esc(counts)}</summary><div>
-        ${others.length ? `<h3 class="home-subheading">Your other open tasks</h3>${others.map(item => `<button type="button" class="home-project" data-next-project="${esc(item.project_id)}" data-next-task="${esc(item.id)}"><strong>${esc(item.title)}</strong><span>${esc(item.project?.title || 'Project')}</span></button>`).join('')}` : ''}
-        ${work.projects.length ? `<h3 class="home-subheading">Your projects</h3>${projectList}${results ? `<p class="home-muted">${results} method result${results === 1 ? '' : 's'} recorded.</p>` : ''}` : ''}
+      ${work.projects.length ? `<details class="home-more-list"><summary><span>${esc(summary)}</span><span class="home-more-cta">See all your work</span></summary><div>
+        <h3 class="home-subheading">Your projects</h3>${projectList}${results ? `<p class="home-muted">${results} method result${results === 1 ? '' : 's'} recorded.</p>` : ''}
       </div></details>` : ''}`);
     const el = part('work');
     el?.querySelectorAll('[data-next-project]').forEach(button => button.addEventListener('click', (event) => {
@@ -332,7 +371,7 @@
       if (target.dataset.nextTask && window.viewProjectTask) window.viewProjectTask(target.dataset.nextProject, target.dataset.nextTask);
       else window.viewProjectDetails?.(target.dataset.nextProject, target.dataset.nextTab);
     }));
-    el?.querySelectorAll('[data-project-id]').forEach(button => button.addEventListener('click', () => window.viewProjectDetails?.(button.dataset.projectId)));
+    el?.querySelectorAll('[data-project-id]').forEach(button => button.addEventListener('click', () => window.viewProjectDetails?.(button.dataset.projectId, button.dataset.projectTab || null)));
   }
 
   // Built once per Home: typing here survives every other update.
@@ -340,8 +379,12 @@
     const el = part('goal');
     if (!el || el.dataset.mounted === 'true') return;
     el.dataset.mounted = 'true';
+    // What Get help does (mobile-task-assistance.js openObjective): a
+    // suggested next step with a worksheet for it, shared methods and any
+    // connections whose profiles fit; a draft on this device until saved to
+    // one of the member's projects. It does not create projects.
     el.innerHTML = `<summary>Have something in mind?</summary>
-      <div class="home-goal-body"><p class="home-muted">Describe it in your own words. Buildspace prepares something you can use right away — no project needed.</p><div class="home-goal-form"></div><div class="home-goal-resume"></div></div>`;
+      <div class="home-goal-body"><p class="home-muted">Describe a goal to get a suggested next step and a worksheet for it, plus shared methods and any connections whose profiles fit. It stays a draft on this device until you save it to one of your projects.</p><div class="home-goal-form"></div><div class="home-goal-resume"></div></div>`;
     const target = el.querySelector('.home-goal-form');
     const mount = () => {
       if (!document.contains(target)) return;
