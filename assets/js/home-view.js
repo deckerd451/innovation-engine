@@ -8,15 +8,15 @@
 //
 //   Welcome                   the member's name; "Discover what we could do together."
 //   Waiting on you            inbound only, and only when something needs a reply
-//   Search                    hands off to Explore's own search; one quiet
-//                             "Browse Explore" link for the full directory
-//   Picked for you            one person to meet, then a project and an
-//                             opportunity, each with its reason; omitted
-//                             when nothing qualifies (skill chips below
-//                             are then the way to find people)
-//   Happening in the community  open to everyone: projects looking
+//   (Search lives in Explore; one quiet "Browse Explore" link beside the
+//   welcome leads there.)
+//   Happening in the community  open to everyone, first: projects looking
 //                             for people, open opportunities, and (when no
 //                             one is introduced) skills to find people by
+//   Picked for you            one person to meet, then a project and an
+//                             opportunity, each with its reason; omitted
+//                             when nothing qualifies (Happening's skill
+//                             chips are then the way to find people)
 //   What are you curious about?  only when nothing is listed; optional
 //   Your community            the people the member is connected to and the
 //                             projects they are on, each one tap away; tasks
@@ -190,14 +190,6 @@
     document.querySelector(`#udc-resource-tabs .udc-resource-tab[data-resource="${resource}"]`)?.click();
   }
 
-  function searchExplore(query) {
-    window.AppNav?.go?.('explore');
-    const input = document.getElementById('global-search');
-    if (!input) return;
-    input.value = query;
-    input.focus();
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-  }
 
   function openSkill(label) {
     exploreTab('themes');
@@ -463,25 +455,18 @@
     const name = displayName(p);
     target.innerHTML = `<div class="home-view" data-layout="${desktop ? 'desktop' : 'phone'}">
       ${desktop
-        ? '<p class="home-tagline">Discover what we could do together.</p>'
-        : `<header class="home-header"><div class="home-avatar" aria-hidden="true">${esc((name || 'M').slice(0, 1).toUpperCase())}</div><h1 id="mobile-you-title">${name ? `<span class="home-hello">Welcome,</span> <span class="home-name">${esc(name)}</span>` : '<span class="home-name">Welcome</span>'}</h1><p class="home-intro">Discover what we could do together.</p></header>`}
+        ? '<div class="home-welcome"><p class="home-tagline">Discover what we could do together.</p><p class="home-explore"><button type="button" class="home-link" data-home-action="explore">Browse Explore</button></p></div>'
+        : `<header class="home-header"><div class="home-avatar" aria-hidden="true">${esc((name || 'M').slice(0, 1).toUpperCase())}</div><h1 id="mobile-you-title">${name ? `<span class="home-hello">Welcome,</span> <span class="home-name">${esc(name)}</span>` : '<span class="home-name">Welcome</span>'}</h1><p class="home-intro">Discover what we could do together.</p><p class="home-explore"><button type="button" class="home-link" data-home-action="explore">Browse Explore</button></p></header>`}
       <section class="home-section home-attention" data-home="attention" aria-labelledby="home-attention-title" hidden></section>
-      <form class="home-search" role="search" data-home-search>
-        <label class="home-sr" for="home-search-input">Search people, skills, ideas</label>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-        <input id="home-search-input" type="search" placeholder="Search people, skills, ideas…" autocomplete="off" enterkeyhint="search">
-        <button type="submit" class="home-search-go" aria-label="Search"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
-      </form>
-      <p class="home-explore"><button type="button" class="home-link" data-home-action="explore">Browse Explore</button></p>
       <div class="home-grid">
         <div class="home-main">
+          <section class="home-section home-happening" data-home="happening" aria-labelledby="home-happening-title" hidden></section>
           <section class="home-section home-picked" data-home="picked" aria-labelledby="home-picked-title" hidden>
             <h2 class="home-heading" id="home-picked-title" tabindex="-1">Picked for you</h2>
             <p class="home-sub">From what you listed and the people you know.</p>
             <div class="home-part" data-home="meet" hidden></div>
             <div class="home-part" data-home="join" hidden></div>
           </section>
-          <section class="home-section home-happening" data-home="happening" aria-labelledby="home-happening-title" hidden></section>
           <section class="home-section home-profile" data-home="profile" aria-labelledby="home-curious-title" hidden></section>
           <section class="home-section home-quiet" data-home="quiet" aria-label="Getting started" hidden></section>
         </div>
@@ -491,14 +476,6 @@
         </div>
       </div>
     </div>`;
-    target.querySelector('[data-home-search]')?.addEventListener('submit', (event) => {
-      event.preventDefault();
-      const input = event.currentTarget.querySelector('input');
-      const query = input.value.trim();
-      input.blur();
-      if (query) searchExplore(query);
-      else window.AppNav?.go?.('explore');
-    });
     target.querySelector('.home-explore [data-home-action="explore"]')?.addEventListener('click', () => window.AppNav?.go?.('explore'));
   }
 

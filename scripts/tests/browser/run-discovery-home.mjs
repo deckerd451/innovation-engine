@@ -366,9 +366,9 @@ try {
   check(/Welcome, Test Member/.test(h.header) && /Discover what we could do together\./.test(h.header), 'a warm welcome by name, with one short invitation', h.header);
   check(h.headerLayout?.nameOneLine && !h.headerLayout.nameUnderButtons && !h.headerLayout.introUnderButtons, 'the name sits on one line and nothing in the welcome runs under the header buttons', JSON.stringify(h.headerLayout));
   check(h.heading === 'Happening in the community', 'an established member’s community section is “Happening in the community”', h.heading);
-  check(JSON.stringify(h.sections) === '["attention","picked","happening","mine","goal"]', 'sections: waiting on you, picked for you, happening, your community, goal help', JSON.stringify(h.sections));
+  check(JSON.stringify(h.sections) === '["attention","happening","picked","mine","goal"]', 'sections: waiting on you, happening, picked for you, your community, goal help', JSON.stringify(h.sections));
   check(/1 person wants to connect with you/.test(h.attention), 'Waiting on you shows the genuine pending request', h.attention);
-  check(h.search && h.exploreLink === 'Browse Explore' && h.pills === 0, 'search and one quiet Browse Explore link; no category pills duplicating Explore', JSON.stringify({ link: h.exploreLink, pills: h.pills }));
+  check(!h.search && h.exploreLink === 'Browse Explore' && h.pills === 0, 'no search bar on Home (Explore has it); one quiet Browse Explore link; no category pills duplicating Explore', JSON.stringify({ search: h.search, link: h.exploreLink, pills: h.pills }));
   check(h.meetTitle === 'Meet Riley (fixture)', 'a person worth meeting: someone new with something in common', h.meetTitle);
   check(h.meetReasons.includes('Shared interest: Human-Centered Design') && h.meetReasons.includes('Shared skill: Python'), 'the introduction says why, from real shared terms (HCD = human-centered design)', JSON.stringify(h.meetReasons));
   check(h.meetImages === 0 && h.meetInitials === 'RF', 'initials, not a photo', JSON.stringify({ images: h.meetImages, initials: h.meetInitials }));
@@ -387,8 +387,8 @@ try {
   check(/^YOUR COMMUNITY\s*D\(\s*S\(\s*2 people you’re connected to/i.test(h.mine) && /Harborhack 2026 prep\s*You started it/.test(h.mine) && /Startup lab\s*You’re a member/.test(h.mine) && !/Next:|Continue|open task/.test(h.mine),
     'your community: the people you’re connected to and your projects; no ranked task', h.mine);
   let L = await layout();
-  check(L.searchTop != null && L.exploreLinkTop < L.viewBottom && L.pickedTop != null && L.pickedTop < L.viewBottom - 120, 'the first screenful shows search, Browse Explore and Picked for you', JSON.stringify(L));
-  check(L.mineTop > L.happeningTop && L.happeningTop > L.pickedTop, 'discovery comes before your community', JSON.stringify(L));
+  check(L.searchTop == null && L.exploreLinkTop < L.happeningTop && L.happeningTop != null && L.happeningTop < L.viewBottom - 300, 'the first screenful shows Browse Explore and what is happening in the community', JSON.stringify(L));
+  check(L.mineTop > L.pickedTop && L.pickedTop > L.happeningTop, 'happening first, then picked for you, then your community', JSON.stringify(L));
   check(L.homeHeight <= 2400, `Home stays focused (${L.homeHeight}px of scrolling at iPhone size)`, String(L.homeHeight));
   check(L.overflowX <= 0 && L.bottomClearance >= 32, 'no sideways scrolling; the end of Home clears the navigation', JSON.stringify(L));
   await evaluate(`(() => { const s = document.querySelector('#mobile-you-screen .mobile-you-scroll'); s.scrollTop = 700; return true; })()`);
@@ -429,15 +429,15 @@ try {
   h = await home();
   check(!/Meet Riley/.test(h.meet), 'Not now sets the introduction aside', h.meet);
 
-  // Navigation from Home: Explore's own search, and one way into Explore.
-  await backHome();
-  await evaluate(`(() => { const i = document.getElementById('home-search-input'); i.value = 'Python'; i.form.requestSubmit(); return true; })()`);
-  await sleep(900);
-  const searched = await evaluate(`({ dest: document.body.dataset.destination, value: document.getElementById('global-search')?.value, suggestions: [...document.querySelectorAll('#search-suggestions .search-suggestion-item')].map(i => i.innerText.trim()).slice(0, 6) })`);
-  check(searched.dest === 'explore' && searched.value === 'Python' && searched.suggestions.length > 0, 'search hands the words to Explore’s search, with suggestions', JSON.stringify(searched));
+  // One way into Explore, where search is.
   await backHome();
   await press(`${rootSel()} .home-explore [data-home-action="explore"]`, 'Browse Explore');
   check((await destination()) === 'explore', '“Browse Explore” opens Explore', await destination());
+  await evaluate(`(() => { const i = document.getElementById('global-search'); i.focus(); i.value = 'Python'; i.dispatchEvent(new Event('input', { bubbles: true })); return true; })()`);
+  await sleep(900);
+  const searched = await evaluate(`({ dest: document.body.dataset.destination, shown: !!document.getElementById('global-search')?.getClientRects().length, suggestions: [...document.querySelectorAll('#search-suggestions .search-suggestion-item')].map(i => i.innerText.trim()).slice(0, 6) })`);
+  check(searched.dest === 'explore' && searched.shown && searched.suggestions.length > 0, 'Explore’s search still works there, with suggestions', JSON.stringify(searched));
+  await evaluate(`(() => { const i = document.getElementById('global-search'); i.value = ''; i.dispatchEvent(new Event('input', { bubbles: true })); i.blur(); return true; })()`);
   await backHome();
   await evaluate(`(() => { window.__requests = 0; window.toggleConnectionsPanel = () => { window.__requests += 1; }; return true; })()`);
   await press(`${rootSel()} [data-home="attention"] [data-attention="openConnectionRequests"]`, 'See who');
@@ -513,14 +513,21 @@ try {
     await loadHome('established', VIEWPORTS[name]);
     h = await home();
     L = await layout();
-    check(h.sections[0] === 'attention' && h.sections.indexOf('picked') < h.sections.indexOf('mine') && h.sections.indexOf('happening') < h.sections.indexOf('mine'), `${name}: discovery before your community`, JSON.stringify(h.sections));
+    check(h.sections[0] === 'attention' && h.sections.indexOf('happening') < h.sections.indexOf('picked') && h.sections.indexOf('picked') < h.sections.indexOf('mine'), `${name}: happening first, then picked for you, then your community`, JSON.stringify(h.sections));
     if (view.width < 1024) check(h.headerLayout?.nameOneLine && !h.headerLayout.nameUnderButtons && !h.headerLayout.introUnderButtons, `${name}: the welcome fits, clear of the header buttons`, JSON.stringify(h.headerLayout));
     check(h.meetReasons.length === 2 && h.join.every(item => item.reasons.length) && h.pickActions.every(a => a === 'Take a look|Not now'), `${name}: every reason and action is still on each pick`, JSON.stringify({ reasons: h.meetReasons, join: h.join, actions: h.pickActions }));
     if (name === 'small-phone') await phoneShot('established-small-phone');
     check(L.overflowX <= 0, `${name}: no sideways scrolling`, JSON.stringify(L));
     if (view.width < 1024) check(L.bottomClearance >= 32, `${name}: the end of Home clears the navigation`, JSON.stringify(L));
     if (name === 'desktop') check(L.columns?.sideBeside && L.columns.mainWidth > L.columns.sideWidth, 'desktop: discovery in the wider column, your work beside it', JSON.stringify(L.columns));
-    if (name === 'desktop') check(!h.search && (await evaluate(`!!document.getElementById('global-search')?.getClientRects().length`)), 'desktop: one search box (the dashboard’s), not two', String(h.search));
+    if (name === 'desktop') {
+      check(!h.search && !(await evaluate(`!!document.getElementById('global-search')?.getClientRects().length`)), 'desktop: no search bar on Home', String(h.search));
+      await evaluate(`window.AppNav.go('explore'); true`);
+      await sleep(600);
+      check(await evaluate(`!!document.getElementById('global-search')?.getClientRects().length`), 'desktop: Explore still has its search', await destination());
+      await evaluate(`window.AppNav.go('home'); true`);
+      await sleep(600);
+    }
     await shot(`established-${name}`);
   }
 } catch (error) {

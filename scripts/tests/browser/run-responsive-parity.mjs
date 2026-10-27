@@ -468,6 +468,7 @@ async function expectPage(P, page, label = `${P}: ${page} shows only its own con
   if (page === 'home') {
     want(desktop ? c.focus : c.homeScreen, 'Home content');
     want(!c.explore, 'no Explore list');
+    want(!c.search, 'no search bar (search is in Explore)');
     want(!c.map, 'no map');
     if (desktop) {
       // Home is headed by a welcome, never "You" (the profile destination).
@@ -2180,7 +2181,7 @@ async function homeChecks(P) {
   const root = current.width < 1024 ? '#mobile-you-content' : '#cd-home';
   // Discovery first: Picked for you (a person, then ways to join in) and
   // Happening in the community, then the curiosity invitation, then work.
-  const order = ['attention', 'picked', 'meet', 'join', 'people-route', 'happening', 'profile', 'quiet', 'mine', 'goal'];
+  const order = ['attention', 'happening', 'picked', 'meet', 'join', 'people-route', 'profile', 'quiet', 'mine', 'goal'];
   const homeLayout = () => callInPage(function (sel) {
     const host = document.querySelector(sel);
     const shown = (el) => !!el && !el.hidden && el.getClientRects().length > 0;
@@ -2224,7 +2225,7 @@ async function homeChecks(P) {
       `${P}: ways to join in never offer the member's own organization's opportunity`, join);
     const expected = order.filter(name => h.sections.includes(name));
     check(JSON.stringify(h.sections) === JSON.stringify(expected) && ['picked', 'meet', 'join', 'mine', 'goal'].every(name => h.sections.includes(name)),
-      `${P}: sections in order: people and possibilities, then your community and goal help`, JSON.stringify(h.sections));
+      `${P}: sections in order: what is happening, people and possibilities, then your community and goal help`, JSON.stringify(h.sections));
     check(h.goalFields === 1, `${P}: one goal field on the page`, String(h.goalFields));
     if (current.width >= 1024) {
       check(h.columns && !h.rail, `${P}: desktop Home uses the width in two columns, without the Next steps rail`, JSON.stringify({ columns: h.columns, rail: h.rail }));
