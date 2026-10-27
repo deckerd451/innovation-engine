@@ -3248,7 +3248,7 @@ window.joinProjectFromPanel = async function(projectId) {
   }
 };
 
-window.viewProjectDetails = async function(projectId, initialTab = null) {
+window.viewProjectDetails = async function(projectId, initialTab = null, focusTaskId = null) {
   console.log(`[Project Detail] opened: ${projectId}`);
 
   if (!supabase) supabase = window.supabase;
@@ -3300,42 +3300,32 @@ window.viewProjectDetails = async function(projectId, initialTab = null) {
   const canViewTasks = rel.isCreator || rel.state === 'member';
 
   // --- Build action buttons based on relationship state ---
+  // These are the quieter, account-level actions at the end of Overview; the
+  // one thing to do next (open a task, or ask to join) is at the top.
+  const secondaryBtn = 'flex:1; min-height:44px; padding:0.6rem 0.75rem; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.18); border-radius:8px; color:#dbe2ee; font-weight:600; cursor:pointer; font-size:0.88rem;';
   let actionsHTML = '';
   if (rel.isCreator) {
     actionsHTML = `
       <button onclick="this.closest('#project-detail-overlay').remove(); editProjectFromPanel('${project.id}')"
-        style="flex:1; padding:0.75rem; background:linear-gradient(135deg,#ff6b6b,#ff8c8c); border:none; border-radius:8px; color:white; font-weight:bold; cursor:pointer; font-size:0.95rem;">
+        style="${secondaryBtn}">
         <i class="fas fa-edit"></i> Edit Project
       </button>
       ${rel.isCreator ? `
         <button onclick="this.closest('#project-detail-overlay').remove(); manageProjectRequests('${project.id}')"
-          style="flex:1; padding:0.75rem; background:linear-gradient(135deg,#ffa500,#ff8c00); border:none; border-radius:8px; color:white; font-weight:bold; cursor:pointer; font-size:0.95rem;">
+          style="${secondaryBtn}${pendingRequests.length ? ' border-color:rgba(255,165,0,0.5); color:#ffc266;' : ''}">
           <i class="fas fa-user-clock"></i> Manage Requests (${pendingRequests.length})
         </button>
       ` : ''}
       <button onclick="this.closest('#project-detail-overlay').remove(); deleteProjectSoft('${project.id}', '${esc(project.title).replace(/'/g, "\\'")}')"
-        style="padding:0.75rem 1.25rem; background:rgba(255,60,60,0.1); border:1px solid rgba(255,60,60,0.35); border-radius:8px; color:#ff4444; font-weight:bold; cursor:pointer; font-size:0.95rem;">
+        aria-label="Delete project"
+        style="min-height:44px; padding:0.6rem 1rem; background:transparent; border:1px solid rgba(255,60,60,0.35); border-radius:8px; color:#ff6b6b; font-weight:600; cursor:pointer; font-size:0.88rem;">
         <i class="fas fa-trash-alt"></i>
       </button>`;
   } else if (rel.state === 'member') {
     actionsHTML = `
-      <div style="flex:1; text-align:center; color:#00ff88; font-weight:bold; padding:0.75rem; background:rgba(0,255,136,0.1); border-radius:8px; border:1px solid rgba(0,255,136,0.3);">
-        <i class="fas fa-check-circle"></i> You're a member
-      </div>
       <button onclick="leaveProjectFromPanel('${project.id}')"
-        style="padding:0.75rem 1.25rem; background:transparent; border:1px solid rgba(255,107,107,0.4); border-radius:8px; color:#ff6b6b; font-weight:bold; cursor:pointer;">
+        style="min-height:44px; padding:0.6rem 1rem; background:transparent; border:1px solid rgba(255,107,107,0.35); border-radius:8px; color:#ff8a8a; font-weight:600; cursor:pointer; font-size:0.88rem;">
         <i class="fas fa-sign-out-alt"></i> Leave Project
-      </button>`;
-  } else if (rel.hasPendingRequest) {
-    actionsHTML = `
-      <div style="flex:1; text-align:center; color:#ffa500; font-weight:bold; padding:0.75rem; background:rgba(255,165,0,0.1); border-radius:8px; border:1px solid rgba(255,165,0,0.3);">
-        <i class="fas fa-clock"></i> Join request pending
-      </div>`;
-  } else {
-    actionsHTML = `
-      <button onclick="this.closest('#project-detail-overlay').remove(); joinProjectFromPanel('${project.id}')"
-        style="flex:1; padding:0.75rem; background:linear-gradient(135deg,#ff6b6b,#ff8c8c); border:none; border-radius:8px; color:white; font-weight:bold; cursor:pointer; font-size:0.95rem;">
-        <i class="fas fa-plus-circle"></i> Request to Join
       </button>`;
   }
 
@@ -3383,7 +3373,39 @@ window.viewProjectDetails = async function(projectId, initialTab = null) {
 
   // --- Creator info ---
   const creatorName = project.creator?.name || 'Unknown';
-  const creatorInitial = creatorName[0] || '?';
+
+  // --- Who is involved: the creator and accepted members (the same people
+  // the People tab lists), each once.
+  const involved = [];
+  const involvedIds = new Set();
+  const addInvolved = (person) => {
+    if (!person?.id || involvedIds.has(person.id)) return;
+    involvedIds.add(person.id);
+    involved.push(person);
+  };
+  addInvolved(project.creator);
+  activeMembers.forEach(m => addInvolved(m.user));
+  const initialsOf = (name) => String(name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || '?';
+  const involvedNames = involved.map(person => person.name || 'Member');
+  const involvedSummary = involvedNames.length <= 3
+    ? involvedNames.join(', ').replace(/, ([^,]*)$/, ' and $1')
+    : `${involvedNames.slice(0, 2).join(', ')} and ${involvedNames.length - 2} others`;
+  const involvedHTML = involved.length ? `
+    <section class="pd-involved" aria-labelledby="pd-involved-title">
+      <h4 id="pd-involved-title" class="pd-label">Who’s involved</h4>
+      <button type="button" class="pd-involved-row" data-tab-focus="people" aria-label="${esc(involvedSummary)}: see everyone">
+        <span class="pd-avatars" aria-hidden="true">${involved.slice(0, 4).map(person => `<span class="pd-avatar">${esc(initialsOf(person.name))}</span>`).join('')}</span>
+        <span class="pd-involved-text">${esc(involvedSummary)}</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+    </section>` : '';
+  const peopleCount = involved.length || activeMembers.length;
+
+  // --- What the project needs, and which of it this member lists ---
+  const mySkills = new Set((Array.isArray(currentUserProfile?.skills) ? currentUserProfile.skills : String(currentUserProfile?.skills || '').split(','))
+    .map(skill => String(skill || '').trim().toLowerCase()).filter(Boolean));
+  const needs = (project.required_skills || []).map(skill => String(skill || '').trim()).filter(Boolean);
+  const needsYouList = needs.filter(skill => mySkills.has(skill.toLowerCase()));
 
   // --- Build overlay ---
   const overlay = document.createElement('div');
@@ -3403,6 +3425,40 @@ window.viewProjectDetails = async function(projectId, initialTab = null) {
     style.textContent = `
       @keyframes pdFadeIn { from { opacity:0; } to { opacity:1; } }
       @keyframes pdSlideUp { from { opacity:0; transform:translateY(24px); } to { opacity:1; transform:translateY(0); } }
+      /* Overview: what it is, who's involved, and one next step. */
+      #project-detail-overlay .pd-head { padding-right:3rem; margin-bottom:1rem; }
+      #project-detail-overlay .pd-title { color:#fff; font-size:1.35rem; line-height:1.25; margin:0 0 .35rem; overflow-wrap:anywhere; }
+      #project-detail-overlay .pd-byline { display:flex; flex-wrap:wrap; align-items:center; gap:.35rem .75rem; margin:0; color:#a3adc0; font-size:.85rem; }
+      #project-detail-overlay .pd-status { padding:.15rem .55rem; border-radius:10px; background:rgba(255,107,107,.16); color:#ff8a8a; font-size:.78rem; font-weight:700; text-transform:capitalize; }
+      #project-detail-overlay .pd-label { color:rgba(255,255,255,.55); font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; margin:0 0 .45rem; }
+      #project-detail-overlay .pd-about, #project-detail-overlay .pd-involved, #project-detail-overlay .pd-skills { margin-bottom:1.25rem; }
+      #project-detail-overlay .pd-description { color:#dde3ee; line-height:1.6; font-size:.95rem; margin:0; white-space:pre-line; overflow-wrap:anywhere; }
+      #project-detail-overlay .pd-next { display:grid; gap:.3rem; justify-items:start; margin:0 0 1.25rem; padding:.9rem 1rem; border:1px solid rgba(0,224,255,.3); border-radius:12px; background:rgba(0,224,255,.07); }
+      #project-detail-overlay .pd-next[hidden] { display:none; }
+      #project-detail-overlay .pd-next-kicker { color:#7fe9ff; font-size:.72rem; font-weight:800; letter-spacing:.07em; text-transform:uppercase; }
+      #project-detail-overlay .pd-next-title { color:#fff; font-size:1.02rem; line-height:1.35; overflow-wrap:anywhere; }
+      #project-detail-overlay .pd-next-meta { color:#b4bdcc; font-size:.84rem; }
+      #project-detail-overlay .pd-next-match { color:#7cf0c4; }
+      #project-detail-overlay .pd-next-btn { margin-top:.45rem; min-height:44px; padding:.55rem 1.1rem; border:0; border-radius:10px; background:#00e0ff; color:#061018; font:inherit; font-weight:800; cursor:pointer; }
+      #project-detail-overlay .pd-next-btn-quiet { background:rgba(0,224,255,.12); color:#9eefff; border:1px solid rgba(0,224,255,.4); }
+      #project-detail-overlay .pd-next-btn:focus-visible, #project-detail-overlay .pd-involved-row:focus-visible, #project-detail-overlay #pd-close-btn:focus-visible { outline:2px solid #00e0ff; outline-offset:2px; }
+      #project-detail-overlay .pd-next-progress { margin:.45rem 0 0; color:#a3adc0; font-size:.82rem; line-height:1.45; }
+      #project-detail-overlay .pd-involved-row { width:100%; min-height:52px; display:flex; align-items:center; gap:.75rem; padding:.45rem .6rem; border:1px solid rgba(255,255,255,.1); border-radius:12px; background:rgba(255,255,255,.03); color:#dde3ee; font:inherit; text-align:left; cursor:pointer; }
+      #project-detail-overlay .pd-involved-row svg { flex:none; width:18px; height:18px; fill:none; stroke:#a3adc0; stroke-width:2; stroke-linecap:round; }
+      #project-detail-overlay .pd-avatars { display:flex; flex:none; }
+      #project-detail-overlay .pd-avatar { display:grid; place-items:center; width:32px; height:32px; margin-left:-6px; border:2px solid #121630; border-radius:50%; background:rgba(0,224,255,.2); color:#bff6ff; font-size:.68rem; font-weight:800; }
+      #project-detail-overlay .pd-avatar:first-child { margin-left:0; }
+      #project-detail-overlay .pd-involved-text { flex:1; min-width:0; font-size:.9rem; overflow-wrap:anywhere; }
+      #project-detail-overlay .pd-activity-summary { margin-top:1.25rem; padding-top:.9rem; border-top:1px solid rgba(255,255,255,.08); }
+      #project-detail-overlay .pd-activity-summary-heading { display:flex; align-items:center; justify-content:space-between; gap:.75rem; }
+      #project-detail-overlay .pd-activity-summary h4 { margin:0; color:rgba(255,255,255,.6); font-size:.7rem; text-transform:uppercase; letter-spacing:.08em; }
+      #project-detail-overlay .pd-activity-history-btn { min-height:40px; color:#00e0ff; background:none; border:0; cursor:pointer; font-weight:700; }
+      #project-detail-overlay .pd-activity-summary-content { color:#aaa; font-size:.82rem; margin-top:.5rem; }
+      /* Folded sections (Done, Ways to make progress) show which way they open. */
+      #project-detail-overlay .pd-work-section > summary, #project-detail-overlay .pt-done > summary { list-style:none; }
+      #project-detail-overlay .pd-work-section > summary::-webkit-details-marker, #project-detail-overlay .pt-done > summary::-webkit-details-marker { display:none; }
+      #project-detail-overlay .pd-work-section > summary::after, #project-detail-overlay .pt-done > summary::after { content:''; width:8px; height:8px; margin-left:auto; border-right:2px solid #a3adc0; border-bottom:2px solid #a3adc0; transform:rotate(45deg) translateY(-2px); transition:transform .15s; }
+      #project-detail-overlay .pd-work-section[open] > summary::after, #project-detail-overlay .pt-done[open] > summary::after { transform:rotate(225deg) translateY(-2px); }
     `;
     document.head.appendChild(style);
   }
@@ -3416,38 +3472,22 @@ window.viewProjectDetails = async function(projectId, initialTab = null) {
       animation: pdSlideUp 0.25s ease-out;
     ">
       <!-- Close -->
-      <button id="pd-close-btn" style="
-        position:absolute; top:1rem; right:1rem; background:rgba(255,255,255,0.1);
-        border:1px solid rgba(255,255,255,0.2); border-radius:50%; width:36px; height:36px;
+      <button id="pd-close-btn" type="button" aria-label="Close project" style="
+        position:absolute; top:.75rem; right:.75rem; background:rgba(255,255,255,0.08);
+        border:1px solid rgba(255,255,255,0.2); border-radius:50%; width:44px; height:44px;
         display:flex; align-items:center; justify-content:center; cursor:pointer;
-        color:rgba(255,255,255,0.6); font-size:1rem; transition:all 0.15s; z-index:1;
-      "><i class="fas fa-times"></i></button>
+        color:rgba(255,255,255,0.75); transition:all 0.15s; z-index:1;
+      "><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" style="fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round;"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
 
-      <!-- Header -->
-      <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1.5rem; padding-right:2.5rem;">
-        <div style="width:56px; height:56px; border-radius:14px; background:linear-gradient(135deg,#ff6b6b,#ff8c8c); display:flex; align-items:center; justify-content:center; font-size:1.8rem; color:white; flex-shrink:0;">
-          <i class="fas fa-lightbulb"></i>
-        </div>
-        <div style="flex:1; min-width:0;">
-          <h2 style="color:#ff6b6b; font-size:1.4rem; margin:0 0 0.25rem 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(project.title)}</h2>
-          <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
-            <span style="background:rgba(255,107,107,0.2); color:#ff6b6b; padding:0.2rem 0.6rem; border-radius:10px; font-size:0.8rem; font-weight:600;">${esc(project.status || 'active')}</span>
-            <span style="color:#888; font-size:0.85rem;"><i class="fas fa-users"></i> ${activeMembers.length} member${activeMembers.length !== 1 ? 's' : ''}</span>
-            <span style="color:#888; font-size:0.85rem;"><i class="fas fa-eye"></i> ${project.view_count || 0} views</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Creator -->
-      <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1.5rem; padding:0.75rem; background:rgba(255,107,107,0.05); border:1px solid rgba(255,107,107,0.15); border-radius:10px;">
-        <div style="width:40px; height:40px; border-radius:50%; overflow:hidden; background:linear-gradient(135deg,#ff6b6b,#ff8c8c); display:flex; align-items:center; justify-content:center; font-weight:bold; color:white; font-size:1rem; flex-shrink:0;">
-          ${window.profilePhotoUrl?.(project?.creator) ? `<img src="${window.profilePhotoUrl?.(project?.creator)}" style="width:100%;height:100%;object-fit:cover;">` : creatorInitial}
-        </div>
-        <div>
-          <div style="color:white; font-weight:600; font-size:0.9rem;">${esc(creatorName)}</div>
-          <div style="color:#ff6b6b; font-size:0.75rem; font-weight:600;">Project Creator</div>
-        </div>
-      </div>
+      <!-- Header: what it is and who started it -->
+      <header class="pd-head">
+        <h2 class="pd-title">${esc(project.title)}</h2>
+        <p class="pd-byline">
+          <span class="pd-status">${esc(project.status || 'active')}</span>
+          ${project.creator?.name ? `<span>Started by ${esc(creatorName)}</span>` : ''}
+          <span>${peopleCount} ${peopleCount === 1 ? 'person' : 'people'}</span>
+        </p>
+      </header>
 
       <!-- Tabs -->
       <div id="pd-tabs" role="tablist" aria-label="Project sections" style="display:flex; gap:0.4rem; margin-bottom:1.25rem; border-bottom:1px solid rgba(255,255,255,0.08); flex-wrap:wrap;">
@@ -3461,22 +3501,38 @@ window.viewProjectDetails = async function(projectId, initialTab = null) {
 
       <!-- Overview tab -->
       <div id="pd-tab-overview" role="tabpanel">
-        <!-- Description -->
-        <div style="margin-bottom:1.5rem;">
-          <h4 style="color:rgba(255,255,255,0.5); font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:0.5rem;">Description</h4>
-          <p style="color:#ddd; line-height:1.65; font-size:0.95rem; margin:0;">${esc(project.description || 'No description provided.')}</p>
+        <!-- One thing to do next: for members, their next task (filled in
+             once tasks load); for anyone else, how to join. -->
+        <section class="pd-next" id="pd-next" aria-live="polite" ${canViewTasks ? 'hidden' : ''}>
+          ${canViewTasks ? '' : rel.hasPendingRequest ? `
+            <span class="pd-next-kicker">Your request to join</span>
+            <strong class="pd-next-title">Waiting for ${esc(project.creator?.name || 'the team')} to respond</strong>
+            <span class="pd-next-meta">You’ll see the project’s tasks once you’re in.</span>` : `
+            <span class="pd-next-kicker">Want to work on this?</span>
+            <strong class="pd-next-title">${needs.length ? `It needs ${esc(needs.slice(0, 3).join(', '))}` : 'Join the people working on it'}</strong>
+            ${needsYouList.length ? `<span class="pd-next-meta pd-next-match">You list ${esc(needsYouList.join(', '))}</span>` : ''}
+            <button type="button" class="pd-next-btn" onclick="this.closest('#project-detail-overlay').remove(); joinProjectFromPanel('${project.id}')">Request to Join</button>`}
+        </section>
+
+        <!-- About -->
+        <div class="pd-about">
+          <h4 class="pd-label">About</h4>
+          <p class="pd-description">${esc(project.description || 'No description provided.')}</p>
         </div>
 
+        ${involvedHTML}
+
         <!-- Skills -->
-        <div style="margin-bottom:1.5rem;">
-          <h4 style="color:rgba(255,255,255,0.5); font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:0.5rem;">Required Skills</h4>
+        ${needs.length ? `
+        <div class="pd-skills">
+          <h4 class="pd-label">Skills it needs</h4>
           <div style="display:flex; flex-wrap:wrap; gap:0.5rem;">${skillsHTML}</div>
-        </div>
+        </div>` : ''}
 
         <!-- Tags -->
         ${tagsHTML ? `
-          <div style="margin-bottom:1.5rem;">
-            <h4 style="color:rgba(255,255,255,0.5); font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:0.5rem;">Tags</h4>
+          <div class="pd-skills">
+            <h4 class="pd-label">Tags</h4>
             <div style="display:flex; flex-wrap:wrap; gap:0.5rem;">${tagsHTML}</div>
           </div>
         ` : ''}
@@ -3488,15 +3544,14 @@ window.viewProjectDetails = async function(projectId, initialTab = null) {
 
       <!-- Mobile Work tab. The legacy panels below remain for desktop and callers. -->
       <div id="pd-tab-work" role="tabpanel" style="display:none;">
-        <div class="pd-work-next" aria-live="polite"><strong>Continue your work</strong><span>${canViewTasks ? 'Start with your project tasks.' : 'Choose a community method for this project.'}</span></div>
+        ${canViewTasks ? `<details class="pd-work-section" data-work-section="tasks" open>
+          <summary>Project tasks</summary>
+          <div id="pd-work-tasks"></div>
+        </details>` : ''}
         <details class="pd-work-section" data-work-section="capabilities">
           <summary>Ways to make progress</summary>
           <div id="pd-work-capabilities"></div>
         </details>
-        ${canViewTasks ? `<details class="pd-work-section" data-work-section="tasks">
-          <summary>Project tasks</summary>
-          <div id="pd-work-tasks"></div>
-        </details>` : ''}
       </div>
 
       ${canViewTasks ? '<!-- Tasks tab --><div id="pd-tab-tasks" role="tabpanel" style="display:none;"></div>' : ''}
@@ -3523,9 +3578,9 @@ window.viewProjectDetails = async function(projectId, initialTab = null) {
       </div>
 
       <!-- Actions -->
-      <div style="display:flex; gap:0.75rem; flex-wrap:wrap; padding-top:1rem; border-top:1px solid rgba(255,255,255,0.08);">
+      ${actionsHTML ? `<div class="pd-actions" style="display:flex; gap:0.6rem; flex-wrap:wrap; padding-top:1rem; margin-top:1rem; border-top:1px solid rgba(255,255,255,0.08);">
         ${actionsHTML}
-      </div>
+      </div>` : ''}
     </div>
   `;
 
@@ -3597,15 +3652,73 @@ window.viewProjectDetails = async function(projectId, initialTab = null) {
     if (target) window.setTimeout(() => target.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 0);
   }
 
-  function updateWorkNext() {
-    const next = overlay.querySelector('.pd-work-next');
-    const firstTask = overlay.querySelector('#pd-work-tasks .pt-task-title');
-    if (!next || !firstTask) return;
-    const title = firstTask.textContent.trim();
-    if (title) {
-      next.innerHTML = '<strong>Continue your work</strong><span></span>';
-      next.querySelector('span').textContent = `Next: ${title}`;
+  // --- The member's next step (Overview) -----------------------------
+  // The same rule as Home's "Next:" (home-view.js chooseNextTask): in
+  // progress first, then priority and due date, then the longest waiting.
+  // Progress is only what the tasks say: how many are done and the last one
+  // finished. Nothing is shown when nothing is open and nothing was done.
+  let tasksPanel = null;
+  const workTab = () => (isMobileProject() ? 'work' : 'tasks');
+  function pickNextTask(open) {
+    if (typeof window.HomeView?.chooseNextTask === 'function') return window.HomeView.chooseNextTask(open);
+    return open.find(t => t.status === 'in_progress') || open[0] || null;
+  }
+  function renderNext(tasks) {
+    const card = overlay.querySelector('#pd-next');
+    if (!card || !canViewTasks) return;
+    const all = tasks || [];
+    const open = all.filter(t => t.status !== 'done');
+    const done = all.filter(t => t.status === 'done');
+    const next = pickNextTask(open);
+    const lastDone = done.filter(t => t.completed_at).sort((a, b) => new Date(b.completed_at) - new Date(a.completed_at))[0];
+    const ago = (iso) => {
+      const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+      return days <= 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`;
+    };
+    const shortDate = (d) => new Date(`${d}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    const progress = all.length ? `${done.length} of ${all.length} task${all.length === 1 ? '' : 's'} done${lastDone ? ` · Last finished: “${esc(lastDone.title)}”, ${ago(lastDone.completed_at)}` : ''}` : '';
+    if (next) {
+      const mine = currentUserProfile?.id && next.owner_id === currentUserProfile.id;
+      const meta = [
+        next.status === 'in_progress' ? 'In progress' : 'Not started',
+        next.due_date ? `Due ${shortDate(next.due_date)}` : '',
+        mine ? 'Assigned to you' : next.owner?.name ? `Assigned to ${esc(next.owner.name)}` : '',
+      ].filter(Boolean).join(' · ');
+      card.innerHTML = `
+        <span class="pd-next-kicker">Next step</span>
+        <strong class="pd-next-title">${esc(next.title)}</strong>
+        <span class="pd-next-meta">${meta}</span>
+        <button type="button" class="pd-next-btn" data-next-task="${esc(next.id)}">Open task</button>
+        ${progress ? `<p class="pd-next-progress">${progress}</p>` : ''}`;
+    } else if (all.length) {
+      card.innerHTML = `
+        <span class="pd-next-kicker">Nothing open right now</span>
+        <p class="pd-next-progress">${progress}</p>
+        <button type="button" class="pd-next-btn pd-next-btn-quiet" data-next-add>Add a task</button>`;
+    } else {
+      card.innerHTML = `
+        <span class="pd-next-kicker">No tasks yet</span>
+        <span class="pd-next-meta">Add the first piece of work so others can pitch in.</span>
+        <button type="button" class="pd-next-btn pd-next-btn-quiet" data-next-add>Add a task</button>`;
     }
+    card.hidden = false;
+    // These go to a task, so on phones they open the Project tasks section
+    // even if the member folded it; ordinary Work navigation leaves it as it
+    // was and does not scroll (the task or the form brings itself into view).
+    const showTasks = () => {
+      activateTab(workTab());
+      const section = overlay.querySelector('details[data-work-section="tasks"]');
+      if (section) section.open = true;
+    };
+    card.querySelector('[data-next-task]')?.addEventListener('click', (event) => {
+      const id = event.currentTarget.dataset.nextTask;
+      showTasks();
+      tasksPanel?.focusTask(id);
+    });
+    card.querySelector('[data-next-add]')?.addEventListener('click', () => {
+      showTasks();
+      tasksPanel?.openAddForm();
+    });
   }
 
   function activateTab(tabName) {
@@ -3635,11 +3748,16 @@ window.viewProjectDetails = async function(projectId, initialTab = null) {
       activeMembers.forEach(m => {
         if (m.user?.id && !seen.has(m.user.id)) { members.push(m.user); seen.add(m.user.id); }
       });
-      window.ProjectTasks.mountTasksPanel(workTarget('tasks'), project, {
+      // On phones a task opens in task assistance to work on it or report
+      // progress (mobile-task-assistance.js); desktop keeps the list.
+      const assistance = window.viewProjectTask && window.matchMedia?.('(max-width: 1023px), (pointer: coarse)')?.matches;
+      tasksPanel = window.ProjectTasks.mountTasksPanel(workTarget('tasks'), project, {
         currentUserProfile,
         canEdit: true,
         canDelete: rel.isCreator,
         members,
+        onTasksChange: renderNext,
+        onWorkOn: assistance ? (task) => { closeOverlay(); window.viewProjectTask(project.id, task.id); } : null,
         onCountChange: (count) => {
           const badge = overlay.querySelector('[data-tab="tasks"] .pt-count-badge');
           const tasksBtn = overlay.querySelector('[data-tab="tasks"]');
@@ -3654,7 +3772,6 @@ window.viewProjectDetails = async function(projectId, initialTab = null) {
           }
         },
       });
-      window.setTimeout(updateWorkNext, 0);
     }
 
     if ((tabName === 'capabilities' || tabName === 'work') && window.CapabilityMemory && workTarget('capabilities') && !workTarget('capabilities').dataset.mounted) {
@@ -3673,7 +3790,7 @@ window.viewProjectDetails = async function(projectId, initialTab = null) {
       loadProjectActivity(project.id, tabPanels.activity);
       loadProjectActivity(project.id, overlay.querySelector('#pd-activity-summary-content'), activityHistoryRequested ? 20 : 3);
     }
-    if (tabName === 'work') openWorkSection(pendingWorkFocus || 'tasks');
+    if (tabName === 'work' && pendingWorkFocus) openWorkSection(pendingWorkFocus);
     if (pendingWorkFocus === 'activity') {
       pendingWorkFocus = null;
       overlay.querySelector('[data-tab-focus="activity"]')?.focus();
@@ -3693,6 +3810,8 @@ window.viewProjectDetails = async function(projectId, initialTab = null) {
     window.setTimeout(() => summary?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 0);
   });
 
+  overlay.querySelector('[data-tab-focus="people"]')?.addEventListener('click', () => activateTab('people'));
+
   overlay.querySelectorAll('.pd-remove-member-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
       await window.removeProjectMember(project.id, btn.dataset.memberId, btn.dataset.memberName);
@@ -3700,11 +3819,11 @@ window.viewProjectDetails = async function(projectId, initialTab = null) {
   });
 
   // Close handlers
-  const closeOverlay = () => {
+  function closeOverlay() {
     stopOverlayViewportSync();
     overlay.remove();
     console.log('[Project Detail] closed');
-  };
+  }
   overlay.querySelector('#pd-close-btn').addEventListener('click', closeOverlay);
   overlay.addEventListener('click', (e) => { if (e.target === overlay) closeOverlay(); });
   document.addEventListener('keydown', function _escHandler(e) {
@@ -3713,7 +3832,13 @@ window.viewProjectDetails = async function(projectId, initialTab = null) {
       document.removeEventListener('keydown', _escHandler);
     }
   });
-  activateTab(initialTab || 'overview');
+  activateTab(focusTaskId ? workTab() : (initialTab || 'overview'));
+  // Members see their next step on Overview straight away; the task list
+  // keeps it current once it is open.
+  if (canViewTasks && window.ProjectTasks) {
+    if (focusTaskId) tasksPanel?.focusTask(focusTaskId);
+    if (!tasksMounted) window.ProjectTasks.fetchTasks(project.id).then(tasks => { if (!tasksMounted) renderNext(tasks); });
+  }
 };
 
 window.removeProjectMember = async function(projectId, memberId, memberName = 'this member') {

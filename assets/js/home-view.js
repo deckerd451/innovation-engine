@@ -532,7 +532,9 @@
     document.getElementById('mgd-goal-input')?.focus();
   }
 
-  window.HomeView = { show, clear, focusGoal };
+  // chooseNextTask: the project screen's next step uses the same rule as
+  // Home's "Next:", so the two never disagree.
+  window.HomeView = { show, clear, focusGoal, chooseNextTask };
   window.HomeViewTesting = { taskScore, chooseNextTask, loadWork, wantsCuriosityPrompt };
 
   window.addEventListener('daily-brief-updated', () => { if (host) calmly(paintSuggestions); });
