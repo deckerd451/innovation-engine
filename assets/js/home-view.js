@@ -488,10 +488,17 @@
       <p class="home-muted">Tell us what you’re thinking about. We’ll help you find people and projects that might fit.</p>
       <form class="home-idea-form" aria-labelledby="home-idea-title">
         <label class="home-sr" for="home-idea-input">Your idea</label>
-        <input id="home-idea-input" name="idea" required maxlength="280" autocomplete="off" enterkeyhint="search" placeholder="e.g. A flood map for our neighborhood">
+        <input id="home-idea-input" name="idea" required maxlength="280" autocomplete="off" enterkeyhint="search" placeholder="What are you thinking about?">
         <button type="submit">Find people &amp; projects</button>
       </form>
+      <p class="home-idea-example">Try: <button type="button" class="home-link" data-idea-example="I'm looking for help with community building">“I’m looking for help with community building”</button></p>
       <div class="home-idea-results" aria-live="polite"></div>`;
+    // The example fills the field to edit or send; it never searches by itself.
+    el.querySelector('[data-idea-example]').addEventListener('click', (event) => {
+      const input = el.querySelector('#home-idea-input');
+      input.value = event.currentTarget.dataset.ideaExample;
+      input.focus();
+    });
     el.querySelector('form').addEventListener('submit', async (event) => {
       event.preventDefault();
       const input = event.currentTarget.querySelector('input');
