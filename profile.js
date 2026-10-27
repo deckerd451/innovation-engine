@@ -247,6 +247,17 @@
       .ch-profile-card-label{color:#00e0ff;font-weight:800;font-size:.85rem;text-transform:uppercase;margin-bottom:.35rem;letter-spacing:.08em;}
       .ch-profile-card-value{color:#ddd;word-break:break-word;}
 
+      /* Your Network: Network's place in You. */
+      .ch-your-network{display:flex;flex-direction:column;gap:.5rem;margin-bottom:1rem;}
+      .ch-your-network-open{display:flex;align-items:center;gap:.8rem;width:100%;min-height:60px;padding:.8rem .9rem;border-radius:12px;border:1px solid rgba(0,224,255,.45);background:linear-gradient(145deg,rgba(0,224,255,.14),rgba(0,224,255,.04));color:#fff;font:inherit;text-align:left;cursor:pointer;}
+      .ch-your-network-open:hover,.ch-your-network-open:focus-visible{border-color:#00e0ff;outline:none;}
+      .ch-your-network-icon{color:#00e0ff;font-size:1.2rem;flex:0 0 auto;}
+      .ch-your-network-text{display:flex;flex-direction:column;gap:.15rem;flex:1;min-width:0;}
+      .ch-your-network-text strong{font-size:1rem;}
+      .ch-your-network-text span{color:#aaa;font-size:.8rem;}
+      .ch-your-network-map{align-self:flex-start;display:inline-flex;align-items:center;gap:.4rem;min-height:44px;padding:.45rem .8rem;border-radius:999px;border:1px solid rgba(0,224,255,.32);background:rgba(0,224,255,.08);color:#8beeff;font:inherit;font-size:.82rem;font-weight:700;cursor:pointer;}
+      .ch-your-network-map:hover,.ch-your-network-map:focus-visible{border-color:#00e0ff;color:#fff;outline:none;}
+
       .ch-network-experiences-card{margin-top:.6rem;padding:.8rem .9rem;border-radius:12px;background:rgba(0,224,255,.05);border:1px solid rgba(0,224,255,.2);}
       .ch-network-experiences-label{color:#00e0ff;font-weight:800;font-size:.85rem;text-transform:uppercase;letter-spacing:.08em;}
       .ch-network-experiences-blurb{color:#aaa;font-size:.8rem;line-height:1.45;margin-top:.3rem;}
@@ -455,6 +466,20 @@
             </div>
           </div>
 
+          <div class="ch-your-network" role="group" aria-labelledby="ch-your-network-title">
+            <button type="button" id="btn-open-your-network" class="ch-your-network-open">
+              <i class="fas fa-users ch-your-network-icon" aria-hidden="true"></i>
+              <span class="ch-your-network-text">
+                <strong id="ch-your-network-title">Your Network</strong>
+                <span>Your connections and pending requests</span>
+              </span>
+              <i class="fas fa-chevron-right" aria-hidden="true"></i>
+            </button>
+            <button type="button" id="btn-view-network-map" class="ch-your-network-map">
+              <i class="fas fa-project-diagram" aria-hidden="true"></i> View Network Map
+            </button>
+          </div>
+
           ${bio ? `<div class="ch-profile-bio">${escapeHtml(bio)}</div>` : ""}
 
           <div class="ch-profile-cards">
@@ -501,8 +526,9 @@
     `;
   }
 
-  // The profile view: Edit Profile, Settings and Log out (account controls
-  // live here, in You).
+  // The profile view: Your Network (Network has no tab of its own; app-nav.js
+  // opens it), then Edit Profile, Settings and Log out (account controls live
+  // here, in You).
   function showProfileView() {
     const content = profileModalContent();
     if (!content) return;
@@ -510,6 +536,8 @@
     content.innerHTML = renderProfileView(state.profile, state.user);
 
     $("btn-open-profile-editor")?.addEventListener("click", () => window.openProfileEditor?.(), { once: true });
+    $("btn-open-your-network")?.addEventListener("click", () => window.AppNav?.openNetwork?.());
+    $("btn-view-network-map")?.addEventListener("click", () => window.AppNav?.openNetwork?.({ map: true }));
     $("btn-profile-settings")?.addEventListener("click", () => window.SettingsModal?.open?.());
     $("btn-profile-logout")?.addEventListener("click", () => {
       if (window.doLogout) window.doLogout();

@@ -1,4 +1,9 @@
-// Main navigation: Home · Explore · Network · Inbox · You.
+// Main navigation: Home · Explore · Inbox · You.
+//
+// Network has no tab of its own: it lives in You. "Your Network" and "View
+// Network Map" there (profile.js), Home's connections row and every other
+// route into Network (AppNav.go('network'), AppNav.openNetwork) still open
+// the same page, with You marked current and "‹ You" above its list.
 //
 // One component at every width. #app-nav is a side bar on desktop and a
 // bottom bar on phones and tablets; only CSS differs. This file is its only
@@ -42,7 +47,9 @@
   const nav = () => document.getElementById('app-nav');
   const buttons = () => [...document.querySelectorAll('#app-nav [data-destination]')];
 
+  // Network is part of You, so You stays marked while it shows.
   function mark(page) {
+    if (page === 'network') page = 'you';
     buttons().forEach((button) => {
       if (button.dataset.destination === page) button.setAttribute('aria-current', 'page');
       else button.removeAttribute('aria-current');
@@ -140,7 +147,7 @@
       // list's heading names the page (MobileNav does this on phones).
       if (page === 'network') window.CommandDashboard?.selectResourceTab?.('people');
       const heading = document.querySelector('#cd-explore-toggle span');
-      if (heading) heading.textContent = page === 'network' ? 'Network' : 'Explore';
+      if (heading) heading.textContent = page === 'network' ? 'Your Network' : 'Explore';
       const scroller = document.querySelector('#command-dashboard .cd-scroll-area');
       if (page === 'explore') {
         document.getElementById('centered-search-container')?.scrollIntoView({ block: 'start' });
@@ -177,6 +184,16 @@
     if (SCREENS[previous]) rescueFocus(previous);
     try { sessionStorage.setItem(STORAGE_KEY, destination); } catch (_) {}
     if (!returning) showPage(destination);
+  }
+
+  // Your Network (from You, Home and elsewhere): its people and requests, or
+  // with map, the network map. Desktop shows the map beside the list; phones
+  // and tablets show one or the other.
+  function openNetwork({ map = false } = {}) {
+    go('network');
+    if (isDesktop() || current !== 'network') return;
+    if (map) window.MobileNav?.showMap?.();
+    else if (document.body.classList.contains('mobile-surface-map')) window.MobileNav?.show?.('network');
   }
 
   // Closing Inbox or You (their close button on desktop) returns to the page
@@ -223,6 +240,8 @@
       }
       go(button.dataset.destination);
     });
+    // "‹ You" above Your Network's list goes back to You.
+    document.getElementById('cd-network-back')?.addEventListener('click', () => go('you'));
     // Arrow keys move between destinations (left/right on the bottom bar,
     // up/down on the side bar); Enter or Space activates as for any button.
     bar.addEventListener('keydown', (event) => {
@@ -299,6 +318,7 @@
 
   window.AppNav = {
     go,
+    openNetwork,
     enter,
     exit,
     current: () => current,

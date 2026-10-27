@@ -8,8 +8,9 @@
 // test-only fake client (scripts/tests/fixtures). At each width it drives the
 // app with real touch or mouse input at element coordinates, so a control
 // that is hidden, off-screen or covered by another surface fails the run:
-//   - the shared navigation (#app-nav): Home · Explore · Network · Inbox ·
-//     You, in that order, as a bottom bar or side bar; no other navigation
+//   - the shared navigation (#app-nav): Home · Explore · Inbox · You, in
+//     that order, as a bottom bar or side bar; no other navigation. Network
+//     has no tab: You → Your Network opens it, with You marked
 //   - each destination, its active state, and history left untouched
 //   - Inbox (Messages) and You (profile) from every page
 //   - Actions, Settings and Admin entry points
@@ -414,7 +415,16 @@ async function waitForPage(page, timeout = 5000) {
 }
 
 async function go(page) {
-  await press(NAV(page), page);
+  if (page === 'network') {
+    // Network has no tab: You → Your Network.
+    if ((await destination()) !== 'you') {
+      await press(NAV('you'), 'You');
+      await waitForPage('you');
+    }
+    await press('#btn-open-your-network', 'Your Network');
+  } else {
+    await press(NAV(page), page);
+  }
   await waitForPage(page);
   await sleep(300);
 }
@@ -483,7 +493,7 @@ async function expectPage(P, page, label = `${P}: ${page} shows only its own con
     want(!c.map, 'no map');
   } else {
     want(c.search && c.explore, 'people search and list');
-    want(c.heading === 'Network', `headed Network (${c.heading})`);
+    want(c.heading === 'Your Network', `headed Your Network (${c.heading})`);
     want(c.tabs.join() === 'people' && c.activeTab === 'people' && /People/.test(c.listLabel), `only people (${c.tabs}; ${c.activeTab}; ${c.listLabel})`);
     want(/Dana \(fixture\)/.test(c.listText) && /Jordan \(fixture\)[\s\S]*Connection request/.test(c.listText), 'connections and requests');
     want(!c.focus && !c.homeScreen, 'no Home content');
@@ -553,7 +563,7 @@ async function contentChecks(P) {
       await press('#cd-mobile-view-map', 'View map');
       await waitFor(`document.body.classList.contains('buildspace-view-network')`, 'map view', 4000);
       const c = await contentState();
-      check(c.map && !c.explore && (await current_()) === 'network', `${P}: Network → View map opens the map`, JSON.stringify({ map: c.map, list: c.explore }));
+      check(c.map && !c.explore && (await current_()) === 'you', `${P}: Network → View map opens the map`, JSON.stringify({ map: c.map, list: c.explore }));
       await shot(`${P}-network-map`);
       await go('network');
       await expectPage(P, 'network', `${P}: Network returns to the list from the map`);
@@ -579,7 +589,7 @@ async function networkSearchChecks(P) {
     await go('network');
     await choose('Sam', '/Sam \\(fixture\\)/');
     await waitFor(`${isOpen.panel} && /Sam/.test(document.getElementById('node-side-panel').innerText)`, 'person panel', 6000);
-    check((await destination()) === 'network' && (await current_()) === 'network', `${P}: Network search → a person opens in Network`);
+    check((await destination()) === 'network' && (await current_()) === 'you', `${P}: Network search → a person opens in Network`);
     await closePanel();
     await expectPage(P, 'network', `${P}: Network keeps its people after a person search`);
   });
@@ -1740,8 +1750,7 @@ async function destinationChecks(P) {
     await blurNow();
     const settled = await screenGeometry('inbox');
     check(!screenProblems(settled, 'inbox').length, `${P}: after typing, the bar is back and Inbox ends at it`, screenProblems(settled, 'inbox').join('; ') + ' ' + JSON.stringify(settled));
-    await press(NAV('network'), 'Network');
-    await waitForPage('network');
+    await go('network');
     await openInbox();
     check((await chatName()) === 'Contact 02' && (await composerText()) === 'Draft for later' && (!fullScreen || !(await msgPane()).list),
       `${P}: back in Inbox, the same conversation is open with the unsent text`, JSON.stringify({ chat: await chatName(), text: await composerText() }));
@@ -1877,7 +1886,9 @@ async function destinationChecks(P) {
     if (touch) check(!(await screenGeometry('you')).navShown, `${P}: while typing in Edit Profile the bar steps aside`);
     await evaluate(`(() => { const i = document.getElementById('edit-name'); i.value = 'Unsaved Name'; return true; })()`);
     await blurNow();
-    await press(NAV('network'), 'Network');
+    // You shows Edit Profile while it is open, so Network is reached another
+    // way (as from Home's connections row).
+    await evaluate(`window.AppNav.openNetwork(); true`);
     await waitForPage('network');
     await press(NAV('you'), 'You');
     await waitForPage('you');
@@ -2034,7 +2045,7 @@ async function navChecks(P) {
       navs: document.querySelectorAll('nav[aria-label="Main navigation"]').length,
     };
   })()`);
-  check(nav.labels === 'Home | Explore | Network | Inbox | You', `${P}: one navigation reads Home | Explore | Network | Inbox | You`, nav.labels);
+  check(nav.labels === 'Home | Explore | Inbox | You', `${P}: one navigation reads Home | Explore | Inbox | You`, nav.labels);
   check(current.mobile ? nav.bottom : nav.side, `${P}: the navigation is a ${current.mobile ? 'bottom bar' : 'side bar'}`, JSON.stringify(nav));
   check(nav.old === 0 && nav.navs === 1, `${P}: no other navigation or Messages button remains`, JSON.stringify(nav));
 }
@@ -2060,9 +2071,9 @@ async function pageChecks(P) {
   await step(`${P}: Network`, async () => {
     await go('network');
     const ok = current.mobile
-      ? await evaluate(`document.body.classList.contains('mobile-surface-community') && document.querySelector('#cd-explore-toggle span')?.textContent === 'Network'`)
+      ? await evaluate(`document.body.classList.contains('mobile-surface-community') && document.querySelector('#cd-explore-toggle span')?.textContent === 'Your Network'`)
       : await evaluate(`document.body.classList.contains('buildspace-view-network') && getComputedStyle(document.getElementById('synapse-main-view')).display !== 'none'`);
-    check(ok && (await current_()) === 'network', `${P}: Network shows your network and is marked current`);
+    check(ok && (await current_()) === 'you', `${P}: Network shows your network, with You marked current`);
     await shot(`${P}-network`);
   });
   check((await evaluate(`history.length + ' ' + location.href`)) === historyBefore, `${P}: navigating adds no history entries and keeps the URL (Back behaves as before)`);
@@ -2088,7 +2099,7 @@ const screenGeometry = (dest) => callInPage(function (id) {
     shown: cs.display !== 'none' && cs.visibility !== 'hidden' && r.height > 0,
     top: Math.round(r.top), bottom: Math.round(r.bottom), left: Math.round(r.left), right: Math.round(r.right),
     navTop: Math.round(n.top), navRight: Math.round(n.right), navShown: !nav.hidden && getComputedStyle(nav).display !== 'none' && n.height > 0,
-    navUsable: buttons.length === 5 && buttons.every(Boolean), x: (!!x && x.getClientRects().length > 0) || !!m.querySelector('.swipe-handle')?.getClientRects().length,
+    navUsable: buttons.length === 4 && buttons.every(Boolean), x: (!!x && x.getClientRects().length > 0) || !!m.querySelector('.swipe-handle')?.getClientRects().length,
     vw: innerWidth, vh: innerHeight, current: nav.querySelector('[aria-current="page"]')?.dataset.destination || '',
     inert: ['main-content', 'mobile-header-actions'].every(i => document.getElementById(i)?.inert === true),
     focusInside: m.contains(document.activeElement),
@@ -2416,7 +2427,7 @@ async function resizeChecks() {
     await send('Emulation.setDeviceMetricsOverride', { width: 1366, height: 900, deviceScaleFactor: 1, mobile: false });
     await send('Emulation.setTouchEmulationEnabled', { enabled: false });
     await waitFor(`document.body.classList.contains('buildspace-view-network')`, 'desktop Network', 5000);
-    check(phone && (await destination()) === 'network' && (await current_()) === 'network', 'resize: the current page survives crossing the desktop breakpoint');
+    check(phone && (await destination()) === 'network' && (await current_()) === 'you', 'resize: the current page survives crossing the desktop breakpoint');
   });
   await step('resize: Home moves with the layout and is on the page once', async () => {
     await go('home');

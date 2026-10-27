@@ -45,7 +45,7 @@
     const browse = document.querySelector('.cd-mobile-browse');
     if (browse) browse.open = true;
     if (toggle) {
-      toggle.querySelector('span').textContent = isNetwork ? 'Network' : 'Explore';
+      toggle.querySelector('span').textContent = isNetwork ? 'Your Network' : 'Explore';
       if (toggle.getAttribute('aria-expanded') === 'false') toggle.click();
     }
     // Start at the search box, which sits directly above the Explore list.
@@ -151,18 +151,24 @@
       button.id = 'cd-mobile-view-map';
       button.className = 'cd-mobile-view-map';
       button.innerHTML = '<i class="fas fa-project-diagram" aria-hidden="true"></i><span>View map</span>';
-      button.addEventListener('click', () => {
-        // The map is its own surface: the Network list surface hides it.
-        setMobileSurface('map');
-        window.CommandDashboard?.setWorkspaceView?.('network');
-        document.getElementById('command-dashboard')?.classList.remove('cd-mobile-panel');
-        document.body.classList.remove('mobile-network-list');
-        button.hidden = true;
-      });
+      button.addEventListener('click', showMap);
       row.appendChild(button);
     }
     button.hidden = !show;
   }
+
+  // The map is its own surface: the Network list surface hides it. "View
+  // map" in Your Network and "View Network Map" in You (app-nav.js) open it;
+  // "‹ Your Network" on the map goes back to the list.
+  function showMap() {
+    setMobileSurface('map');
+    window.CommandDashboard?.setWorkspaceView?.('network');
+    document.getElementById('command-dashboard')?.classList.remove('cd-mobile-panel');
+    document.body.classList.remove('mobile-network-list');
+    const button = document.getElementById('cd-mobile-view-map');
+    if (button) button.hidden = true;
+  }
+  document.getElementById('network-map-back')?.addEventListener('click', () => window.AppNav?.go?.('network'));
 
   function setMobileSurface(surface) {
     const surfaces = ['today', 'discover', 'community', 'you', 'map'];
@@ -172,6 +178,8 @@
     const explore = document.getElementById('cd-explore');
     const you = document.getElementById('mobile-you-screen');
     const graph = document.getElementById('synapse-main-view');
+    const mapBack = document.getElementById('network-map-back');
+    if (mapBack) mapBack.hidden = surface !== 'map';
     if (dashboard) dashboard.dataset.mobileSurface = surface;
     if (graph) graph.dataset.mobileSurface = surface;
     if (you) you.dataset.mobileSurface = surface;
@@ -197,10 +205,13 @@
     const you = document.getElementById('mobile-you-screen');
     if (you) { you.inert = true; you.setAttribute('aria-hidden', 'true'); }
     setMobileMapButton(false);
+    const mapBack = document.getElementById('network-map-back');
+    if (mapBack) mapBack.hidden = true;
   }
 
   window.MobileNav = {
     reset,
+    showMap,
     show(page) {
       if (['home', 'explore', 'network'].includes(page)) {
         // Leaving the Network map (opened with "View map") returns to the

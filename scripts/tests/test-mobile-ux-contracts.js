@@ -13,9 +13,11 @@ const scroll = read('assets/css/mobile-project-scroll.css');
 const journey = read('assets/js/capability-journey.js');
 
 assert.match(index, /<nav id="app-nav"/);
-for (const destination of ['home', 'explore', 'network', 'inbox', 'you']) {
+for (const destination of ['home', 'explore', 'inbox', 'you']) {
   assert.match(index, new RegExp(`data-destination="${destination}"`), `missing destination ${destination}`);
 }
+// Network has no tab: it lives in You.
+assert.doesNotMatch(index, /data-destination="network"/);
 assert.match(nav, /explore: \(\) => setDiscoverMode\('explore'\)/);
 assert.match(panel, /overlay\.id\s*=\s*['"]project-detail-overlay['"]/);
 for (const tab of ['overview', 'tasks', 'capabilities', 'people', 'activity']) {

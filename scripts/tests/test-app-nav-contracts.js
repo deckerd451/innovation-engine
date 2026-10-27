@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Shared navigation (Phase 2, PR 1): one markup structure and one router for
-// every width -- Home · Explore · Network · Inbox · You. Behaviour is driven
+// every width -- Home · Explore · Inbox · You, with Network in You. Behaviour is driven
 // in Chrome by scripts/tests/browser/run-responsive-parity.mjs; this keeps the
 // structure in place for CI.
 const assert = require('node:assert/strict');
@@ -14,12 +14,30 @@ const mobileNav = read('assets/js/mobile-nav.js');
 const base = read('assets/css/base.css');
 const commandCss = read('assets/css/command-dashboard.css');
 
-// One navigation, five destinations, in order, hidden until signed in.
+// One navigation, four tabs, in order, hidden until signed in. Network is
+// still a destination (every route into it works) but has no tab: it lives
+// in You, which stays marked while it shows.
 assert.equal((index.match(/<nav id="app-nav"/g) || []).length, 1);
 assert.equal((index.match(/aria-label="Main navigation"/g) || []).length, 1);
 assert.match(index, /<nav id="app-nav" class="app-nav" aria-label="Main navigation" hidden>/);
 const order = [...index.matchAll(/class="app-nav-btn" data-destination="([a-z]+)"/g)].map(m => m[1]);
-assert.deepEqual(order, ['home', 'explore', 'network', 'inbox', 'you']);
+assert.deepEqual(order, ['home', 'explore', 'inbox', 'you']);
+assert.match(appNav, /const PAGES = \['home', 'explore', 'network'\];/);
+assert.match(appNav, /function mark\(page\) \{\s*if \(page === 'network'\) page = 'you';/);
+// You → Your Network and View Network Map; Your Network → ‹ You; on phones,
+// the map → ‹ Your Network.
+const profileJs = read('profile.js');
+assert.match(profileJs, /id="btn-open-your-network"[\s\S]*?Your Network[\s\S]*?id="btn-view-network-map"[\s\S]*?View Network Map/);
+assert.match(profileJs, /\$\("btn-open-your-network"\)\?\.addEventListener\("click", \(\) => window\.AppNav\?\.openNetwork\?\.\(\)\);/);
+assert.match(profileJs, /\$\("btn-view-network-map"\)\?\.addEventListener\("click", \(\) => window\.AppNav\?\.openNetwork\?\.\(\{ map: true \}\)\);/);
+assert.match(appNav, /function openNetwork\(\{ map = false \} = \{\}\) \{\s*go\('network'\);/);
+assert.match(appNav, /if \(map\) window\.MobileNav\?\.showMap\?\.\(\);/);
+assert.match(index, /id="cd-network-back" aria-label="Back to You"/);
+assert.match(appNav, /getElementById\('cd-network-back'\)\?\.addEventListener\('click', \(\) => go\('you'\)\)/);
+assert.match(commandCss, /body\[data-destination="network"\] \.cd-network-back \{ display: inline-flex; \}/);
+assert.match(index, /id="network-map-back" hidden>/);
+assert.match(mobileNav, /if \(mapBack\) mapBack\.hidden = surface !== 'map';/);
+assert.match(mobileNav, /getElementById\('network-map-back'\)\?\.addEventListener\('click', \(\) => window\.AppNav\?\.go\?\.\('network'\)\)/);
 assert.match(index, /<script src="assets\/js\/app-nav\.js\?v=[a-z0-9-]+" defer><\/script>/);
 
 // The competing navigation is gone: no bottom tab bar, no Home | Network
@@ -62,7 +80,7 @@ const pane = read('assets/js/dashboardPane.js');
 const profile = read('profile.js');
 const messaging = read('assets/js/messaging.js');
 assert.match(appNav, /const SCREENS = \{ inbox: 'messages-modal', you: 'profile-modal' \};/);
-assert.match(appNav, /window\.AppNav = \{\s*go,\s*enter,\s*exit,/);
+assert.match(appNav, /window\.AppNav = \{\s*go,\s*openNetwork,\s*enter,\s*exit,/);
 assert.match(pane, /window\.openMessagesModal = async \(\) => \{\s*window\.AppNav\?\.enter\?\.\("inbox"\);/);
 assert.match(pane, /window\.hideMessagesModal = \(\) => \{\s*closeModal\("messages-modal"\);\s*document\.body\.classList\.remove\("messages-open"\);\s*\};/);
 assert.match(pane, /window\.closeMessagesModal = \(\) => \{\s*if \(window\.AppNav\?\.exit\) window\.AppNav\.exit\("inbox"\);/);
@@ -142,14 +160,15 @@ assert.doesNotMatch(read('profile.js'), /NearifyEventsPanel/);
 assert.doesNotMatch(commandCss, /#profile-modal \.ch-nearify-events-panel/);
 assert.doesNotMatch(events, /id="nearify-events/);
 // The desktop list heading names the page.
-assert.match(appNav, /heading\.textContent = page === 'network' \? 'Network' : 'Explore';/);
+assert.match(appNav, /heading\.textContent = page === 'network' \? 'Your Network' : 'Explore';/);
 // One module instance: the router's fallback import matches the page's.
 const eventsTag = (index.match(/nearify-events-panel\.js\?v=([a-z0-9-]+)/) || [])[1];
 assert.ok(eventsTag && appNav.includes(`import('./nearify-events-panel.js?v=${eventsTag}')`));
 
 // Network → View map (phones and tablets) is its own surface; the Network
 // list surface hides the map.
-assert.match(mobileNav, /addEventListener\('click', \(\) => \{\s*\/\/[^\n]*\n\s*setMobileSurface\('map'\);\s*window\.CommandDashboard\?\.setWorkspaceView\?\.\('network'\);/);
+assert.match(mobileNav, /button\.addEventListener\('click', showMap\);/);
+assert.match(mobileNav, /function showMap\(\) \{\s*setMobileSurface\('map'\);\s*window\.CommandDashboard\?\.setWorkspaceView\?\.\('network'\);/);
 assert.match(mobileNav, /const surfaces = \['today', 'discover', 'community', 'you', 'map'\];/);
 
 // Search from Network: people stay in Network; anything else opens in Explore.

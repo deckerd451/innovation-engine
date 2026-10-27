@@ -10,7 +10,7 @@ const vm = require('node:vm');
 const source = fs.readFileSync('assets/js/home-view.js', 'utf8');
 assert.doesNotMatch(source, /from\('project_tasks'\)/, 'Home reads no tasks');
 assert.match(source, /viewProjectDetails/);
-assert.match(source, /AppNav\?\.go\?\.\('network'\)/, 'the people row opens Network');
+assert.match(source, /\[data-mine="people"\]'\)\?\.addEventListener\('click', \(\) => window\.AppNav\?\.openNetwork\?\.\(\)\)/, 'the people row opens Your Network');
 
 const page = { addEventListener() {}, setTimeout, console, Promise, Date, Map, Set, Number, String, document: { body: { dataset: {} } } };
 page.window = page;
