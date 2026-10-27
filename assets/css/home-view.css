@@ -117,6 +117,8 @@
 .home-idea-form input { flex:1 1 12rem; min-width:0; min-height:44px; border:1px solid rgba(0,224,255,.3); border-radius:9px; background:rgba(0,0,0,.2); color:#fff; padding:.6rem .75rem; font:inherit; font-size:16px; }
 .home-idea-form button { flex:none; min-height:44px; padding:.55rem .9rem; border:1px solid rgba(0,224,255,.35); border-radius:9px; background:rgba(0,224,255,.08); color:#9eefff; font:inherit; font-size:.88rem; font-weight:800; cursor:pointer; }
 .home-idea-form button:focus-visible, .home-idea-form input:focus-visible { outline:2px solid #00e0ff; outline-offset:2px; }
+.home-idea-example { margin:.35rem 0 0; color:#a3adc0; font-size:.82rem; }
+.home-idea-example .home-link { min-height:44px; padding:.35rem 0; font-size:.82rem; font-weight:600; text-align:left; }
 .home-idea-results:not(:empty) { margin-top:.75rem; }
 .home-idea-results .home-muted { margin:0 0 .4rem; font-size:.84rem; }
 .home-idea-results .home-subheading { margin:.6rem 0 .1rem; }
