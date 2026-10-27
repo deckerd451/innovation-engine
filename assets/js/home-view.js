@@ -3,7 +3,8 @@
 // desktop dashboard (#cd-home). It composes what already exists -- what
 // others are waiting on the member for, the Daily Brief's suggestions and
 // community summary (start-daily-digest.js), Explore's tabs and search, the
-// member's tasks, goal assistance -- and has no data of its own.
+// member's connections and projects, goal assistance -- and has no data of
+// its own.
 //
 //   Welcome                   the member's name; "Discover what we could do together."
 //   Waiting on you            inbound only, and only when something needs a reply
@@ -17,8 +18,10 @@
 //                             for people, open opportunities, and (when no
 //                             one is introduced) skills to find people by
 //   What are you curious about?  only when nothing is listed; optional
-//   Your work                 quiet: the next task, the rest one tap away
-//   Have something in mind?   goal assistance, collapsed
+//   Your community            the people the member is connected to and the
+//                             projects they are on, each one tap away; tasks
+//                             live in each project's Work, never ranked here
+//   Have something in mind?   goal assistance, quiet and collapsed
 //
 // Sections update on their own: an unread count or a new brief never
 // rebuilds Home, so open sections, typed text and scroll stay as they are.
@@ -34,7 +37,7 @@
   let request = 0;
   // unread: the live count (as the Inbox badge shows it); the report's own
   // count can be minutes old, so it is only used until the first update.
-  const state = { memberId: null, work: null, attention: null, personId: null, unread: null };
+  const state = { memberId: null, mine: null, attention: null, personId: null, unread: null };
 
   const profile = () => window.currentUserProfile || window.CHProfile?.state?.profile || null;
   const displayName = (p) => String(p?.name || p?.full_name || p?.username || '').trim();
@@ -67,14 +70,17 @@
     })[0] || null;
   }
 
-  // The member's own projects (created, or joined and accepted), however old.
-  async function loadWork(memberId) {
+  // The member's own projects (created, or joined and accepted), however
+  // old, and the people they are connected to (accepted connections, as
+  // Network lists them).
+  async function loadMine(memberId) {
     const client = window.supabase;
-    if (!client || !memberId) return { projects: [], tasks: [], attempts: [] };
+    if (!client || !memberId) return { projects: [], connections: [] };
     const columns = 'id, title, status, creator_id, description, created_at';
-    const [createdResult, membershipsResult] = await Promise.all([
+    const [createdResult, membershipsResult, linksResult] = await Promise.all([
       client.from('projects').select(columns).eq('creator_id', memberId),
       client.from('project_members').select('project_id, role').eq('user_id', memberId),
+      client.from('connections').select('from_user_id, to_user_id').or(`from_user_id.eq.${memberId},to_user_id.eq.${memberId}`).eq('status', 'accepted'),
     ]);
     if (createdResult.error || membershipsResult.error) throw (createdResult.error || membershipsResult.error);
     const created = createdResult.data || [];
@@ -88,23 +94,20 @@
       if (joinedResult.error) throw joinedResult.error;
       joined = joinedResult.data || [];
     }
-    const projects = [...created, ...joined].sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
-    const ids = projects.map(project => project.id);
-    if (!ids.length) return { projects, tasks: [], attempts: [] };
-    const [tasksResult, attemptsResult] = await Promise.all([
-      client.from('project_tasks').select('id, project_id, title, description, status, priority, due_date, created_at').in('project_id', ids).in('status', ['open', 'in_progress']).order('created_at', { ascending: true }).limit(50),
-      client.from('capability_attempts').select('id, project_id, goal, outcome_status, verification_status, created_at').eq('member_id', memberId).order('created_at', { ascending: false }).limit(20),
-    ]);
-    const projectMap = new Map(projects.map(project => [project.id, project]));
-    const tasks = tasksResult.error ? [] : (tasksResult.data || []).map(task => ({ ...task, project: projectMap.get(task.project_id) }));
-    const attempts = attemptsResult.error ? [] : (attemptsResult.data || []).map(attempt => ({ ...attempt, project: projectMap.get(attempt.project_id) }));
-    return { projects, tasks, attempts };
-  }
-
-  function lastUpdate(task) {
-    const parsed = window.AssistanceEngine?.parseNotes?.(task?.description);
-    const last = parsed?.progress?.[parsed.progress.length - 1];
-    return last ? `${last.kind}${last.note ? ` — ${last.note}` : ''}${last.date ? ` (${last.date})` : ''}` : '';
+    const projects = [...created.map(project => ({ ...project, started: true })), ...joined]
+      .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+    // Connections are a convenience here; if they can't be read, Home still
+    // shows the projects and Network still has them.
+    let connections = [];
+    const peerIds = linksResult.error ? [] : [...new Set((linksResult.data || [])
+      .map(row => (String(row.from_user_id) === String(memberId) ? row.to_user_id : row.from_user_id))
+      .filter(id => id && String(id) !== String(memberId)))];
+    if (peerIds.length) {
+      const people = await client.from('community').select('id, name').in('id', peerIds);
+      connections = people.error ? [] : (people.data || []).map(person => ({ id: person.id, name: person.name || 'Member' }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    }
+    return { projects, connections };
   }
 
   // ---------------------------------------------------------------- sections
@@ -248,7 +251,7 @@
 
   // Invitations only: never a project the member already created or joined.
   function paintJoin() {
-    const ownProjectIds = state.work && state.work !== 'error' ? state.work.projects.map(project => project.id) : [];
+    const ownProjectIds = state.mine && state.mine !== 'error' ? state.mine.projects.map(project => project.id) : [];
     const suggestions = digest().homeSuggestions?.({ ownProjectIds }) || { joinIn: [] };
     const items = suggestions.joinIn || [];
     const kind = (type) => ({ project: 'Project you could join', opportunity: 'Opportunity' }[type] || '');
@@ -273,7 +276,7 @@
   // Happening in the community: what is open to everyone, from the brief's
   // non-personalized summary. A short preview; Explore has the rest.
   function paintHappening() {
-    const ownProjectIds = state.work && state.work !== 'error' ? state.work.projects.map(project => project.id) : [];
+    const ownProjectIds = state.mine && state.mine !== 'error' ? state.mine.projects.map(project => project.id) : [];
     const suggestions = digest().homeSuggestions?.({ ownProjectIds }) || {};
     const community = suggestions.community;
     if (suggestions.status !== 'ready' || !community) { setSection('happening', ''); return; }
@@ -284,7 +287,7 @@
     const empty = !projects.length && !opportunities.length && !skills.length;
     if (empty && quietNow()) { setSection('happening', ''); return; }
     // A newcomer (nothing picked for them, no projects yet) starts here.
-    const newcomer = part('picked')?.hidden !== false && !!state.work && state.work !== 'error' && !state.work.projects.length;
+    const newcomer = part('picked')?.hidden !== false && !!state.mine && state.mine !== 'error' && !state.mine.projects.length;
     // Each one is a short invitation, the whole card one tap: what it is,
     // what it says about itself, what it needs or who runs it, and which of
     // that the member lists. Only what the rows hold; a sparse one is just
@@ -328,50 +331,44 @@
     el?.querySelector('[data-home-action="topics"]')?.addEventListener('click', () => exploreTab('themes'));
   }
 
-  // Your work: quiet and below discovery. The next task in one line, the
-  // rest one tap away.
-  function paintWork() {
-    const work = state.work;
-    if (work === 'error') {
-      setSection('work', '<h2 class="home-heading home-label">Your work</h2><p class="home-muted">Your tasks couldn’t be loaded.</p><button type="button" class="home-link" data-home-action="retry">Try again</button>');
-      part('work')?.querySelector('[data-home-action="retry"]')?.addEventListener('click', () => refreshWork());
+  // Your community: the people the member is connected to and the projects
+  // they are on, each one tap away (Network, and each project's own page,
+  // where its tasks are). Nothing is ranked or recommended here; with no
+  // connections or projects, Explore is where to find them.
+  function paintMine() {
+    const mine = state.mine;
+    if (mine === 'error') {
+      setSection('mine', '<h2 class="home-heading home-label" id="home-mine-title">Your community</h2><p class="home-muted">Your projects couldn’t be loaded.</p><button type="button" class="home-link" data-home-action="retry">Try again</button>');
+      part('mine')?.querySelector('[data-home-action="retry"]')?.addEventListener('click', () => refreshMine());
       return;
     }
-    if (!work) { setSection('work', ''); return; }
-    const task = chooseNextTask(work.tasks);
-    const attempt = work.attempts.find(item => ['planned', 'in_progress'].includes(item.outcome_status));
-    const results = work.attempts.filter(item => ['succeeded', 'not_succeeded'].includes(item.outcome_status)).length;
-    const update = task ? lastUpdate(task) : '';
-    if (!task && !attempt && !work.projects.length) { setSection('work', ''); return; }
-    const next = task
-      ? `<div class="home-next"><div><strong class="home-title">Next: ${esc(task.title)}</strong><p class="home-muted">${esc(task.project?.title || 'Project task')} · ${task.status === 'in_progress' ? 'In progress' : 'Not started'}</p>${update ? `<p class="home-update">Last update: ${esc(update)}</p>` : ''}</div><button type="button" class="home-primary" data-next-project="${esc(task.project_id)}" data-next-task="${esc(task.id)}">Continue</button></div>`
-      : attempt
-        ? `<div class="home-next"><div><strong class="home-title">${esc(attempt.goal || 'A method you started')}</strong><p class="home-muted">Waiting on a result</p></div><button type="button" class="home-primary" data-next-project="${esc(attempt.project_id)}" data-next-tab="work">Record what happened</button></div>`
-        : '<p class="home-muted home-next-none">No open tasks right now.</p>';
-    // One line of what is there (loadWork reads at most 50 open tasks), and
-    // the rest one tap away, by project: Home never lists every task.
-    const open = work.tasks.length;
-    const openByProject = new Map();
-    work.tasks.forEach(item => openByProject.set(String(item.project_id), (openByProject.get(String(item.project_id)) || 0) + 1));
-    const summary = [
-      work.projects.length ? `${work.projects.length} project${work.projects.length === 1 ? '' : 's'}` : '',
-      open ? `${open >= 50 ? '50+' : open} open task${open === 1 ? '' : 's'}` : '',
-    ].filter(Boolean).join(' · ');
-    const projectList = work.projects.map(project => {
-      const count = openByProject.get(String(project.id)) || 0;
-      return `<button type="button" class="home-project" data-project-id="${esc(project.id)}"${count ? ' data-project-tab="tasks"' : ''}><strong>${esc(project.title || 'Untitled project')}</strong><span>${count ? `${count} open task${count === 1 ? '' : 's'}` : esc(project.status || 'active')}</span></button>`;
-    }).join('');
-    setSection('work', `<h2 class="home-heading home-label">Your work</h2>${next}
-      ${work.projects.length ? `<details class="home-more-list"><summary><span>${esc(summary)}</span><span class="home-more-cta">See all your work</span></summary><div>
-        <h3 class="home-subheading">Your projects</h3>${projectList}${results ? `<p class="home-muted">${results} method result${results === 1 ? '' : 's'} recorded.</p>` : ''}
-      </div></details>` : ''}`);
-    const el = part('work');
-    el?.querySelectorAll('[data-next-project]').forEach(button => button.addEventListener('click', (event) => {
-      const target = event.currentTarget;
-      if (target.dataset.nextTask && window.viewProjectTask) window.viewProjectTask(target.dataset.nextProject, target.dataset.nextTask);
-      else window.viewProjectDetails?.(target.dataset.nextProject, target.dataset.nextTab);
-    }));
-    el?.querySelectorAll('[data-project-id]').forEach(button => button.addEventListener('click', () => window.viewProjectDetails?.(button.dataset.projectId, button.dataset.projectTab || null)));
+    if (!mine) { setSection('mine', ''); return; }
+    const chevron = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
+    const initials = (name) => String(name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || '?';
+    const names = mine.connections.map(person => person.name);
+    const peopleLine = names.length <= 2 ? names.join(' and ') : `${names.slice(0, 2).join(', ')} and ${names.length - 2} other${names.length - 2 === 1 ? '' : 's'}`;
+    const row = (attrs, lead, title, meta) => `<li><button type="button" class="home-mine-row" ${attrs}>${lead}<span class="home-mine-text"><strong>${esc(title)}</strong>${meta ? `<span>${esc(meta)}</span>` : ''}</span>${chevron}</button></li>`;
+    const people = mine.connections.length
+      ? row('data-mine="people"', `<span class="home-mine-faces" aria-hidden="true">${mine.connections.slice(0, 3).map(person => `<span>${esc(initials(person.name))}</span>`).join('')}</span>`,
+        `${mine.connections.length} ${mine.connections.length === 1 ? 'person' : 'people'} you’re connected to`, peopleLine)
+      : row('data-mine="find-people"', '<span class="home-mine-icon" aria-hidden="true">+</span>', 'Find people to connect with', 'Browse the community in Explore');
+    const shown = mine.projects.slice(0, 4);
+    const more = mine.projects.slice(4);
+    const projectRow = project => row(`data-project-id="${esc(project.id)}"`, `<span class="home-mine-icon" aria-hidden="true">${esc(String(project.title || '?').trim().charAt(0).toUpperCase() || '?')}</span>`,
+      project.title || 'Untitled project', project.started ? 'You started it' : 'You’re a member');
+    const projects = mine.projects.length
+      ? shown.map(projectRow).join('')
+      : row('data-mine="find-projects"', '<span class="home-mine-icon" aria-hidden="true">+</span>', 'Find a project to join', 'Browse projects in Explore');
+    setSection('mine', `<h2 class="home-heading home-label" id="home-mine-title">Your community</h2>
+      <ul class="home-mine-list">${people}</ul>
+      <h3 class="home-subheading">${mine.projects.length ? `Your projects (${mine.projects.length})` : 'Your projects'}</h3>
+      <ul class="home-mine-list">${projects}</ul>
+      ${more.length ? `<details class="home-more-list"><summary><span>${more.length} more project${more.length === 1 ? '' : 's'}</span><span class="home-more-cta">Show</span></summary><ul class="home-mine-list">${more.map(projectRow).join('')}</ul></details>` : ''}`);
+    const el = part('mine');
+    el?.querySelector('[data-mine="people"]')?.addEventListener('click', () => window.AppNav?.go?.('network'));
+    el?.querySelector('[data-mine="find-people"]')?.addEventListener('click', () => exploreTab('people'));
+    el?.querySelector('[data-mine="find-projects"]')?.addEventListener('click', () => exploreTab('projects'));
+    el?.querySelectorAll('[data-project-id]').forEach(button => button.addEventListener('click', () => window.viewProjectDetails?.(button.dataset.projectId)));
   }
 
   // Built once per Home: typing here survives every other update.
@@ -409,8 +406,11 @@
     const status = digest().homeSuggestions?.().status || 'unavailable';
     const community = digest().homeSuggestions?.().community;
     const communityEmpty = !community || !['projects', 'opportunities', 'skills'].some(key => community[key]?.length);
-    return status !== 'loading' && !!state.work && communityEmpty
-      && ['attention', 'meet', 'join', 'work'].every(name => part(name)?.hidden !== false);
+    return status !== 'loading' && !!state.mine && communityEmpty
+      && ['attention', 'meet', 'join'].every(name => part(name)?.hidden !== false)
+      // Connections alone don't make Home busy: it is quiet without projects,
+      // as it was without work.
+      && (state.mine === 'error' || !state.mine.projects.length);
   }
 
   function paintQuiet() {
@@ -486,7 +486,7 @@
           <section class="home-section home-quiet" data-home="quiet" aria-label="Getting started" hidden></section>
         </div>
         <div class="home-side">
-          <section class="home-section home-work" data-home="work" aria-label="Your work" hidden></section>
+          <section class="home-section home-mine" data-home="mine" aria-labelledby="home-mine-title" hidden></section>
           <details class="home-section home-goal" data-home="goal"></details>
         </div>
       </div>
@@ -502,19 +502,19 @@
     target.querySelector('.home-explore [data-home-action="explore"]')?.addEventListener('click', () => window.AppNav?.go?.('explore'));
   }
 
-  async function refreshWork() {
+  async function refreshMine() {
     const token = ++request;
     const memberId = state.memberId;
     try {
-      const work = await loadWork(memberId);
+      const mine = await loadMine(memberId);
       if (token !== request || memberId !== state.memberId) return;
-      state.work = work;
+      state.mine = mine;
     } catch (error) {
       if (token !== request || memberId !== state.memberId) return;
-      console.warn('[Home] tasks unavailable:', error?.message || error);
-      state.work = 'error';
+      console.warn('[Home] projects unavailable:', error?.message || error);
+      state.mine = 'error';
     }
-    calmly(paintWork);
+    calmly(paintMine);
     calmly(paintJoin);
     calmly(paintHappening);
   }
@@ -537,7 +537,7 @@
     if (host) host.innerHTML = '';
     host = null;
     state.memberId = null;
-    state.work = null;
+    state.mine = null;
     state.attention = null;
     state.personId = null;
     state.unread = null;
@@ -562,9 +562,9 @@
     state.memberId = p.id;
     paintProfilePrompt();
     paintAttention();
-    paintWork();
+    paintMine();
     paintSuggestions();
-    refreshWork();
+    refreshMine();
     refreshAttention();
   }
 
@@ -575,10 +575,10 @@
     document.getElementById('mgd-goal-input')?.focus();
   }
 
-  // chooseNextTask: the project screen's next step uses the same rule as
-  // Home's "Next:", so the two never disagree.
+  // chooseNextTask: the rule a project's own overview uses for its next step
+  // (node-panel.js); Home itself no longer picks a task.
   window.HomeView = { show, clear, focusGoal, chooseNextTask };
-  window.HomeViewTesting = { taskScore, chooseNextTask, loadWork, wantsCuriosityPrompt };
+  window.HomeViewTesting = { taskScore, chooseNextTask, loadMine, wantsCuriosityPrompt };
 
   window.addEventListener('daily-brief-updated', () => { if (host) calmly(paintSuggestions); });
   window.addEventListener('total-unread-messages-updated', (event) => {
@@ -592,7 +592,7 @@
   // What was done in focused assistance or a project shows on return.
   ['mobile-assistance-closed', 'project-task-updated', 'capability-outcome-recorded'].forEach(type => window.addEventListener(type, () => {
     if (!showing()) return;
-    refreshWork();
+    refreshMine();
     paintResume();
   }));
 })();

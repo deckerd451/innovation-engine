@@ -166,7 +166,7 @@ const names = items => items.map(item => item.primary_refs[0].label).sort();
 
     const homeView = fs.readFileSync(path.join(root, 'assets/js/home-view.js'), 'utf8');
     assert.match(homeView, /homeSuggestions\?\.\(\{ ownProjectIds \}\)/, 'Home passes the member’s own projects');
-    assert.match(homeView, /calmly\(paintWork\);\n\s*calmly\(paintJoin\);/, 'invitations are checked again once the member’s projects load');
+    assert.match(homeView, /calmly\(paintMine\);\n\s*calmly\(paintJoin\);/, 'invitations are checked again once the member’s projects load');
   }
 
   console.log('Home credible invitations: all checks passed');

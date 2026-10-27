@@ -8,9 +8,10 @@
 //     description, what it needs, who runs it, its type and deadline, how
 //     many people are on it, and which of its needs the member lists); a
 //     sparse one is just its kind and title, with no filler
-//   - Your work: one next step with Continue, a one-line summary from real
-//     counts, and the rest by project one tap away; never a task list on
-//     Home. With nothing open it says so plainly
+//   - Your community: the people the member is connected to (to Network)
+//     and the projects they are on (each to its own page, where its tasks
+//     and actions are); no ranked task, Continue or task list on Home. With
+//     no connections or projects, Explore is where to find them
 //   - Have something in mind?: quiet and secondary, says what Get help does,
 //     and Get help still opens task assistance with the goal
 //
@@ -350,7 +351,7 @@ const layout = () => callInPage(function (root, phone) {
 // Extra synthetic data: a rich and a sparse project and opportunity (each
 // rich one says what it is, a sparse one has only its title), a pending
 // request that must not count as a person on the project, and several open
-// tasks. ?work=none marks the member's tasks done.
+// tasks. ?noconn=1 leaves the member without connections.
 const RICH_PROJECT = 'Mapping which West Ashley streets flood at high tide so neighbors can plan safer routes. We meet Thursday evenings.';
 const RICH_OPP = 'Score five student pitches and give each team one piece of written feedback. Dinner provided.';
 const extra = `(() => {
@@ -367,7 +368,7 @@ const extra = `(() => {
     { id: 'task-judges', project_id: ID.harbor, title: 'Recruit two volunteer judges', description: null, status: 'open', priority: 'medium', created_at: iso(-2) },
     { id: 'task-lab', project_id: ID.lab, title: 'Book the next founder session', description: null, status: 'open', priority: 'medium', created_at: iso(-1) },
   );
-  if (/work=none/.test(location.search)) db.project_tasks.forEach(t => { if (t.project_id === ID.harbor || t.project_id === ID.lab) { t.status = 'done'; t.completed_at = iso(-1); } });
+  if (/noconn=1/.test(location.search)) db.connections = db.connections.filter(c => c.status !== 'accepted');
   return true;
 })();`;
 
@@ -379,7 +380,10 @@ const cards = () => callInPage(function (root) {
     match: card.querySelector('.home-invite-match')?.textContent.trim() || '', height: Math.round(card.getBoundingClientRect().height),
   }));
 }, rootSel());
-const workText = () => evaluate(`document.querySelector('${rootSel()} [data-home="work"]')?.innerText || ''`);
+const mineText = () => evaluate(`document.querySelector('${rootSel()} [data-home="mine"]')?.innerText || ''`);
+const mineRows = () => callInPage(function (root) {
+  return [...document.querySelectorAll(`${root} [data-home="mine"] .home-mine-row`)].filter(b => b.getClientRects().length).map(b => b.innerText.replace(/\s+/g, ' ').trim());
+}, rootSel());
 
 try {
   await send('Page.enable');
@@ -426,24 +430,38 @@ try {
     check(/Community fridge network/.test(await panelText()), `${name}: a sparse project opens too`, (await panelText()).slice(0, 100));
     await backHome();
 
-    // ---------------------------------------------- Your work, several open tasks
-    let work = await workText();
-    check(/Next: select speaker\(s\)/.test(work) && /Continue/.test(work), `${name}: one next step with Continue`, work);
-    check(/2 projects · 6 open tasks/.test(work) && /See all your work/.test(work), `${name}: a one-line summary from real counts, and a way to the rest`, work);
-    check(!/Book the venue|Confirm catering|Print name badges|Recruit two volunteer judges|founder session|more open task|overdue|behind/i.test(work),
-      `${name}: no list of unfinished tasks on Home, and no guilt-inducing wording`, work);
-    await evaluate(`document.querySelector('${root} [data-home="work"]').scrollIntoView({ block: 'center' }); true`);
+    // ---------------------------------------------- Your community
+    let mine = await mineText();
+    let rows = await mineRows();
+    check(/^YOUR COMMUNITY/i.test(mine) && rows[0] === 'D( S( 2 people you’re connected to Dana (fixture) and Sam (fixture)',
+      `${name}: Your community starts with the people the member is connected to`, JSON.stringify(rows));
+    check(rows.includes('H Harborhack 2026 prep You started it') && rows.includes('S Startup lab You’re a member') && /Your projects \(2\)/.test(mine),
+      `${name}: and the projects they are on, with how they are part of each`, JSON.stringify(rows));
+    check(!/Next:|Continue|open task|select speaker|Book the venue|Confirm catering|Recommended|For you/i.test(mine),
+      `${name}: no ranked task, Continue, task list or recommendation on Home`, mine);
+    check(!(await evaluate(`!!document.querySelector('${root} [data-next-task], ${root} [data-home="work"]')`)), `${name}: the old “Your work” next task is gone`);
+    await evaluate(`document.querySelector('${root} [data-home="mine"]').scrollIntoView({ block: 'center' }); true`);
     await sleep(300);
-    await snap(`work-${name}`);
-    await evaluate(`(() => { window.__opened = []; window.viewProjectDetails = (...a) => { window.__opened.push(a); }; return true; })()`);
-    await press(`${root} [data-home="work"] details > summary`, 'See all your work');
-    work = await workText();
-    check(/Your projects/.test(work) && /Harborhack 2026 prep\s*5 open tasks/.test(work) && /Startup lab\s*1 open task/.test(work) && !/Confirm catering/.test(work),
-      `${name}: the rest is by project, with each one’s open tasks counted`, work);
-    await press(`${root} [data-home="work"] [data-project-id]`, 'a project');
-    const opened = await evaluate('window.__opened');
-    check(JSON.stringify(opened) === JSON.stringify([[await evaluate('window.AssistanceFixtures.ID.harbor'), 'tasks']]), `${name}: a project opens at its tasks`, JSON.stringify(opened));
-    await snap(`work-open-${name}`);
+    await snap(`community-${name}`);
+    await press(`${root} [data-mine="people"]`, 'people you’re connected to');
+    check((await destination()) === 'network', `${name}: the people row opens Network`, await destination());
+    await backHome();
+    // A project opens on its own page, where every task and action still is.
+    await press(`${root} [data-home="mine"] [data-project-id]`, 'Harborhack');
+    await waitFor(`document.getElementById('project-detail-overlay')`, 'project', 8000);
+    await sleep(1200);
+    await evaluate(`document.querySelector('#pd-tabs [data-tab="${name === 'phone' ? 'work' : 'tasks'}"]').click(); true`);
+    await sleep(1500);
+    const projectTasks = await callInPage(function () {
+      const rows = [...document.querySelectorAll('#project-detail-overlay .pt-task')].filter(li => li.getClientRects().length);
+      rows[0]?.querySelector('.pt-row')?.click();
+      const buttons = [...(rows[0]?.querySelectorAll('.pt-detail button') || [])].filter(b => b.getClientRects().length).map(b => b.textContent.trim() || b.getAttribute('aria-label'));
+      return { titles: rows.map(li => li.querySelector('.pt-task-title')?.textContent.trim()), buttons };
+    });
+    check(['select speaker(s)', 'Confirm catering', 'Book the venue'].every(t => projectTasks.titles.includes(t)) && ['Open', 'In Progress', 'Done'].every(b => projectTasks.buttons.includes(b)) && projectTasks.buttons.some(b => /^Edit/.test(b)),
+      `${name}: tasks and their actions are all still in the project’s Work`, JSON.stringify(projectTasks));
+    await evaluate(`document.getElementById('pd-close-btn')?.click(); true`);
+    await sleep(400);
 
     // ---------------------------------------------- Have something in mind?
     const goal = await callInPage(function (root) {
@@ -452,10 +470,10 @@ try {
       const heading = document.querySelector(`${root} #home-happening-title`);
       const s = getComputedStyle(el);
       return { open: el.open, summary: summary.textContent.trim(), border: s.borderTopStyle, summarySize: parseFloat(getComputedStyle(summary).fontSize), headingSize: parseFloat(getComputedStyle(heading).fontSize),
-        afterWork: !!(document.querySelector(`${root} [data-home="work"]`).compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING) };
+        afterWork: !!(document.querySelector(`${root} [data-home="mine"]`).compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING) };
     }, root);
     check(!goal.open && goal.summary === 'Have something in mind?' && goal.border === 'none' && goal.summarySize < goal.headingSize && goal.afterWork,
-      `${name}: “Have something in mind?” is quiet and secondary, after the member’s work`, JSON.stringify(goal));
+      `${name}: “Have something in mind?” is quiet and secondary, after Your community`, JSON.stringify(goal));
     await press(`${root} [data-home="goal"] > summary`, 'Have something in mind?');
     const goalText = await evaluate(`document.querySelector('${root} [data-home="goal"]').innerText`);
     check(/Describe a goal to get a suggested next step and a worksheet for it, plus shared methods and any connections whose profiles fit\. It stays a draft on this device until you save it to one of your projects\./.test(goalText)
@@ -467,14 +485,35 @@ try {
     await snap(`get-help-${name}`);
     await evaluate(`window.MobileTaskAssistance?.close?.(); document.getElementById('mobile-task-assistance')?.remove(); true`);
 
-    // ---------------------------------------------- no actionable next step
-    await loadHome('established&work=none', VIEWPORTS[name]);
-    work = await workText();
-    check(/No open tasks right now\./.test(work) && !/Continue|Next:/.test(work) && /2 projects/.test(work) && !/open tasks? ·|0 open/.test(work) && /See all your work/.test(work),
-      `${name}: with nothing open it says so plainly, and the projects stay one tap away`, work);
-    await evaluate(`document.querySelector('${rootSel()} [data-home="work"]').scrollIntoView({ block: 'center' }); true`);
+    // ---------------------------------------------- no connections, projects
+    await loadHome('established&noconn=1', VIEWPORTS[name]);
+    rows = await mineRows();
+    check(rows[0] === '+ Find people to connect with Browse the community in Explore' && rows.includes('H Harborhack 2026 prep You started it'),
+      `${name}: without connections, a way to find people; the projects stay`, JSON.stringify(rows));
+    await evaluate(`document.querySelector('${rootSel()} [data-home="mine"]').scrollIntoView({ block: 'center' }); true`);
     await sleep(300);
-    await snap(`work-none-${name}`);
+    await snap(`community-no-connections-${name}`);
+    await press(`${rootSel()} [data-mine="find-people"]`, 'Find people to connect with');
+    check((await destination()) === 'explore' && (await evaluate(`document.querySelector('#udc-resource-tabs .udc-resource-tab.active')?.dataset.resource`)) === 'people',
+      `${name}: it opens Explore’s people`, await destination());
+    await evaluate(`window.AppNav?.go?.('home'); true`);
+    await sleep(500);
+
+    // ---------------------------------------------- neither (a newcomer)
+    await loadHome('newcomer', VIEWPORTS[name]);
+    rows = await mineRows();
+    check(JSON.stringify(rows) === JSON.stringify(['+ Find people to connect with Browse the community in Explore', '+ Find a project to join Browse projects in Explore']),
+      `${name}: a newcomer sees where to find people and projects, nothing invented`, JSON.stringify(rows));
+    await evaluate(`document.querySelector('${rootSel()} [data-home="mine"]').scrollIntoView({ block: 'center' }); true`);
+    await sleep(300);
+    await snap(`community-newcomer-${name}`);
+    await press(`${rootSel()} [data-mine="find-projects"]`, 'Find a project to join');
+    check((await destination()) === 'explore' && (await evaluate(`document.querySelector('#udc-resource-tabs .udc-resource-tab.active')?.dataset.resource`)) === 'projects',
+      `${name}: it opens Explore’s projects`, await destination());
+    // Back to Home, so the next viewport starts there (the app remembers
+    // the last destination).
+    await evaluate(`window.AppNav?.go?.('home'); true`);
+    await sleep(500);
   }
 } catch (error) {
   check(false, 'Run aborted', error.message);

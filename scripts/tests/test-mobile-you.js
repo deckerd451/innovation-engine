@@ -20,7 +20,8 @@ assert.match(nav, /window\.MobileYou\?\.hide/);
 assert.match(you, /Sign in to see/);
 assert.match(you, /window\.HomeView\.show\(\)/);
 assert.match(home, /couldn’t be loaded/);
-for (const table of ['projects', 'project_members', 'project_tasks', 'capability_attempts']) assert.match(home, new RegExp(`from\\('${table}'\\)`));
+// Your community: the member's projects and connections (no tasks on Home).
+for (const table of ['projects', 'project_members', 'connections']) assert.match(home, new RegExp(`from\\('${table}'\\)`));
 // Account controls (Edit Profile, Settings, Log out) are in You, the
 // profile (profile.js), not on Home.
 assert.doesNotMatch(you, /data-profile-action|openProfileModal|SettingsModal|doLogout/);
@@ -28,8 +29,7 @@ assert.doesNotMatch(home, /data-profile-action|SettingsModal|doLogout/);
 const profile = fs.readFileSync('profile.js', 'utf8');
 for (const id of ['btn-open-profile-editor', 'btn-profile-settings', 'btn-profile-logout']) assert.match(profile, new RegExp(`id="${id}"`));
 assert.match(home, /viewProjectDetails/);
-assert.match(home, /viewProjectTask/);
-assert.match(home, /data-next-task/);
+assert.match(home, /data-project-id/);
 assert.match(css, /inset: 0 0 var\(--mobile-tab-bar-height, 68px\) 0/);
 assert.match(css, /overflow-y: auto/);
 assert.match(homeCss, /min-height:44px/);

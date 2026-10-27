@@ -1,8 +1,8 @@
 /* Home (home-view.js): discovery first, the same sections at every width.
    Phones and tablets show them in #mobile-you-content (one column), desktop
-   in #cd-home (two columns: discovery, then your work and goal help).
+   in #cd-home (two columns: discovery, then your community and goal help).
    Search, Picked for you and Happening in the community carry the
-   page; Your work and goal help stay quiet below. */
+   page; Your community and goal help stay quiet below. */
 .home-view { display:grid; gap:1rem; color:#e6ebf5; }
 .home-sr { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
 .home-header { display:grid; grid-template-columns:auto minmax(0, 1fr); align-items:center; gap:.45rem .75rem; padding:.15rem 108px .1rem 0; }
@@ -32,7 +32,7 @@
 .home-link { min-height:44px; padding:.5rem 0; border:0; background:none; color:#9eefff; font:inherit; font-weight:700; text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
 .home-dismiss { min-height:44px; margin-left:auto; padding:.5rem .4rem; border:0; background:none; color:#a3adc0; font:inherit; font-size:.86rem; font-weight:600; cursor:pointer; }
 .home-action:focus-visible, .home-primary:focus-visible, .home-link:focus-visible, .home-dismiss:focus-visible, .home-section summary:focus-visible,
-.home-project:focus-visible, .home-invite:focus-visible, .home-topic:focus-visible,
+.home-invite:focus-visible, .home-topic:focus-visible,
 .home-search-go:focus-visible { outline:2px solid #00e0ff; outline-offset:2px; }
 
 /* Waiting on you: compact and noticeable, only when something needs a reply */
@@ -98,25 +98,28 @@
 .home-profile p { margin:0; color:#c7cfdd; font-size:.88rem; line-height:1.45; }
 .home-quiet { border-style:dashed; }
 
-/* Your work: quiet, below discovery */
-.home-work { padding:.75rem 1rem; background:none; border-color:rgba(255,255,255,.09); }
+/* Your community: the people and projects the member already has, quiet,
+   below discovery; each row one tap away. */
+.home-mine { padding:.75rem 1rem; background:none; border-color:rgba(255,255,255,.09); }
 .home-label { margin-bottom:.4rem; color:#a3adc0; font-size:.74rem; letter-spacing:.07em; text-transform:uppercase; }
-.home-next { display:flex; align-items:center; justify-content:space-between; gap:.75rem; }
-.home-next > div { min-width:0; }
-/* Continue is an outlined action like "Take a look", so the next task does
-   not outweigh people and ways to join in. */
-.home-next .home-primary { flex:none; width:auto; min-height:44px; margin:0; padding:.5rem 1rem; border:1px solid rgba(0,224,255,.35); background:rgba(0,224,255,.08); color:#9eefff; font-size:.88rem; }
-.home-title { display:block; color:#e6ebf5; font-size:.95rem; font-weight:700; line-height:1.3; overflow-wrap:anywhere; }
-.home-update { margin:.4rem 0 0; padding:.35rem .5rem; border-left:3px solid #00e0ff; border-radius:6px; background:rgba(0,224,255,.06); color:#c7cfdd; font-size:.8rem; }
-.home-more-list { margin-top:.5rem; border-top:1px solid rgba(255,255,255,.08); }
+.home-mine .home-subheading { margin:.7rem 0 .15rem; }
+.home-mine-list { margin:0; padding:0; list-style:none; }
+.home-mine-row { width:100%; min-height:52px; display:flex; align-items:center; gap:.7rem; padding:.45rem 0; border:0; border-top:1px solid rgba(255,255,255,.08); background:none; color:#fff; font:inherit; text-align:left; cursor:pointer; }
+.home-mine-list li:first-child .home-mine-row { border-top:0; }
+.home-mine-row:focus-visible { outline:2px solid #00e0ff; outline-offset:2px; }
+.home-mine-text { flex:1; min-width:0; display:grid; gap:.1rem; }
+.home-mine-text strong { font-size:.92rem; line-height:1.3; overflow-wrap:anywhere; }
+.home-mine-text span { color:#a3adc0; font-size:.8rem; overflow-wrap:anywhere; }
+.home-mine-row svg { flex:none; width:18px; height:18px; fill:none; stroke:#a3adc0; stroke-width:2; stroke-linecap:round; }
+.home-mine-icon { flex:none; display:grid; place-items:center; width:32px; height:32px; border-radius:9px; background:rgba(0,224,255,.12); color:#bff6ff; font-size:.72rem; font-weight:800; }
+.home-mine-faces { flex:none; display:flex; }
+.home-mine-faces span { display:grid; place-items:center; width:30px; height:30px; margin-left:-7px; border:2px solid #0d1124; border-radius:50%; background:rgba(0,224,255,.2); color:#bff6ff; font-size:.66rem; font-weight:800; }
+.home-mine-faces span:first-child { margin-left:0; }
+.home-more-list { margin-top:.25rem; border-top:1px solid rgba(255,255,255,.08); }
 .home-more-list summary { min-height:44px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.25rem .75rem; color:#c7cfdd; font-size:.88rem; font-weight:600; cursor:pointer; list-style:none; }
 .home-more-list summary::-webkit-details-marker { display:none; }
 .home-more-cta { color:#9eefff; font-weight:700; }
 .home-more-list[open] .home-more-cta { display:none; }
-.home-next-none { margin:0 0 .25rem; }
-.home-more-list .home-subheading { margin-top:.5rem; }
-.home-project { width:100%; min-height:44px; display:flex; justify-content:space-between; align-items:center; gap:.75rem; padding:.6rem 0; border:0; border-top:1px solid rgba(255,255,255,.08); background:none; color:#fff; font:inherit; text-align:left; cursor:pointer; }
-.home-project span { flex:none; color:#a3adc0; font-size:.84rem; }
 
 /* Goal help, collapsed until wanted */
 .home-goal { padding:.15rem 1rem; border:0; background:none; }

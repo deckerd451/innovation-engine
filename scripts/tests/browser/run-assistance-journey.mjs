@@ -95,6 +95,21 @@ async function openGoalHelp() {
   }
 }
 
+// Home lists the member's projects (Your community) rather than picking a
+// task; a task opens assistance from its project's Work: the project, Work,
+// the task, then "Work on this or report progress".
+const MINE = '#mobile-you-content [data-home="mine"] [data-project-id]';
+async function openSpeakerTask() {
+  await tap('#mobile-you-content [data-home="mine"] [data-project-id="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"]', 'Harborhack in Your community');
+  await waitFor(`document.querySelector('#pd-tabs [data-tab="work"]')`, 'project');
+  await sleep(600);
+  await tap('#pd-tabs [data-tab="work"]', 'Work');
+  await waitFor(`document.querySelector('.pt-task[data-task-id="dddddddd-dddd-4ddd-8ddd-dddddddddddd"] .pt-row')`, 'tasks');
+  await tap('.pt-task[data-task-id="dddddddd-dddd-4ddd-8ddd-dddddddddddd"] .pt-row', 'select speaker(s)');
+  await waitFor(`document.querySelector('.pt-task[data-task-id="dddddddd-dddd-4ddd-8ddd-dddddddddddd"] [data-action="work"]')?.getClientRects().length`, 'task actions');
+  await tap('.pt-task[data-task-id="dddddddd-dddd-4ddd-8ddd-dddddddddddd"] [data-action="work"]', 'Work on this or report progress');
+}
+
 async function tap(selector, label = selector) {
   const info = await evaluate(`(() => {
     const el = document.querySelector(${JSON.stringify(selector)});
@@ -161,22 +176,22 @@ try {
   }
   check(true, `Fixture member ${adopted ? 'signed in through the app’s own auth bootstrap' : 'injected after auth bootstrap (login screen bypassed for the test)'}`);
   await evaluate(`document.querySelector('#app-nav [data-destination="home"]')?.click()`);
-  await waitFor(`document.querySelector('#mobile-you-content [data-next-task]')`, 'My Space next step', 15000);
+  await waitFor(`document.querySelector('${MINE}')`, 'My Space: Your community', 15000);
   await sleep(400);
   await shot('01-my-space');
   let s = await surfaceReport();
   check(s.youVisible && s.centreOwner === 'my-space', 'My Space owns the viewport', JSON.stringify(s));
   check(s.goalForms === 1, 'Exactly one objective entry is mounted', `forms=${s.goalForms}`);
-  const nextTitle = await evaluate(`document.querySelector('#mobile-you-content .home-next .home-title')?.textContent`);
-  check(nextTitle === 'Next: select speaker(s)', 'Scenario A: My Space surfaces the existing next step', nextTitle);
+  const mine = await evaluate(`document.querySelector('#mobile-you-content [data-home="mine"]')?.textContent || ''`);
+  check(/Harborhack 2026 prep/.test(mine) && !(await evaluate(`!!document.querySelector('#mobile-you-content [data-next-task]')`)), 'Scenario A: My Space lists the member’s projects, without ranking a task', mine);
   check(!(await evaluate(`/Python/.test(document.getElementById('mobile-you-content').textContent)`)), 'Profile details are not shown as the objective');
 
-  // Scenario A: one tap to substantive help.
-  await tap('#mobile-you-content [data-next-task]', 'Get help with this');
+  // Scenario A: from the project's Work to substantive help.
+  await openSpeakerTask();
   await waitFor(`document.querySelector('#mobile-task-assistance #mta-title')`, 'assistance');
   await waitFor(`!/Checking shared methods/.test(document.querySelector('[data-mta-community-body]')?.textContent || '')`, 'community help');
   await shot('02-speaker-assistance-top');
-  check((await evaluate(`document.querySelector('#mta-title').textContent`)) === 'select speaker(s)', 'Opens that exact task (1 tap from My Space)');
+  check((await evaluate(`document.querySelector('#mta-title').textContent`)) === 'select speaker(s)', 'Opens that exact task (from the project’s Work)');
   check(await evaluate(`/choosing speakers/.test(document.querySelector('.mta-interpretation').textContent)`), 'Interprets the objective as speaker selection, labelled and correctable');
   check(await evaluate(`!!document.querySelector('[data-ai-matrix-block="shortlist"]') && document.querySelectorAll('[data-ai-check="criteria"]').length >= 5`), 'Substantive intervention: criteria checklist + scoring shortlist');
   const community = await evaluate(`document.querySelector('[data-mta-community-body]').textContent`);
@@ -220,11 +235,11 @@ try {
 
   // Return to My Space without losing context.
   await tap('[data-mta-back]', 'Back to My Space');
-  await waitFor(`!document.getElementById('mobile-task-assistance') && /Last update/.test(document.getElementById('mobile-you-content')?.textContent || '')`, 'My Space with progress');
+  await waitFor(`!document.getElementById('mobile-task-assistance') && document.querySelector('${MINE}')`, 'My Space');
   s = await surfaceReport();
   check(s.overlays === 0 && s.centreOwner === 'my-space', 'Back returns to My Space; no leftover overlay', JSON.stringify(s));
   await shot('06-my-space-after-progress');
-  await tap('#mobile-you-content [data-next-task]', 'Resume task');
+  await openSpeakerTask();
   await waitFor(`document.querySelector('#mta-next-title')?.textContent === 'Invite your top choices'`, 'resumed step');
   check(true, 'Scenario D: returning resumes at the next unresolved step with no re-entry');
 
@@ -242,15 +257,15 @@ try {
   await shot('08-community');
   for (let round = 0; round < 2; round++) {
     await tap('#app-nav [data-destination="home"]', 'Home');
-    await waitFor(`document.querySelector('#mobile-you-content [data-next-task]')`, 'My Space');
-    await tap('#mobile-you-content [data-next-task]', 'Get help with this');
+    await waitFor(`document.querySelector('${MINE}')`, 'My Space');
+    await openSpeakerTask();
     await waitFor(`document.querySelector('#mta-title')`, 'assistance');
     await evaluate(`document.querySelector('.mta-panel').scrollTop = 99999`);
     await tap('#app-nav [data-destination="explore"]', 'Explore');
     await sleep(400);
   }
   await tap('#app-nav [data-destination="home"]', 'Home');
-  await waitFor(`document.querySelector('#mobile-you-content [data-next-task]')`, 'My Space');
+  await waitFor(`document.querySelector('${MINE}')`, 'My Space');
   s = await surfaceReport();
   check(s.overlays === 0 && s.goalForms === 1 && s.centreOwner === 'my-space', 'Repeated navigation leaves exactly one surface and one objective entry', JSON.stringify(s));
 

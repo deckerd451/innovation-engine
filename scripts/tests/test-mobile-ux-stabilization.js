@@ -36,17 +36,17 @@ assert.match(panel, /id="pd-next"/);
 assert.match(panel, /window\.HomeView\.chooseNextTask\(open\)/);
 assert.doesNotMatch(panel, /Continue your work/);
 
-// Home picks one task to continue (home-view.js, every width).
-assert.match(home, /const task = chooseNextTask\(work\.tasks\)/);
-assert.match(home, /data-next-task="\$\{esc\(task\.id\)\}">Continue</);
+// Home no longer picks a task for the member: "Your community" lists their
+// connections and projects, and tasks live in each project's Work.
+assert.doesNotMatch(home, /chooseNextTask\(mine|data-next-task|>Continue</);
 assert.match(nav, /cd-mobile-secondary-links/);
 assert.match(nav, /unread > 0/);
 
-// Home keeps the member's work and goal help; the profile biography/intent
-// is never presented as the member's objective.
+// Home keeps the member's projects (in Your community) and goal help; the
+// profile biography/intent is never presented as the member's objective.
 assert.match(home, /Your projects/);
-assert.match(home, /data-next-project/);
-assert.match(home, /Your work/); // the next task, below discovery (was "Pick up where you left off")
+assert.match(home, /Your community/);
+assert.match(home, /window\.viewProjectDetails\?\.\(button\.dataset\.projectId\)/);
 assert.match(home, /Have something in mind\?/);
 assert.doesNotMatch(home, /profile\.(bio|intent)|p\?\.(bio|intent) *\?/);
 assert.match(youCss, /z-index: 700/);
