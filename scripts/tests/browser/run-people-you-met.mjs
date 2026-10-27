@@ -306,9 +306,9 @@ const extra = `(() => {
       peer('e4', 'm-eli', 'Eli (fixture)', 'ble', 'suggested'),
     ] },
     { event_id: 'ev-hcd', event_name: 'HCD Event', occurred_at: '2026-09-18T17:00:00Z', peers: [
-      peer('e5', ID.riley, 'Riley (fixture)', 'qr_confirmed', 'suggested'),
+      { ...peer('e5', ID.riley, 'Riley (fixture)', 'qr_confirmed', 'suggested'), occurred_at: '2026-09-20T18:00:00Z' },
       peer('e6', ID.sam, 'Sam (fixture)', 'ble', 'suggested'),
-      peer('e8', 'm-ana', 'Ana (fixture)', 'ble', 'suggested'),
+      { ...peer('e8', 'm-ana', 'Ana (fixture)', 'ble', 'suggested'), name: 'Ana "A" <b>x</b> (fixture)' },
     ] },
     { event_id: 'ev-harbor', event_name: 'Harbor Demo Night', occurred_at: '2026-08-01T23:00:00Z', peers: [
       peer('e7', ID.riley, 'Riley (fixture)', 'ble', 'suggested'),
@@ -401,17 +401,25 @@ try {
     await openYourNetwork();
     let cards = await metCards();
     const names = cards.map(c => c.name);
-    check(JSON.stringify(names) === JSON.stringify(['Riley (fixture)', 'Dana (fixture)', 'Jordan (fixture)', 'Eli (fixture)', 'Sam (fixture)', 'Ana (fixture)']),
+    check(JSON.stringify(names) === JSON.stringify(['Riley (fixture)', 'Dana (fixture)', 'Jordan (fixture)', 'Eli (fixture)', 'Sam (fixture)', 'Ana "A" <b>x</b> (fixture)']),
       `${name}: each person appears once, most recently met first`, JSON.stringify(names));
     check((await evaluate(`document.querySelector('#cd-network-history .ch-nearify-events-status')?.textContent.trim()`)) === '6 people',
       `${name}: the count is of people, not encounters`);
 
     // Encounter history from the encounters only.
     const riley = card(cards, 'Riley');
-    check(riley.met === 'Met at 3 events' && JSON.stringify(riley.events) === JSON.stringify(['Charleston Founders Meetup · Oct 10, 2026', 'HCD Event · Sep 18, 2026', 'Harbor Demo Night · Aug 1, 2026']),
+    check(riley.met === 'Met at 3 events' && JSON.stringify(riley.events) === JSON.stringify(['Charleston Founders Meetup · Oct 10, 2026', 'HCD Event · Sep 20, 2026', 'Harbor Demo Night · Aug 1, 2026']),
       `${name}: someone met at three events shows “Met at 3 events” and lists them, newest first`, JSON.stringify(riley));
     const ana = card(cards, 'Ana');
     check(ana.met === 'Met at HCD Event · Sep 18, 2026' && !ana.events.length, `${name}: someone met once names the event`, JSON.stringify(ana));
+    // A name with quotes and markup stays text, in the row and its attributes.
+    const unsafe = await callInPage(function () {
+      const row = document.querySelector('#cd-network-history .ch-peer-card[data-community-id="m-ana"]');
+      const button = row?.querySelector('.ch-peer-profile');
+      return { text: button?.textContent || '', attr: button?.dataset.peerName || '', bold: !!row?.querySelector('b'), attrs: [...(button?.attributes || [])].map(a => a.name) };
+    });
+    check(unsafe.text === 'Ana "A" <b>x</b> (fixture)' && unsafe.attr === unsafe.text && !unsafe.bold && JSON.stringify(unsafe.attrs) === '["type","class","data-profile-id","data-peer-name"]',
+      `${name}: a name with quotes and markup stays text`, JSON.stringify(unsafe));
 
     // 3. Status and actions, from the member's own connections.
     const dana = card(cards, 'Dana'), sam = card(cards, 'Sam'), jordan = card(cards, 'Jordan'), eli = card(cards, 'Eli');

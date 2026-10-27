@@ -131,9 +131,11 @@ function _peopleFrom(events) {
       byId.set(id, person);
     }
     person.edges.push(peer);
-    const when = ev.occurred_at || peer.occurred_at || '';
-    if (!person.events.some(e => e.name === ev.event_name && e.when === when)) {
-      person.events.push({ name: ev.event_name || 'Nearify Event', when });
+    // When this person was met (the group's date is its earliest encounter).
+    const when = peer.occurred_at || ev.occurred_at || '';
+    const key = ev.event_id || ev.event_name || 'unknown';
+    if (!person.events.some(e => e.key === key)) {
+      person.events.push({ key, name: ev.event_name || 'Nearify Event', when });
     }
   }));
   const time = value => { const t = new Date(value).getTime(); return Number.isFinite(t) ? t : 0; };
@@ -322,11 +324,10 @@ function _wireConnectButtons(panel, supabase) {
 // Helpers
 // ----------------------------------------------------------------
 
+// Safe in text and in quoted attributes (names go into data-peer-name).
 function _esc(s) {
   if (!s) return '';
-  const d = document.createElement('span');
-  d.textContent = String(s);
-  return d.innerHTML;
+  return String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 }
 
 function _initials(name) {
