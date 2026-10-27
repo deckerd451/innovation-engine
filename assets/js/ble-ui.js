@@ -32,6 +32,8 @@
   let suggestionsButton = null;
   let statusIndicator = null;
 
+  const BLUETOOTH_UNAVAILABLE = 'BLE scanning isn\'t available in this browser. Use the iOS app for automatic proximity detection. Event Mode visualization will still work.';
+
   // ============================================================================
   // INITIALIZATION
   // ============================================================================
@@ -244,6 +246,13 @@
       } else {
         alert('BLE Passive Networking not available. Use Chrome/Edge or the iOS app.');
       }
+      return;
+    }
+
+    // Opened deliberately in a browser without Web Bluetooth (Safari, iOS):
+    // say so before any privacy notice or permission prompt.
+    if (!window.BLEPassiveNetworking.isScanning() && !navigator.bluetooth) {
+      window.showNotification?.(BLUETOOTH_UNAVAILABLE, 'info');
       return;
     }
 
@@ -537,7 +546,7 @@
   }
 
   /**
-   * Show Bluetooth unavailable message
+   * Bluetooth unavailable: dim the scan button, quietly
    */
   function showBluetoothUnavailableMessage() {
     // Only show on desktop (mobile users should use native app)
@@ -545,16 +554,9 @@
     if (isMobile) return;
 
     console.log('ℹ️ [BLE UI] Web Bluetooth not available (expected on Safari/WebKit)');
-    
-    // Show calm info message (not an error)
-    setTimeout(() => {
-      if (typeof window.showNotification === 'function') {
-        window.showNotification(
-          'BLE scanning isn\'t available in this browser. Use the iOS app for automatic proximity detection. Event Mode visualization will still work.',
-          'info'
-        );
-      }
-    }, 2000);
+
+    // No notification here: signing in is not asking for Bluetooth. Event
+    // Mode explains it when someone opens it (toggleEventMode).
 
     // Disable scan button if it exists (but keep Event Mode Gravity working)
     if (eventModeButton) {
