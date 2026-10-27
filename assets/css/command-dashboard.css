@@ -2109,4 +2109,50 @@ body.reflection-resizing #network-reflection { transition:none; }
   #command-dashboard.cd-mobile-panel .udc-resource-meta { font-size:.78rem; }
 }
 
+
+/* ============================================================
+   YOUR NETWORK (app-nav.js): Network has no tab; it lives in You.
+   "‹ You" above its list, and on phones "‹ Your Network" on the map.
+   ============================================================ */
+.cd-network-back {
+  display: none;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 44px;
+  margin-left: 0.5rem;
+  padding: 0 0.6rem;
+  border: 1px solid rgba(0, 224, 255, 0.32);
+  border-radius: 8px;
+  background: rgba(0, 224, 255, 0.08);
+  color: #8beeff;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
 }
+body[data-destination="network"] .cd-network-back { display: inline-flex; }
+.cd-network-back:hover, .cd-network-back:focus-visible { border-color: #00e0ff; color: #fff; outline: none; }
+
+.network-map-back {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  left: 12px;
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 44px;
+  padding: 0 0.85rem;
+  border: 1px solid rgba(0, 224, 255, 0.45);
+  border-radius: 999px;
+  background: rgba(5, 7, 15, 0.9);
+  color: #dffaff;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.network-map-back[hidden] { display: none; }
+/* The back button takes the map title's corner. */
+body.mobile-surface-map .synapse-workspace-title { display: none; }

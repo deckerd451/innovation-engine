@@ -144,8 +144,8 @@ assert.doesNotMatch(index, /id="cd-settings-btn"|id="cd-logout-btn"/);
 assert.doesNotMatch(commandJs, /_wireSettingsBtn|_wireLogoutBtn/);
 assert.doesNotMatch(read('assets/js/mobile-you.js'), /data-profile-action/);
 
-// Labels: Home, Explore, Network.
-assert.match(mobileNav, /isNetwork \? 'Network' : 'Explore'/);
+// Labels: Home, Explore, Your Network.
+assert.match(mobileNav, /isNetwork \? 'Your Network' : 'Explore'/);
 // Home is not rebuilt by the 30-second unread refresh (that closed its
 // sections and cleared unfinished text); the Inbox badge shows the count.
 assert.doesNotMatch(mobileNav, /total-unread-messages-updated/);

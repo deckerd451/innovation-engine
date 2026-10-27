@@ -251,7 +251,10 @@ try {
   check(s.overlays === 0 && !s.youVisible && s.centreOwner !== 'my-space' && s.centreOwner !== 'assistance', 'Explore owns the viewport after switching from open assistance', JSON.stringify(s));
   check(await evaluate(`!document.querySelector('.buildspace-view-switcher, #cd-mobile-discover-mode, #mobile-tab-bar')`), 'No second navigation on mobile Explore');
   await shot('07-explore');
-  await tap('#app-nav [data-destination="network"]', 'Network');
+  // Network has no tab: You → Your Network.
+  await tap('#app-nav [data-destination="you"]', 'You');
+  await sleep(700);
+  await tap('#btn-open-your-network', 'Your Network');
   await sleep(700);
   s = await surfaceReport();
   check(s.overlays === 0 && !s.youVisible, 'Community owns the viewport', JSON.stringify(s));

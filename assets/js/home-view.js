@@ -326,7 +326,7 @@
   }
 
   // Your community: the people the member is connected to and the projects
-  // they are on, each one tap away (Network, and each project's own page,
+  // they are on, each one tap away (Your Network, and each project's own page,
   // where its tasks are). Nothing is ranked or recommended here; with no
   // connections or projects, Explore is where to find them.
   function paintMine() {
@@ -359,7 +359,7 @@
       <ul class="home-mine-list">${projects}</ul>
       ${more.length ? `<details class="home-more-list"><summary><span>${more.length} more project${more.length === 1 ? '' : 's'}</span><span class="home-more-cta">Show</span></summary><ul class="home-mine-list">${more.map(projectRow).join('')}</ul></details>` : ''}`);
     const el = part('mine');
-    el?.querySelector('[data-mine="people"]')?.addEventListener('click', () => window.AppNav?.go?.('network'));
+    el?.querySelector('[data-mine="people"]')?.addEventListener('click', () => window.AppNav?.openNetwork?.());
     el?.querySelector('[data-mine="find-people"]')?.addEventListener('click', () => exploreTab('people'));
     el?.querySelector('[data-mine="find-projects"]')?.addEventListener('click', () => exploreTab('projects'));
     el?.querySelectorAll('[data-project-id]').forEach(button => button.addEventListener('click', () => window.viewProjectDetails?.(button.dataset.projectId)));
