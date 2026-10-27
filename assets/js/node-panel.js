@@ -198,6 +198,122 @@ function createPanelElement() {
     .node-panel-body::-webkit-scrollbar-thumb:hover {
       background: rgba(0, 224, 255, 0.5);
     }
+    /* Skill members (renderSkillLensPanel): a compact header that stays put
+       and one tappable row per member, on phones and desktop alike. Class
+       styles, so the phone rules above that stack inline flex rows into
+       columns leave these rows as rows. */
+    #node-side-panel .skill-lens-header {
+      flex-shrink: 0;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: .5rem;
+      padding: .85rem .5rem .75rem 1rem;
+      background: linear-gradient(135deg, rgba(0,224,255,.15), rgba(0,224,255,.05)), rgba(10,14,39,.96);
+      border-bottom: 1px solid rgba(0,224,255,.3);
+    }
+    #node-side-panel .skill-lens-kicker {
+      color: #8beeff;
+      font-size: .68rem;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    #node-side-panel .skill-lens-title {
+      margin: .2rem 0 0;
+      color: #fff;
+      font-size: 1.25rem;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+    #node-side-panel .skill-lens-count {
+      margin: .2rem 0 0;
+      color: rgba(255,255,255,.6);
+      font-size: .82rem;
+    }
+    #node-side-panel .skill-lens-close {
+      flex: none;
+      display: grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      border: 0;
+      border-radius: 10px;
+      background: transparent;
+      color: rgba(255,255,255,.75);
+      cursor: pointer;
+    }
+    #node-side-panel .skill-lens-close svg,
+    #node-side-panel .skill-lens-row svg {
+      width: 18px;
+      height: 18px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+    }
+    #node-side-panel .skill-lens-body {
+      padding: .25rem .75rem .75rem;
+      background: rgba(10,14,39,.92);
+      overscroll-behavior: contain;
+    }
+    #node-side-panel .skill-lens-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    #node-side-panel .skill-lens-row {
+      width: 100%;
+      min-height: 56px;
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      padding: .5rem .35rem;
+      border: 0;
+      border-top: 1px solid rgba(255,255,255,.08);
+      border-radius: 0;
+      background: none;
+      color: #fff;
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+    #node-side-panel .skill-lens-list li:first-child .skill-lens-row { border-top: 0; }
+    #node-side-panel .skill-lens-row:hover,
+    #node-side-panel .skill-lens-row:active { background: rgba(0,224,255,.06); }
+    #node-side-panel .skill-lens-close:hover { background: rgba(255,255,255,.08); }
+    #node-side-panel .skill-lens-row:focus-visible,
+    #node-side-panel .skill-lens-close:focus-visible { outline: 2px solid #00e0ff; outline-offset: -2px; }
+    #node-side-panel .skill-lens-avatar {
+      flex: none;
+      display: grid;
+      place-items: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(0,224,255,.18);
+      color: #a9f3ff;
+      font-size: .72rem;
+      font-weight: 800;
+    }
+    #node-side-panel .skill-lens-text {
+      flex: 1;
+      min-width: 0;
+      display: grid;
+      gap: .1rem;
+    }
+    #node-side-panel .skill-lens-name {
+      overflow: hidden;
+      font-size: .94rem;
+      font-weight: 600;
+      line-height: 1.3;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    #node-side-panel .skill-lens-status { color: #a3adc0; font-size: .8rem; }
+    #node-side-panel .skill-lens-status.in-network { color: #7cf0c4; }
+    #node-side-panel .skill-lens-row > svg { flex: none; color: #a3adc0; }
+
     .node-panel-actions {
       flex-shrink: 0;
       background: linear-gradient(135deg, rgba(10, 14, 39, 0.98), rgba(26, 26, 46, 0.98));
@@ -411,16 +527,18 @@ async function loadNodeDetails(nodeData) {
 async function renderSkillLensPanel(skillData) {
   const skill = String(skillData.skillName || skillData.name || '').trim();
   const title = escapeHtml(skill || 'Skill');
+  // A compact header (skill, member count, close) that stays put, and the
+  // members in one scrolling list of rows.
   panelElement.innerHTML = `
-    <div class="node-panel-header" style="background:linear-gradient(135deg,rgba(0,224,255,.15),rgba(0,224,255,.05));padding:1.5rem;border-bottom:1px solid rgba(0,224,255,.3);">
-      <div style="display:flex;justify-content:space-between;align-items:start;gap:1rem;">
-        <div><div style="color:#8beeff;font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">People with this skill</div><h2 style="color:#fff;margin:.35rem 0 0;font-size:1.35rem;">${title}</h2></div>
-        <button type="button" class="close-node-panel" onclick="window.closeNodePanel?.()" aria-label="Close panel" style="background:transparent;border:0;color:rgba(255,255,255,.7);font-size:1.25rem;cursor:pointer;"><i class="fas fa-times"></i></button>
+    <div class="skill-lens-header">
+      <div>
+        <div class="skill-lens-kicker">People with this skill</div>
+        <h2 class="skill-lens-title" id="skill-lens-title">${title}</h2>
+        <p class="skill-lens-count" data-skill-lens-status>Finding people…</p>
       </div>
+      <button type="button" class="skill-lens-close" onclick="window.closeNodePanel?.()" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
-    <div class="node-panel-body" style="padding:1rem 1.25rem;overflow-y:auto;height:calc(100% - 104px);">
-      <div data-skill-lens-status style="color:rgba(255,255,255,.55);font-size:.82rem;">Finding people…</div>
-    </div>`;
+    <div class="node-panel-body skill-lens-body"></div>`;
 
   const body = panelElement.querySelector('.node-panel-body');
   const status = panelElement.querySelector('[data-skill-lens-status]');
@@ -445,12 +563,14 @@ async function renderSkillLensPanel(skillData) {
         .or('is_hidden.is.null,is_hidden.eq.false')
         .limit(1000),
       me
-        ? client.from('connections').select('from_user_id,to_user_id')
-          .or(`from_user_id.eq.${me},to_user_id.eq.${me}`).eq('status', 'accepted')
+        ? client.from('connections').select('from_user_id,to_user_id,status')
+          .or(`from_user_id.eq.${me},to_user_id.eq.${me}`).in('status', ['accepted', 'pending'])
         : Promise.resolve({ data: [] }),
     ]);
     if (error) throw error;
-    const connected = new Set((links || []).map(link => String(link.from_user_id) === me ? String(link.to_user_id) : String(link.from_user_id)));
+    const peer = link => (String(link.from_user_id) === me ? String(link.to_user_id) : String(link.from_user_id));
+    const connected = new Set((links || []).filter(link => link.status === 'accepted').map(peer));
+    const requested = new Set((links || []).filter(link => link.status === 'pending').map(peer));
     const seen = new Set();
     const people = (data || []).filter(person => {
       if (!person?.id || String(person.id) === me || (myAuth && String(person.user_id) === myAuth)) return false;
@@ -470,19 +590,26 @@ async function renderSkillLensPanel(skillData) {
     status.textContent = `${people.length} ${people.length === 1 ? 'member lists' : 'members list'} ${skill}.`;
     // Full names only for accepted connections (and admins); anyone else is
     // "First L.", as in search, Explore → People and the profile preview.
+    // Status is the relationship, as the Explore directory says it.
     const isAdmin = typeof window.isAdminUser === 'function' && window.isAdminUser();
-    const list = document.createElement('div');
-    list.style.cssText = 'display:flex;flex-direction:column;gap:.55rem;margin-top:.8rem;';
+    const list = document.createElement('ul');
+    list.className = 'skill-lens-list';
+    list.setAttribute('aria-labelledby', 'skill-lens-title');
     people.forEach(person => {
-      const fullAccess = isAdmin || connected.has(String(person.id));
+      const id = String(person.id);
+      const fullAccess = isAdmin || connected.has(id);
       const name = fullAccess ? String(person.name || 'Community member').trim() : limitedDisplayName(person.name);
       const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || '?';
+      const relation = connected.has(id) ? 'In your network' : requested.has(id) ? 'Connection request' : '';
+      const item = document.createElement('li');
       const button = document.createElement('button');
       button.type = 'button';
-      button.style.cssText = 'display:flex;align-items:center;gap:.7rem;width:100%;padding:.65rem .7rem;border:1px solid rgba(0,224,255,.16);border-radius:9px;background:rgba(0,224,255,.05);color:#fff;text-align:left;font:inherit;cursor:pointer;';
-      button.innerHTML = `<span aria-hidden="true" style="display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:rgba(0,224,255,.18);color:#a9f3ff;font-size:.72rem;font-weight:800;">${escapeHtml(initials)}</span><span style="min-width:0;"><strong style="display:block;font-size:.82rem;">${escapeHtml(name)}</strong><small style="color:rgba(255,255,255,.5);">${fullAccess ? 'Connected' : 'View profile'}</small></span>`;
+      button.className = 'skill-lens-row';
+      button.setAttribute('aria-label', relation ? `${name}, ${relation}` : name);
+      button.innerHTML = `<span class="skill-lens-avatar" aria-hidden="true">${escapeHtml(initials)}</span><span class="skill-lens-text"><span class="skill-lens-name">${escapeHtml(name)}</span>${relation ? `<span class="skill-lens-status${connected.has(id) ? ' in-network' : ''}">${relation}</span>` : ''}</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>`;
       button.addEventListener('click', () => window.openNodePanel?.({ id: person.id, type: 'person', name }));
-      list.appendChild(button);
+      item.appendChild(button);
+      list.appendChild(item);
     });
     body.appendChild(list);
   } catch (error) {
