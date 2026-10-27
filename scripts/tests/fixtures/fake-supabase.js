@@ -93,12 +93,24 @@
         if (mode === 'update') {
           const allowed = matched.filter(row => !writable[table] || writable[table](row));
           if (!allowed.length && single) return { data: null, error: { code: 'PGRST116', message: 'no rows updated' } };
-          allowed.forEach(row => Object.assign(row, payload, { updated_at: new Date().toISOString() }));
+          allowed.forEach(row => {
+            // project_tasks' trigger (PROJECT_TASKS_SCHEMA.sql): completed_at
+            // is set when a task becomes done and cleared when it is reopened.
+            const stamp = table === 'project_tasks' && 'status' in payload && payload.status !== row.status
+              ? { completed_at: payload.status === 'done' ? new Date().toISOString() : null } : {};
+            Object.assign(row, payload, stamp, { updated_at: new Date().toISOString() });
+          });
           return { data: single ? allowed[0] : allowed, error: null };
         }
         if (order) matched = matched.slice().sort((a, b) => (a[order.column] > b[order.column] ? 1 : -1) * (order.asc ? 1 : -1));
         if (limitN != null) matched = matched.slice(0, limitN);
         if (table === 'capability_packages') matched = matched.map(row => ({ ...row, creator: (db.community || []).find(c => c.id === row.creator_id) ? { id: row.creator_id, name: db.community.find(c => c.id === row.creator_id).name } : null, project: (db.projects || []).find(p => p.id === row.project_id) ? { id: row.project_id, title: db.projects.find(p => p.id === row.project_id).title } : null }));
+        // The embedded rows the project overlay and task list ask for
+        // (projects: creator and project_members with their community row;
+        // project_tasks: owner), as PostgREST returns them.
+        const person = id => { const c = (db.community || []).find(row => row.id === id); return c ? { id: c.id, name: c.name, image_url: c.image_url || null, skills: c.skills || [], user_id: c.user_id } : null; };
+        if (table === 'projects') matched = matched.map(row => ({ ...row, creator: person(row.creator_id), project_members: (db.project_members || []).filter(m => m.project_id === row.id).map(m => ({ user_id: m.user_id, role: m.role, user: person(m.user_id) })) }));
+        if (table === 'project_tasks') matched = matched.map(row => ({ ...row, owner: row.owner_id ? person(row.owner_id) : null }));
         if (single === 'maybe') return { data: matched[0] || null, error: null };
         if (single === 'one') return matched[0] ? { data: matched[0], error: null } : { data: null, error: { code: 'PGRST116', message: 'not found' } };
         return { data: matched, error: null };

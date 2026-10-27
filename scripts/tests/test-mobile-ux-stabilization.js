@@ -30,8 +30,11 @@ assert.match(panel, /pd-mobile-work-tab/);
 assert.match(panel, /class="pd-tab-btn pd-legacy-tab" data-tab="activity"/);
 assert.match(projectCss, /#project-detail-overlay #pd-tabs \.pd-legacy-tab/);
 assert.match(panel, /data-tab-focus="activity"/);
-assert.match(panel, /Continue your work/);
-assert.match(panel, /updateWorkNext/);
+// Overview carries the one next step (Home's own rule); Work no longer
+// repeats a "Continue your work" prompt above the task list.
+assert.match(panel, /id="pd-next"/);
+assert.match(panel, /window\.HomeView\.chooseNextTask\(open\)/);
+assert.doesNotMatch(panel, /Continue your work/);
 
 // Home picks one task to continue (home-view.js, every width).
 assert.match(home, /const task = chooseNextTask\(work\.tasks\)/);

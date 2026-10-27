@@ -76,17 +76,6 @@
     list-style-position: inside;
   }
   #project-detail-overlay .pd-work-section > div { padding: 0 .75rem .85rem; }
-  #project-detail-overlay .pd-work-next {
-    display: grid;
-    gap: .2rem;
-    margin: 0 0 .9rem;
-    padding: .75rem .85rem;
-    border-radius: 10px;
-    background: rgba(0,224,255,.06);
-    border: 1px solid rgba(0,224,255,.18);
-    color: #c8d5e5;
-  }
-  #project-detail-overlay .pd-work-next strong { color: #00e0ff; }
   #project-detail-overlay .pd-activity-summary {
     margin-top: 1.25rem;
     padding-top: .9rem;
