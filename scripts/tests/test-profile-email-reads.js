@@ -121,6 +121,25 @@ const marked = [...live].flatMap((f) => (source.get(f).match(/email-read-ok:[^\n
 for (const m of marked) assert.ok([...EMAIL_READ_ALLOWED].some((f) => m.startsWith(`${f}:`)), `unexpected email read: ${m}`);
 assert.ok(marked.some((m) => m.startsWith('auth.js: email-read-ok: duplicate claim fallback')), 'the duplicate-claim fallback is marked');
 
+// The presence view has only these columns of the ones the site asks for
+// (production check, 2026-10-28: no photo_visible or photo_consent_at), so
+// every query on it asks for these only; photo consent comes from community.
+const PRESENCE_VIEW_COLUMNS = new Set(['id', 'user_id', 'name', 'bio', 'skills', 'availability', 'user_role',
+  'image_url', 'connection_count', 'projects_created', 'presence_last_seen', 'presence_expires_at']);
+for (const f of live) {
+  const text = source.get(f);
+  for (const m of text.matchAll(/from\(\s*['"]community_with_last_seen['"]\s*\)\s*\.select\(\s*(['"`])([^'"`]*)\1/g)) {
+    const missing = m[2].split(',').map((c) => c.trim()).filter((c) => c && !PRESENCE_VIEW_COLUMNS.has(c));
+    assert.deepEqual(missing, [], `${f}: community_with_last_seen has no ${missing.join(', ')}`);
+  }
+}
+{
+  const panelJs = source.get('assets/js/node-panel.js');
+  const person = panelJs.slice(panelJs.indexOf('async function renderPersonPanel'), panelJs.indexOf("window.PresenceRealtime?.seedFromProfile(profile)"));
+  assert.match(person, /from\('community'\)\s*\.select\('photo_visible, photo_consent_at'\)\s*\.eq\('id', nodeData\.id\)/, 'the profile page reads photo consent from the profile itself');
+  assert.match(person, /profile\.photo_visible = photoChoice\?\.photo_visible === true;\s*profile\.photo_consent_at = photoChoice\?\.photo_consent_at \|\| null;/, 'without a readable choice the photo stays hidden');
+}
+
 // 2. The shared column lists.
 const columnsJs = read('assets/js/profile-columns.js');
 const context = { window: {} };

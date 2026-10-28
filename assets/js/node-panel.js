@@ -1673,16 +1673,27 @@ async function getLatestInPersonInteraction(currentCommunityId, targetCommunityI
 // Render person profile panel
 async function renderPersonPanel(nodeData) {
   // The profile fields this panel shows, with presence from the view (never
-  // email: members' emails aren't shown on profiles).
-  const { data: profile, error } = await supabase
-    .from('community_with_last_seen')
-    .select('id, user_id, name, bio, skills, availability, user_role, image_url, photo_visible, photo_consent_at, connection_count, projects_created, presence_last_seen, presence_expires_at')
-    .eq('id', nodeData.id)
-    .single();
+  // email: members' emails aren't shown on profiles). The view has no photo
+  // consent columns, so those come from the profile itself, under the same
+  // row rules; without them the photo stays hidden (fails closed).
+  const [{ data: profile, error }, { data: photoChoice }] = await Promise.all([
+    supabase
+      .from('community_with_last_seen')
+      .select('id, user_id, name, bio, skills, availability, user_role, image_url, connection_count, projects_created, presence_last_seen, presence_expires_at')
+      .eq('id', nodeData.id)
+      .single(),
+    supabase
+      .from('community')
+      .select('photo_visible, photo_consent_at')
+      .eq('id', nodeData.id)
+      .maybeSingle(),
+  ]);
 
   if (error || !profile) {
     throw error;
   }
+  profile.photo_visible = photoChoice?.photo_visible === true;
+  profile.photo_consent_at = photoChoice?.photo_consent_at || null;
 
   // Seed PresenceRealtime cache immediately so presence-ui.js updates
   // use DB-sourced data rather than overwriting with "Last seen: unknown".
