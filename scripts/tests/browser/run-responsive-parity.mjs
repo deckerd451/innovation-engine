@@ -43,8 +43,9 @@
 //   - Settings itself, from phones (portrait and landscape) through iPads to
 //     short laptop windows: header and Save stay in view while the body
 //     scrolls, comfortable touch targets, a labelled dialog that keeps
-//     keyboard focus and returns it, "Coming soon" email, push and language
-//     that can't be changed and keep what was stored, Save-only saving
+//     keyboard focus and returns it, only settings that work (no Quiet
+//     Mode, language, email or push, whose stored values are kept), Save-only
+//     saving
 //   - Explore search: keyboard-safe input, suggestions on screen, opening a
 //     result, and Enter for full results
 //   - goal assistance on phones and tablets, closed by navigating away
@@ -1344,21 +1345,22 @@ async function settingsLayoutChecks(P) {
     const open = await settingsLayout();
     check(open.saveInView && open.closeInView && open.titleInView && open.modal.top >= 0 && open.modal.bottom <= current.height + 1 && !open.pageScrolls,
       `${P}: Settings fits the screen, with its title, close and Save in view without scrolling`, JSON.stringify(open));
-    // Scroll the body to the end (Debug Mode, the last control).
+    // Scroll the body to the end (Privacy, the last section); then
+    // a tap still toggles Map suggestions.
     const end = await callInPage(function () { const b = document.getElementById('settings-modal-body'); b.scrollTop = b.scrollHeight; return b.scrollTop; });
     await sleep(150);
     const scrolled = await settingsLayout();
     const steady = Math.abs(scrolled.save.top - open.save.top) < 1 && Math.abs(scrolled.close.top - open.close.top) < 1;
     // Notices (toast.js) sit above every layer for a few seconds, and one can
     // cover the last setting: the "BLE scanning isn't available" notice that
-    // desktop browsers without Web Bluetooth show after load lands on Debug
-    // Mode (and Save) in a 900px window, and stays while a pointer rests on
+    // desktop browsers without Web Bluetooth show after load could land on a
+    // setting (and Save) in a 900px window, and stays while a pointer rests on
     // it. A person closes it with its × or moves the pointer away and it
     // closes by itself; then a real tap on the switch must toggle it. (The ×
     // is an icon-font glyph the harness does not load, so the run moves the
     // pointer away.)
     const covered = () => callInPage(function () {
-      const r = document.getElementById('settings-debug-mode').getBoundingClientRect();
+      const r = document.getElementById('settings-discovery-suggestions').getBoundingClientRect();
       const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
       const toast = hit?.closest?.('#toast-container > *');
       return toast ? toast.innerText.trim().slice(0, 60) : '';
@@ -1366,15 +1368,15 @@ async function settingsLayoutChecks(P) {
     const notice = await covered();
     if (notice) {
       if (!current.mobile) await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 5, y: 5 });
-      await waitUntil(function () { const r = document.getElementById('settings-debug-mode').getBoundingClientRect(); const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !hit?.closest?.('#toast-container'); }, [], 'the notice over Debug Mode to close by itself', 6000);
+      await waitUntil(function () { const r = document.getElementById('settings-discovery-suggestions').getBoundingClientRect(); const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !hit?.closest?.('#toast-container'); }, [], 'the notice over Map suggestions to close by itself', 6000);
     }
-    const before = await evaluate(`document.getElementById('settings-debug-mode').checked`);
-    await press('#settings-debug-mode', 'Debug Mode');
-    const toggled = await evaluate(`document.getElementById('settings-debug-mode').checked`);
-    await press('#settings-debug-mode', 'Debug Mode');
-    const restored = await evaluate(`document.getElementById('settings-debug-mode').checked`);
+    const before = await evaluate(`document.getElementById('settings-discovery-suggestions').checked`);
+    await press('#settings-discovery-suggestions', 'Map suggestions');
+    const toggled = await evaluate(`document.getElementById('settings-discovery-suggestions').checked`);
+    await press('#settings-discovery-suggestions', 'Map suggestions');
+    const restored = await evaluate(`document.getElementById('settings-discovery-suggestions').checked`);
     check(scrolled.saveInView && scrolled.closeInView && steady && (!open.body.scrollable || end > 0) && toggled === !before && restored === before,
-      `${P}: after scrolling to the last setting, the header and Save haven't moved and a tap toggles Debug Mode${notice ? ' (once the notice over it is closed)' : ''}`, JSON.stringify({ end, open: open.save, scrolled: scrolled.save, steady, notice, before, toggled, restored }));
+      `${P}: after scrolling to the last setting, the header and Save haven't moved and a tap toggles Map suggestions${notice ? ' (once the notice over it is closed)' : ''}`, JSON.stringify({ end, open: open.save, scrolled: scrolled.save, steady, notice, before, toggled, restored }));
     if (current.height < 700) await shot(`${current.name}-settings-scrolled`);
     // Comfortable targets: every row is tappable, and on touch screens close
     // and Save are at least 44px.
@@ -1387,59 +1389,43 @@ async function settingsLayoutChecks(P) {
     await waitFor(`!${isOpen.settings}`, 'settings to close', 3000);
   });
 
-  await step(`${P}: email, push and language are "Coming soon", can't be changed and keep what was stored`, async () => {
-    await evaluate(`(() => { localStorage.setItem('email-notifications-enabled', 'false'); localStorage.setItem('push-notifications-enabled', 'true'); localStorage.setItem('preferred_language', 'es'); return true; })()`);
+  await step(`${P}: only settings that work are shown, and saving keeps what the removed ones stored`, async () => {
+    const kept = { 'quiet-mode-enabled': 'true', 'email-notifications-enabled': 'false', 'push-notifications-enabled': 'true', preferred_language: 'es' };
+    await callInPage(function (kept) { Object.entries(kept).forEach(([k, v]) => localStorage.setItem(k, v)); localStorage.removeItem('DEBUG'); }, kept);
     await openSettings();
-    const ids = ['#settings-email-notif', '#settings-push-notif', '#settings-language'];
-    const state = () => callInPage(function (ids) {
-      return ids.map(sel => { const el = document.querySelector(sel); const row = el.closest('label') || el.parentElement; return { disabled: el.disabled, value: el.type === 'checkbox' ? el.checked : el.value, soon: /Coming soon/.test(row.textContent) }; });
-    }, ids);
-    const before = await state();
-    // Real taps on each one change nothing.
-    for (const sel of ids) {
-      const target = await callInPage(function (sel) { const el = document.querySelector(sel); return (el.closest('label') ? 'label' : 'select'); }, sel);
-      const info = await locate(sel);
-      if (info.missing || !info.onScreen) throw new Error(`Missing: ${sel}`);
-      if (current.mobile) {
-        await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: info.x, y: info.y }] });
-        await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-      } else {
-        await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: info.x, y: info.y, button: 'left', clickCount: 1 });
-        await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: info.x, y: info.y, button: 'left', clickCount: 1 });
-        if (target === 'select') await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }).then(() => send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 })).catch(() => {});
-      }
-      await sleep(200);
-      if (!(await evaluate(isOpen.settings))) await openSettings();
-    }
-    const after = await state();
-    check(before.every(c => c.disabled && c.soon) && JSON.stringify(after) === JSON.stringify(before) && before[2].value === 'en',
-      `${P}: email, push and language show "Coming soon" and can't be changed`, JSON.stringify({ before, after }));
+    const shown = await callInPage(function () {
+      const m = document.getElementById('settings-modal');
+      return { text: m.innerText, gone: ['settings-quiet-mode', 'settings-language', 'settings-email-notif', 'settings-push-notif', 'settings-debug-mode'].filter(id => document.getElementById(id)) };
+    });
+    check(!shown.gone.length && !/Quiet Mode|Coming soon|Language|Notifications|Debug Mode/.test(shown.text) && /Map suggestions/.test(shown.text) && /Privacy/.test(shown.text),
+      `${P}: Settings shows Map suggestions and Privacy, with no Quiet Mode, language, email, push or Debug Mode`, JSON.stringify(shown));
     await press('#settings-save-btn', 'Save');
     await waitFor(`!${isOpen.settings}`, 'settings to close', 3000);
-    const stored = await evaluate(`[localStorage.getItem('email-notifications-enabled'), localStorage.getItem('push-notifications-enabled'), localStorage.getItem('preferred_language')]`);
-    check(JSON.stringify(stored) === '["false","true","es"]', `${P}: saving leaves the stored email, push and language preferences as they were`, JSON.stringify(stored));
+    const stored = await callInPage(function (keys) { return JSON.stringify(Object.fromEntries(keys.map(k => [k, localStorage.getItem(k)]))); }, Object.keys(kept));
+    check(stored === JSON.stringify(kept), `${P}: saving leaves the stored Quiet Mode, email, push and language values as they were`, stored);
   });
 
   await step(`${P}: changes are saved only with Save, which confirms`, async () => {
-    await evaluate(`(() => { localStorage.removeItem('quiet-mode-enabled'); document.body.classList.remove('quiet-mode'); return true; })()`);
+    const reset = `(() => { localStorage.removeItem('discovery-suggestions-enabled'); window.dispatchEvent(new CustomEvent('discovery-suggestions-changed', { detail: { enabled: true } })); return true; })()`;
+    await evaluate(reset);
     await waitUntil(function () { return ![...document.querySelectorAll('body *')].some(el => el.childElementCount === 0 && el.textContent.trim() === 'Settings saved' && el.getClientRects().length); }, [], 'the Settings saved toast to go', 10000);
     await openSettings();
-    await press('#settings-quiet-mode', 'Quiet Mode');
+    await press(DISCOVERY_SWITCH, 'Map suggestions switch');
     await press('#settings-close-btn', 'Close settings');
     await waitFor(`!${isOpen.settings}`, 'settings to close', 3000);
-    const discarded = await evaluate(`localStorage.getItem('quiet-mode-enabled')`);
+    const discarded = await storedDiscovery();
     await openSettings();
-    const reopened = await evaluate(`document.getElementById('settings-quiet-mode').checked`);
-    await press('#settings-quiet-mode', 'Quiet Mode');
+    const reopened = await evaluate(`document.getElementById('settings-discovery-suggestions').checked`);
+    await press(DISCOVERY_SWITCH, 'Map suggestions switch');
     await press('#settings-save-btn', 'Save');
     await waitFor(`!${isOpen.settings}`, 'settings to close', 3000);
-    const saved = await evaluate(`localStorage.getItem('quiet-mode-enabled')`);
+    const saved = await storedDiscovery();
     const toast = await callInPage(function () { return [...document.querySelectorAll('body *')].some(el => el.childElementCount === 0 && el.textContent.trim() === 'Settings saved' && el.getClientRects().length); });
-    check(discarded === null && reopened === false && saved === 'true' && toast,
+    check(discarded === null && reopened === true && saved === 'false' && toast,
       `${P}: closing without Save discards a change; Save stores it and shows "Settings saved"`, JSON.stringify({ discarded, reopened, saved, toast }));
-    // Put Quiet Mode back, and let the toast (which sits over Account and
-    // Save for a few seconds) go, for the checks that follow.
-    await evaluate(`(() => { localStorage.removeItem('quiet-mode-enabled'); document.body.classList.remove('quiet-mode'); return true; })()`);
+    // Put Map suggestions back, and let the toast (which sits over Account
+    // and Save for a few seconds) go, for the checks that follow.
+    await evaluate(reset);
     await waitUntil(function () { return ![...document.querySelectorAll('body *')].some(el => el.childElementCount === 0 && el.textContent.trim() === 'Settings saved' && el.getClientRects().length); }, [], 'the Settings saved toast to go', 10000);
   });
 
@@ -1459,8 +1445,8 @@ async function settingsLayoutChecks(P) {
       await tab(true);
       const back = await focused();
       check(seen.every(f => f.inside) && seen.some(f => f.id === 'settings-save-btn') && seen.filter(f => f.id === 'settings-close-btn').length >= 2 && back.inside
-        && !seen.some(f => ['settings-email-notif', 'settings-push-notif', 'settings-language'].includes(f.id)),
-        `${P}: Tab and Shift+Tab cycle through Settings only, skipping the Coming soon controls`, JSON.stringify(seen.map(f => f.id)));
+        && ['settings-discovery-suggestions', 'settings-privacy-photo', 'settings-privacy-nearify'].every(id => seen.some(f => f.id === id)),
+        `${P}: Tab and Shift+Tab cycle through Settings only, reaching every control`, JSON.stringify(seen.map(f => f.id)));
       await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
       await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
       await waitFor(`!${isOpen.settings}`, 'settings to close', 3000);

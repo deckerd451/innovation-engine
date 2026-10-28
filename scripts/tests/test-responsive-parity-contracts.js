@@ -112,7 +112,7 @@ assert.match(read('assets/js/messaging.js'), /<button class="new-message-btn" ty
   assert.doesNotMatch(apiJs, /PreferencesPanel|loadPreferences\(/);
   assert.match(settingsJs, /id="settings-discovery-suggestions"/);
   assert.match(settingsJs, />Map suggestions</);
-  assert.match(settingsJs, /Highlight people and projects you might want to meet/);
+  assert.match(settingsJs, /the Network Map highlights up to 3 people or projects outside your network you might want to meet\. Turn off to stop these\./);
   assert.match(settingsJs, /window\.SettingsModal = \{ open, close, discoverySuggestionsEnabled \}/);
   // The map starts with the saved setting (no Settings dependency, no gap).
   assert.match(read('assets/js/unified-network/state-manager.js'), /this\._discoveryEnabled = storedDiscoveryEnabled\(\);/);
@@ -154,9 +154,10 @@ assert.match(read('assets/js/app-nav.js'), /addEventListener\('total-unread-mess
 assert.doesNotMatch(mobileNav, /data-discover-mode|cd-mobile-discover-mode/);
 
 // Settings: a labelled dialog whose header and Save stay in view while the
-// body scrolls; email, push and language are "Coming soon" (can't be
-// changed, and Save leaves what's stored); Save is still the only way to
-// store a change.
+// body scrolls, clear of the notch and home indicator. Only what works is
+// shown: no Quiet Mode, language, email or push (what they stored is left
+// alone), Debug Mode only while debugging is on, and Privacy goes to the
+// existing choices in You. Save is still the only way to store a change.
 {
   const settingsJs = read('assets/js/settings-modal.js');
   assert.match(settingsJs, /id="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title"/);
@@ -165,13 +166,13 @@ assert.doesNotMatch(mobileNav, /data-discover-mode|cd-mobile-discover-mode/);
   assert.match(settingsJs, /max-height: 90vh; max-height: 90dvh; overflow: hidden;\s*display: flex; flex-direction: column;/);
   assert.match(settingsJs, /id="settings-modal-body" style="[^"]*min-height: 0; overflow-y: auto;/);
   assert.match(settingsJs, /@media \(pointer: coarse\) \{\s*#settings-close-btn \{ width: 44px; height: 44px; \}\s*#settings-save-btn \{ min-height: 44px; \}/);
-  for (const id of ['settings-email-notif', 'settings-push-notif']) {
-    assert.match(settingsJs, new RegExp(`id="${id}" disabled `), `${id} can't be changed`);
-  }
-  assert.match(settingsJs, /<select id="settings-language" disabled aria-label="Language \(coming soon\)"/);
-  assert.equal((settingsJs.match(/\$\{comingSoon\}/g) || []).length, 3, 'three Coming soon controls');
+  assert.match(settingsJs, /padding: max\(1rem, env\(safe-area-inset-top\)\) max\(1rem, env\(safe-area-inset-right\)\)\s*max\(1rem, env\(safe-area-inset-bottom\)\) max\(1rem, env\(safe-area-inset-left\)\);/);
+  assert.doesNotMatch(settingsJs, /id="settings-(quiet-mode|language|email-notif|push-notif)"|Coming soon/);
+  assert.match(settingsJs, /\$\{debug \? `[\s\S]*id="settings-debug-mode"[\s\S]*` : ''\}/);
+  assert.match(settingsJs, /getElementById\('settings-privacy-photo'\)\?\.addEventListener\('click', \(\) => showInYou\('#edit-photo-visible', true\)\)/);
+  assert.match(settingsJs, /getElementById\('settings-privacy-nearify'\)\?\.addEventListener\('click', \(\) => showInYou\('#nearify-experience-row', false\)\)/);
   const save = settingsJs.slice(settingsJs.indexOf('  function save() {'), settingsJs.indexOf('  // Keyboard:'));
-  assert.doesNotMatch(save, /email-notifications-enabled|push-notifications-enabled|preferred_language|setLanguage/);
+  assert.doesNotMatch(save, /quiet-mode-enabled|email-notifications-enabled|push-notifications-enabled|preferred_language|setLanguage|removeItem\(|photo_visible/);
   assert.match(save, /window\.showToast\('Settings saved', 'success'\)/);
   assert.doesNotMatch(settingsJs, /addEventListener\('change'|addEventListener\('input'/);
 }
