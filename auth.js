@@ -40,6 +40,13 @@
   }
   window[GUARD] = true;
 
+  // Embedded Buildspace accepts a member session only from the CharlestonHacks portal.
+  const PORTAL_AUTH_ORIGIN = "https://charlestonhacks.com";
+  const PORTAL_AUTH_CHANNEL = "chs-buildspace-auth-v1";
+  const BUILDSPACE_EMBEDDED_IN_PORTAL =
+    window.parent !== window && window.location.origin === "https://deckerd451.github.io";
+  if (BUILDSPACE_EMBEDDED_IN_PORTAL) window.__CH_PORTAL_AUTH_HANDOFF__ = true;
+
   // -----------------------------
   // Helpers
   // -----------------------------
@@ -222,7 +229,15 @@
     mainContent?.classList.add("hidden");
 
     document.body.style.overflow = "hidden";
-    setHint("Continue with GitHub or Google to get started.");
+    if (window.__CH_PORTAL_AUTH_HANDOFF__) {
+      setHint("Sign in through Community Chat in the Member Portal to unlock Buildspace.");
+      const oauthButtons = document.querySelector(".ie-oauth-buttons");
+      const oauthLabel = document.querySelector(".ie-login-module-label");
+      if (oauthButtons) oauthButtons.hidden = true;
+      if (oauthLabel) oauthLabel.hidden = true;
+    } else {
+      setHint("Continue with GitHub or Google to get started.");
+    }
     clearAuthError();
     log("🔒 Showing login UI");
 
@@ -352,7 +367,15 @@
       return;
     }
 
-    const { error } = await window.supabase.auth.signOut();
+    if (window.__CH_PORTAL_AUTH_HANDOFF__ && window.parent !== window) {
+      window.parent.postMessage({
+        channel: PORTAL_AUTH_CHANNEL,
+        type: "SIGN_OUT_REQUEST",
+        nonce: window.__CH_PORTAL_AUTH_NONCE__
+      }, PORTAL_AUTH_ORIGIN);
+    }
+
+    const { error } = await window.supabase.auth.signOut({ scope: "local" });
     if (error) {
       err("❌ Logout error:", error);
       showNotification("Logout failed. Please try again.", "error");
@@ -882,6 +905,50 @@
     log("✅ onAuthStateChange listener attached");
   }
 
+  function installPortalAuthBridge() {
+    if (!window.__CH_PORTAL_AUTH_HANDOFF__ || !window.supabase || window.__CH_PORTAL_AUTH_NONCE__) return;
+
+    const bytes = new Uint8Array(18);
+    crypto.getRandomValues(bytes);
+    const nonce = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+    window.__CH_PORTAL_AUTH_NONCE__ = nonce;
+
+    window.addEventListener("message", async (event) => {
+      if (event.origin !== PORTAL_AUTH_ORIGIN || event.source !== window.parent) return;
+      const message = event.data;
+      if (!message || message.channel !== PORTAL_AUTH_CHANNEL || message.nonce !== nonce) return;
+
+      if (message.type === "SESSION") {
+        const tokens = message.tokens;
+        if (!tokens || typeof tokens.access_token !== "string" || typeof tokens.refresh_token !== "string") return;
+        try {
+          const { error } = await window.supabase.auth.setSession(tokens);
+          if (error) throw error;
+          // The CharlestonHacks portal owns refresh. It sends a new session after
+          // its Supabase client refreshes, avoiding competing refresh-token rotation.
+          await window.supabase.auth.stopAutoRefresh();
+        } catch (error) {
+          err("Buildspace member session could not be restored:", error);
+          showAuthError("Your member session could not be restored. Return to the portal and sign in again.");
+        }
+        return;
+      }
+
+      if (message.type === "AUTH_REQUIRED") {
+        try {
+          await window.supabase.auth.signOut({ scope: "local" });
+        } catch (_) {}
+        showLoginUI();
+      }
+    });
+
+    window.parent.postMessage({
+      channel: PORTAL_AUTH_CHANNEL,
+      type: "REQUEST",
+      nonce
+    }, PORTAL_AUTH_ORIGIN);
+  }
+
   async function initLoginSystem() {
     if (initPromise) return initPromise;
 
@@ -928,6 +995,7 @@
 
       // Subscribe to auth changes for future events
       attachAuthSubscriptionOnce();
+      installPortalAuthBridge();
 
       // Give Supabase a moment to finish any internal initialization
       await sleep(100);
