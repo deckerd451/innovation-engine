@@ -283,7 +283,7 @@
    * claimed), so this only waits for auth.js's answer.
    *
    * @returns {Promise<object|null>} The member's profile, or null if sign-in
-   *   found or created none (or it didn't finish in time)
+   *   didn't load one in time
    */
   async function ensureCommunityUser() {
     try {
@@ -303,8 +303,9 @@
   }
 
   // Resolves with auth.js's profile for this account (window.currentUserProfile,
-  // or the next 'profile-loaded'), or null on 'profile-new' (sign-in found or
-  // created none), sign-out, or after timeoutMs.
+  // or the next 'profile-loaded'), or null on sign-out or after timeoutMs.
+  // 'profile-new' doesn't end the wait: the load may still be running (its
+  // time limit), and the dashboard retries it (dashboardPane.js).
   function waitForSignedInProfile(authUserId, timeoutMs = 30000) {
     const own = (profile) => (profile && profile.user_id === authUserId ? profile : null);
     if (own(window.currentUserProfile)) return Promise.resolve(window.currentUserProfile);
@@ -312,7 +313,6 @@
       const finish = (profile) => {
         clearTimeout(timer);
         window.removeEventListener('profile-loaded', onLoaded);
-        window.removeEventListener('profile-new', onNone);
         window.removeEventListener('user-logged-out', onNone);
         resolve(profile);
       };
@@ -323,7 +323,6 @@
       const onNone = () => finish(null);
       const timer = setTimeout(onNone, timeoutMs);
       window.addEventListener('profile-loaded', onLoaded);
-      window.addEventListener('profile-new', onNone);
       window.addEventListener('user-logged-out', onNone);
     });
   }

@@ -153,36 +153,30 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     window.addEventListener("profile-loaded", async (e) => {
       console.log("📋 Dashboard received profile-loaded event:", e.detail);
       if (e?.detail?.profile) {
+        resetProfileRecovery();
         state.authUser = e.detail.user;
         state.communityProfile = e.detail.profile;
         await onAppReady();
       }
     });
 
-    // Listen for profile-new event from auth.js (new user without profile)
-    window.addEventListener("profile-new", async (e) => {
+    // Listen for profile-new event from auth.js (no profile loaded): wait for
+    // or retry sign-in's own load, never create one here (see below)
+    window.addEventListener("profile-new", (e) => {
       console.log("🆕 Dashboard received profile-new event:", e.detail);
       if (e?.detail?.user) {
         state.authUser = e.detail.user;
-        // Create community profile for new user
-        await ensureCommunityProfile();
-        // After profile is created, initialize dashboard
-        if (state.communityProfile?.id) {
-          await onAppReady();
-          // Emit profile-loaded so main.js initializes the graph + command dashboard
-          window.dispatchEvent(new CustomEvent("profile-loaded", {
-            detail: { user: state.authUser, profile: state.communityProfile }
-          }));
-        } else {
-          console.error("❌ Failed to create community profile for new user");
+        recoverSignedInProfile(() => {
+          console.error("❌ Could not load a community profile for this account");
           showLogin();
-        }
+        });
       }
     });
 
     // Listen for logout event
     window.addEventListener("user-logged-out", () => {
       console.log("👋 Dashboard received logout event");
+      resetProfileRecovery();
       state.authUser = null;
       state.communityProfile = null;
       state.synapseInitialized = false;
@@ -666,98 +660,48 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     }
   };
 
-  // Enhanced profile creation with better error handling
-  async function ensureCommunityProfile() {
-    console.log("🔧 ensureCommunityProfile called");
+  // -----------------------------
+  // Profile recovery (profile-new)
+  // -----------------------------
+  // auth.js sends profile-new when it couldn't load the signed-in member's
+  // profile: an error, its time limit (the load may still be running, with a
+  // returning member's older profile not yet claimed), or a new member's
+  // profile that couldn't be saved. Creating a profile here could leave a
+  // returning member on a new, empty profile, so this waits for or retries
+  // sign-in's own load instead (window.retrySignedInProfile): it claims
+  // first, creates a profile only when there's nothing to claim, and
+  // announces success with profile-loaded, which starts the dashboard.
+  // A few tries per sign-in, then onGiveUp. Run by
+  // scripts/tests/test-profile-recovery.js.
+  const PROFILE_RETRY_DELAYS_MS = [2000, 5000];
+  let profileRecovery = null;
+  let profileAttempts = 0; // this sign-in's; reset on profile-loaded and sign-out
 
-    if (!state.authUser) {
-      console.error("❌ Cannot create profile: No auth user");
-      return null;
-    }
-
-    if (state.communityProfile?.id) {
-      console.log("✅ Community profile already exists:", state.communityProfile.id);
-      return state.communityProfile;
-    }
-
-    console.log("🔍 Checking for existing community profile...");
-
-    // Helper function to add timeout to any promise
-    const withTimeout = (promise, timeoutMs, operation) => {
-      return Promise.race([
-        promise,
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error(`${operation} timeout after ${timeoutMs/1000}s`)), timeoutMs)
-        )
-      ]);
-    };
-
-    try {
-      // Check if profile already exists with timeout
-      const { data: existing, error: exErr } = await withTimeout(
-        state.supabase
-          .from("community")
-          .select(window.BuildspaceProfileColumns.own)
-          .eq("user_id", state.authUser.id)
-          .maybeSingle(),
-        15000, // 15 second timeout
-        "Profile check"
-      );
-
-      if (!exErr && existing) {
-        console.log("📋 Found existing community profile:", existing.id);
-        state.communityProfile = existing;
-        return existing;
+  function recoverSignedInProfile(onGiveUp) {
+    if (profileRecovery) return profileRecovery;
+    // Already gave up for this sign-in (the last try's own profile-new).
+    if (profileAttempts > PROFILE_RETRY_DELAYS_MS.length) return Promise.resolve();
+    profileRecovery = (async () => {
+      try {
+        while (profileAttempts <= PROFILE_RETRY_DELAYS_MS.length) {
+          if (typeof window.retrySignedInProfile !== "function") break;
+          if (profileAttempts > 0) {
+            await new Promise((resolve) => setTimeout(resolve, PROFILE_RETRY_DELAYS_MS[profileAttempts - 1]));
+          }
+          profileAttempts += 1;
+          const profile = await window.retrySignedInProfile();
+          if (profile?.id) return;
+        }
+        onGiveUp();
+      } finally {
+        profileRecovery = null;
       }
+    })();
+    return profileRecovery;
+  }
 
-      if (exErr) {
-        console.warn("⚠️ Error checking existing profile:", exErr.message);
-      }
-    } catch (error) {
-      console.error("❌ Timeout checking for existing profile:", error);
-      // Continue to try creating new profile
-    }
-
-    console.log("🆕 Creating new community profile for user:", state.authUser.email);
-
-    const displayName =
-      state.authUser.user_metadata?.full_name ||
-      state.authUser.user_metadata?.name ||
-      state.authUser.email?.split("@")[0] ||
-      "New Member";
-
-    const payload = {
-      user_id: state.authUser.id,
-      email: state.authUser.email,
-      name: displayName,
-      skills: "",
-      bio: "",
-      image_url: state.authUser.user_metadata?.avatar_url || null,
-    };
-
-    try {
-      const { data: created, error: createErr } = await withTimeout(
-        state.supabase
-          .from("community")
-          .insert(payload)
-          .select(window.BuildspaceProfileColumns.own)
-          .single(),
-        15000, // 15 second timeout
-        "Profile creation"
-      );
-
-      if (createErr) {
-        console.error("❌ Failed to create community profile:", createErr);
-        return null;
-      }
-
-      console.log("✅ Community profile created:", created.id);
-      state.communityProfile = created;
-      return created;
-    } catch (error) {
-      console.error("❌ Timeout creating community profile:", error);
-      return null;
-    }
+  function resetProfileRecovery() {
+    profileAttempts = 0;
   }
 
   // NOTE: dispatchProfileLoadedIfNeeded removed - auth.js handles all profile event dispatching

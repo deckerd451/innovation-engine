@@ -13,7 +13,9 @@
 // `raceTo` links the picked profile to another account between the
 // function's pick and its update; `linkFirst` links a profile to the caller
 // just before the call (after sign-in's own lookup by account); `claimGate`
-// is a promise the claim waits for, to order it against other code.
+// is a promise the claim waits for, to order it against other code;
+// `failEmailLookups` and `failInserts` make that many email lookups or
+// inserts fail (a database error or timeout).
 const norm = (v) => String(v || '').trim().toLowerCase();
 // PostgreSQL ILIKE: "%" and "_" are wildcards unless escaped with "\".
 const reEsc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -27,8 +29,9 @@ const claimOrder = (a, b) => (b.profile_completed === true) - (a.profile_complet
   || (b.onboarding_completed === true) - (a.onboarding_completed === true)
   || String(a.created_at).localeCompare(String(b.created_at));
 
-function stand(rows, { claim = 'production', raceTo = null, linkFirst = null, claimGate = null } = {}) {
+function stand(rows, { claim = 'production', raceTo = null, linkFirst = null, claimGate = null, failEmailLookups = 0, failInserts = 0 } = {}) {
   const queries = [];
+  const failures = { emailLookups: failEmailLookups, inserts: failInserts };
   let inserted = 0;
   const client = {
     auth: { getUser: async () => ({ data: { user: client.user }, error: null }) },
@@ -72,6 +75,15 @@ function stand(rows, { claim = 'production', raceTo = null, linkFirst = null, cl
         insert(p) { q.mode = 'insert'; q.payload = p; return api; },
         then(resolve, reject) {
           try {
+            const byEmail = q.mode === 'select' && q.filters.some(([, c]) => c === 'email');
+            if (byEmail && failures.emailLookups > 0) {
+              failures.emailLookups -= 1;
+              return resolve({ data: null, error: { message: 'canceling statement due to statement timeout' } });
+            }
+            if (q.mode === 'insert' && failures.inserts > 0) {
+              failures.inserts -= 1;
+              return resolve({ data: null, error: { message: 'connection reset' } });
+            }
             let hit;
             if (q.mode === 'insert') {
               hit = [].concat(q.payload).map((p) => ({ id: `new-${++inserted}`, ...p }));

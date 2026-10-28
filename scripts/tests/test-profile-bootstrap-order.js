@@ -60,6 +60,7 @@ function page(rows, user, options) {
     const emitProfileNew = (user) => window.dispatchEvent(new CustomEvent("profile-new", { detail: { user } }));
     let claimPromise = null;
     let profileLoadPromise = null;
+    let profileLoadInFlight = null;
     ${authCode}
     this.loadUserProfileOnce = loadUserProfileOnce;
   `, context);
@@ -121,16 +122,23 @@ const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
     assert.equal(created.user_id, 'auth-me');
     assert.equal((await early).id, created.id);
   }
-  // 4. Sign-in finds or creates nothing (it failed): bootstrapSession gives
-  // up without creating one.
+  // 4. Sign-in's time limit passes while the claim is still running
+  // (profile-new "timeout"): bootstrapSession keeps waiting, creates
+  // nothing, and gets the older profile when the load finishes.
   {
-    const rows = [];
-    const { window, queries } = page(rows, me);
+    const rows = [profile('older')];
+    const claim = gate();
+    const { window, context, queries } = page(rows, me, { claimGate: claim.promise });
     const early = window.bootstrapSession.getCommunityUser();
+    const signIn = context.loadUserProfileOnce(me);
     await tick();
-    window.dispatchEvent(new CustomEvent('profile-new', { detail: { user: me } }));
-    assert.equal(await early, null);
+    window.dispatchEvent(new CustomEvent('profile-new', { detail: { user: me, reason: 'timeout' } }));
+    await tick();
     assert.equal(inserts(queries).length, 0);
+    claim.open();
+    assert.equal((await signIn).id, 'older');
+    assert.equal((await early).id, 'older', 'bootstrapSession waited through profile-new');
+    assert.equal(rows.length, 1);
   }
   // 5. Another account's profile-loaded is ignored; sign-out ends the wait.
   {

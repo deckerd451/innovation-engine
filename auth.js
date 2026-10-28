@@ -15,7 +15,11 @@
 //
 // Emits:
 //  - profile-loaded  { detail: { user, profile } }
-//  - profile-new     { detail: { user } }
+//  - profile-new     { detail: { user, reason } } -- no profile loaded:
+//                    reason "create-failed" (a new member's profile couldn't
+//                    be saved), "error", or "timeout" (still loading). Never
+//                    create a profile in response: call
+//                    window.retrySignedInProfile(), which claims first.
 //  - user-logged-out { detail: {} }
 //  - app-ready       { detail: { user } }
 //  - auth-ready      { detail: {} }
@@ -145,6 +149,7 @@
 
   let bootUserId = null; // booted user id for this page load
   let profileLoadPromise = null; // in-flight profile request (single flight)
+  let profileLoadInFlight = null; // profileLoadPromise until it settles
   let claimPromise = null; // this sign-in's profile claim (claimOlderProfile)
 
   let hasBootstrappedThisLoad = false;
@@ -327,8 +332,8 @@
     );
   }
 
-  function emitProfileNew(user) {
-    window.dispatchEvent(new CustomEvent("profile-new", { detail: { user } }));
+  function emitProfileNew(user, reason) {
+    window.dispatchEvent(new CustomEvent("profile-new", { detail: { user, reason } }));
   }
 
   // -----------------------------
@@ -397,6 +402,7 @@
 
     bootUserId = null;
     profileLoadPromise = null;
+    profileLoadInFlight = null;
     claimPromise = null;
     hasBootstrappedThisLoad = false;
     signedInBootstrapStarted = false;
@@ -634,7 +640,7 @@
     if (!window.supabase || !user?.id) return null;
     if (profileLoadPromise) return profileLoadPromise;
 
-    profileLoadPromise = (async () => {
+    const load = (async () => {
       showProfileLoading(user);
       try {
         let profile = await fetchUserProfile(user);
@@ -666,7 +672,7 @@
 
           if (insertError) {
             err("❌ [PROFILE-LINK] Failed to create new profile:", insertError);
-            setTimeout(() => emitProfileNew(user), 10);
+            setTimeout(() => emitProfileNew(user, "create-failed"), 10);
             return null;
           }
 
@@ -699,15 +705,37 @@
         return profile;
       } catch (e) {
         err("❌ [PROFILE-LINK] Exception loading profile:", e);
-        setTimeout(() => emitProfileNew(user), 10);
+        setTimeout(() => emitProfileNew(user, "error"), 10);
         return null;
       } finally {
         hideProfileLoading();
       }
     })();
+    profileLoadPromise = load;
+    profileLoadInFlight = load;
+    load.then(() => {
+      if (profileLoadInFlight === load) profileLoadInFlight = null;
+    });
 
     return profileLoadPromise;
   }
+
+  // The signed-in member's profile through sign-in's own path -- by account,
+  // then claiming an older profile, and creating one only when there's
+  // nothing to claim -- for modules that got profile-new. A load still in
+  // progress (profile-new "timeout") is waited for, not restarted; one that
+  // finished without a profile is run again, claim included. The result is
+  // announced as usual (profile-loaded, or profile-new again).
+  function retrySignedInProfile() {
+    const user = window.currentAuthUser;
+    if (!user?.id) return Promise.resolve(null);
+    if (profileLoadInFlight) return profileLoadInFlight;
+    if (window.currentUserProfile?.user_id === user.id) return Promise.resolve(window.currentUserProfile);
+    profileLoadPromise = null;
+    claimPromise = null;
+    return loadUserProfileOnce(user);
+  }
+  window.retrySignedInProfile = retrySignedInProfile;
 
   // -----------------------------
   // Boot logic (dedupe auth events + ensure synapse loads)
@@ -717,6 +745,7 @@
     sessionValidation = null;
     bootUserId = null;
     profileLoadPromise = null;
+    profileLoadInFlight = null;
     claimPromise = null;
     hasBootstrappedThisLoad = false;
     signedInBootstrapStarted = false;
@@ -793,7 +822,7 @@
         await withTimeout(loadUserProfileOnce(user), 10000, "Profile load timeout");
       } catch (e) {
         err("❌ Profile loading failed:", e);
-        setTimeout(() => emitProfileNew(user), 10);
+        setTimeout(() => emitProfileNew(user, "timeout"), 10);
       } finally {
         setTimeout(() => {
           // Unified network handles visualization init via profile-loaded event
