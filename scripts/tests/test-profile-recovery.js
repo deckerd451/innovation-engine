@@ -118,12 +118,12 @@ const settle = async (ms = 60) => { await new Promise((resolve) => setTimeout(re
     assert.deepEqual(events.filter((e) => e.type === 'profile-loaded').map((e) => e.id), ['older']);
     assert.deepEqual(gaveUp, []);
   }
-  // 2. Error: the claim is unavailable and the fallback lookup fails once,
-  // so the load ends with profile-new "error". The dashboard retries sign-in,
-  // which links the older profile; nothing is created.
+  // 2. Error: the claim fails once (a timeout), so the load ends with
+  // profile-new "error". The dashboard retries sign-in, whose claim links the
+  // older profile; nothing is created.
   {
     const rows = [profile('older')];
-    const { context, queries, events, gaveUp } = page(rows, me, { claim: 'missing', failEmailLookups: 1 });
+    const { context, queries, events, gaveUp } = page(rows, me, { failClaims: 1 });
     assert.equal(await context.loadUserProfileOnce(me), null);
     await settle();
     assert.deepEqual(events[0], { type: 'profile-new', reason: 'error', id: undefined });
@@ -150,12 +150,12 @@ const settle = async (ms = 60) => { await new Promise((resolve) => setTimeout(re
     assert.deepEqual(events.filter((e) => e.type === 'profile-loaded').map((e) => e.id), [mine[0].id]);
     assert.deepEqual(gaveUp, []);
   }
-  // 4. Still failing (a returning member's lookups keep timing out): a few
-  // tries, then the dashboard gives up -- once -- without creating anything,
-  // and later profile-new events don't start more loads.
+  // 4. Still failing (the claim keeps failing): a few tries, then the
+  // dashboard gives up -- once -- without creating anything, and later
+  // profile-new events don't start more loads.
   {
     const rows = [profile('older')];
-    const { context, queries, gaveUp } = page(rows, me, { claim: 'missing', failEmailLookups: 100 });
+    const { context, queries, gaveUp } = page(rows, me, { claim: 'missing' });
     await context.loadUserProfileOnce(me);
     await settle(200);
     assert.equal(gaveUp.length, 1, 'gives up once');
@@ -166,6 +166,19 @@ const settle = async (ms = 60) => { await new Promise((resolve) => setTimeout(re
     assert.equal(claims(queries), loads, 'no further loads');
     assert.equal(inserts(queries).length, 0, 'nothing is created');
     assert.equal(rows[0].user_id, null, 'the older profile is left for the next sign-in');
+  }
+  // 5. The deployed claim returns a profile another account linked first:
+  // the load fails, and the retry's claim links the remaining unclaimed one.
+  {
+    const rows = [profile('picked'), profile('spare', { created_at: '2026-02-01' })];
+    const { context, queries, events, gaveUp } = page(rows, me, { raceTo: 'auth-other' });
+    assert.equal(await context.loadUserProfileOnce(me), null);
+    await settle();
+    assert.equal(rows[0].user_id, 'auth-other');
+    assert.equal(rows[1].user_id, 'auth-me', 'the retry claimed the spare');
+    assert.equal(inserts(queries).length, 0);
+    assert.deepEqual(events.filter((e) => e.type === 'profile-loaded').map((e) => e.id), ['spare']);
+    assert.deepEqual(gaveUp, []);
   }
   console.log('Profile recovery: after a sign-in error or time limit the dashboard waits for or retries sign-in (claim first) and never creates a profile; new members are still created once, by sign-in');
 })().catch((error) => { console.error(error); process.exit(1); });

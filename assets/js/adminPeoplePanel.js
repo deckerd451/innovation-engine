@@ -16,7 +16,7 @@ import {
   createPerson,
   getClaimStats,
   getEmailsForPeople
-} from './adminPeopleService.js';
+} from './adminPeopleService.js?v=email-lock-20261029';
 import { getCardAvatarUrl } from './avatar-utils.js';
 
 // Escape user-supplied content before injecting into innerHTML
@@ -162,8 +162,8 @@ export function renderPeoplePanel(container) {
               <th style="padding: 0.75rem; text-align: left; color: #00e0ff; font-weight: 600; font-size: 0.85rem; cursor: pointer;" data-sort="name">
                 Name <i class="fas fa-sort"></i>
               </th>
-              <th style="padding: 0.75rem; text-align: left; color: #00e0ff; font-weight: 600; font-size: 0.85rem; cursor: pointer;" data-sort="email">
-                Email <i class="fas fa-sort"></i>
+              <th style="padding: 0.75rem; text-align: left; color: #00e0ff; font-weight: 600; font-size: 0.85rem;">
+                Email
               </th>
               <th style="padding: 0.75rem; text-align: left; color: #00e0ff; font-weight: 600; font-size: 0.85rem; cursor: pointer;" data-sort="user_role">
                 Role <i class="fas fa-sort"></i>

@@ -10,6 +10,9 @@
 #   - Assistance permission boundary (docs/VALIDATION.md).
 #   - Claiming an older profile by email on the server
 #     (claim_community_profile_by_email as deployed), which sign-in relies on.
+#   - Member email privacy (scripts/tests/run-email-privacy-db.sh): members
+#     and visitors can't read other members' emails; admins can, through
+#     admin-only functions; sign-in and claiming keep working.
 #   - scripts/tests/run-authz-db.sh, when present: notification, connection,
 #     membership and proximity authorization, with its own negative controls.
 set -euo pipefail
@@ -58,11 +61,14 @@ for step in fixture function test; do
 done
 echo "   $out"
 
+echo "3. Member email privacy (scripts/tests/run-email-privacy-db.sh)"
+bash "$ROOT/scripts/tests/run-email-privacy-db.sh" | sed 's/^/   /'
+
 if [ -f "$ROOT/scripts/tests/run-authz-db.sh" ]; then
-  echo "3. Authorization suite (scripts/tests/run-authz-db.sh)"
+  echo "4. Authorization suite (scripts/tests/run-authz-db.sh)"
   bash "$ROOT/scripts/tests/run-authz-db.sh"
 else
-  echo "3. Authorization suite: scripts/tests/run-authz-db.sh not in this tree"
+  echo "4. Authorization suite: scripts/tests/run-authz-db.sh not in this tree"
 fi
 
 echo "database checks passed"

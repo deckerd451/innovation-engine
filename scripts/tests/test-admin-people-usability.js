@@ -19,7 +19,7 @@ assert.match(panel, /active-filter-count[\s\S]*aria-live="polite"/,
   'filter feedback must be announced to assistive technology');
 assert.match(panel, /aria-pressed/, 'interactive KPI filters must expose selected state');
 assert.match(css, /\.admin-people-stat:focus-visible/, 'KPI filters must have a visible keyboard focus state');
-assert.match(index, /adminPeoplePanel\.js\?v=admin-people-actions-20260826/,
+assert.match(index, /adminPeoplePanel\.js\?v=email-lock-20261029/,
   'the changed production module must have a cache-busting version');
 
 console.log('✅ test-admin-people-usability passed');

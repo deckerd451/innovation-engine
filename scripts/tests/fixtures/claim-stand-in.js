@@ -7,6 +7,9 @@
 //               profile with the email (completed, then onboarded, then
 //               oldest), links it only if still unclaimed, and returns its
 //               id either way; null when nothing matches
+//   fixed       as replaced by 20261029_member_email_privacy_prepare.sql:
+//               the same, but returns only a profile it linked (null when
+//               another account linked the pick first)
 //   repository  sql/claim_community_profile_by_email.sql: refuses duplicates
 //               and already-linked callers
 //   missing     unavailable
@@ -14,8 +17,8 @@
 // function's pick and its update; `linkFirst` links a profile to the caller
 // just before the call (after sign-in's own lookup by account); `claimGate`
 // is a promise the claim waits for, to order it against other code;
-// `failEmailLookups` and `failInserts` make that many email lookups or
-// inserts fail (a database error or timeout).
+// `failEmailLookups`, `failInserts` and `failClaims` make that many email
+// lookups, inserts or claims fail (a database error or timeout).
 const norm = (v) => String(v || '').trim().toLowerCase();
 // PostgreSQL ILIKE: "%" and "_" are wildcards unless escaped with "\".
 const reEsc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -29,9 +32,9 @@ const claimOrder = (a, b) => (b.profile_completed === true) - (a.profile_complet
   || (b.onboarding_completed === true) - (a.onboarding_completed === true)
   || String(a.created_at).localeCompare(String(b.created_at));
 
-function stand(rows, { claim = 'production', raceTo = null, linkFirst = null, claimGate = null, failEmailLookups = 0, failInserts = 0 } = {}) {
+function stand(rows, { claim = 'production', raceTo = null, linkFirst = null, claimGate = null, failEmailLookups = 0, failInserts = 0, failClaims = 0 } = {}) {
   const queries = [];
-  const failures = { emailLookups: failEmailLookups, inserts: failInserts };
+  const failures = { emailLookups: failEmailLookups, inserts: failInserts, claims: failClaims };
   let inserted = 0;
   const client = {
     auth: { getUser: async () => ({ data: { user: client.user }, error: null }) },
@@ -42,6 +45,10 @@ function stand(rows, { claim = 'production', raceTo = null, linkFirst = null, cl
       const me = client.user;
       if (linkFirst) rows.find((r) => r.id === linkFirst).user_id = me.id;
       if (claim === 'missing') return { data: null, error: { message: 'Could not find the function public.claim_community_profile_by_email' } };
+      if (failures.claims > 0) {
+        failures.claims -= 1;
+        return { data: null, error: { message: 'canceling statement due to statement timeout' } };
+      }
       const linked = rows.find((r) => r.user_id === me.id);
       const matches = rows.filter((r) => norm(r.email) === norm(me.email) && !r.user_id);
       if (claim === 'repository') {
@@ -54,8 +61,9 @@ function stand(rows, { claim = 'production', raceTo = null, linkFirst = null, cl
       if (linked) return { data: linked.id, error: null };
       if (matches.length === 0) return { data: null, error: null };
       const picked = [...matches].sort(claimOrder)[0];
-      if (raceTo) picked.user_id = raceTo;
+      if (raceTo) { picked.user_id = raceTo; raceTo = null; } // once
       if (!picked.user_id) picked.user_id = me.id; // UPDATE ... WHERE user_id IS NULL
+      if (claim === 'fixed') return { data: picked.user_id === me.id ? picked.id : null, error: null };
       return { data: picked.id, error: null }; // returned whether or not it was linked
     },
     from(table) {
