@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // The admin People panel gets members' emails only through the admin-only
-// database functions (admin_member_emails, admin_find_members_by_email),
+// database functions (admin_member_emails, admin_search_people,
+// admin_find_members_by_email),
 // never from the community table, which members -- admins included -- can't
 // read email from (docs/SECURITY_MEMBER_EMAIL_PRIVACY.md). Runs
 // assets/js/adminPeopleService.js against a recording stand-in client;
@@ -31,6 +32,13 @@ function client({ rpcError = null } = {}) {
       calls.push({ rpc: name, args });
       if (rpcError) return { data: null, error: rpcError };
       if (name === 'admin_member_emails') return { data: people.filter((p) => args.p_ids.includes(p.id)).map(({ id, email }) => ({ id, email })), error: null };
+      if (name === 'admin_search_people') {
+        const q = args.p_search.toLowerCase();
+        const key = args.p_sort;
+        const hits = people.filter((p) => !q || p.name.toLowerCase().includes(q) || p.email.includes(q))
+          .sort((a, b) => String(a[key]).localeCompare(String(b[key])) * (args.p_ascending ? 1 : -1));
+        return { data: hits.slice(args.p_offset, args.p_offset + args.p_limit).map((p) => ({ id: p.id, total_count: hits.length })), error: null };
+      }
       if (name === 'admin_find_members_by_email') {
         const q = args.p_query.toLowerCase();
         return { data: people.filter((p) => (args.p_exact ? p.email === q : p.email.includes(q))).map(({ id, name, email }) => ({ id, name, email })), error: null };
@@ -91,21 +99,26 @@ function noEmailFromTable(calls) {
     assert.deepEqual(window.supabase.calls.find((c) => c.rpc === 'admin_member_emails').args, { p_ids: ['p1', 'p2', 'p3'] });
     noEmailFromTable(window.supabase.calls);
   }
-  // Search: names in the table, emails through admin_find_members_by_email.
+  // Search: the admin function filters, sorts and pages every match (name
+  // or email); the page's rows are read by id, in its order, with the total.
   {
     window.supabase = client();
-    await service.listPeople({ search: 'grace@' });
-    const find = window.supabase.calls.find((c) => c.rpc === 'admin_find_members_by_email');
-    assert.deepEqual(find.args, { p_query: 'grace@', p_exact: false });
-    const or = window.supabase.calls.find((c) => c.table)?.ops.find(([op]) => op === 'or');
-    assert.deepEqual(or, ['or', 'name.ilike.%grace@%,id.in.(p2)'], 'matches by name, or by the ids the email search found');
+    const { data, count } = await service.listPeople({ search: 'grace@', role: 'Admin', page: 0, pageSize: 25 });
+    const search = window.supabase.calls.find((c) => c.rpc === 'admin_search_people');
+    assert.deepEqual(search.args, { p_search: 'grace@', p_role: 'Admin', p_hidden: null, p_disabled: null, p_claimed: null,
+      p_sort: 'created_at', p_ascending: false, p_offset: 0, p_limit: 25 });
+    assert.deepEqual(data.map((p) => `${p.name} <${p.email}>`), ['Grace <grace@example.test>']);
+    assert.equal(count, 1);
+    assert.deepEqual(window.supabase.calls.find((c) => c.table).ops, [['in', 'id', ['p2']]], 'rows are read by id only');
     noEmailFromTable(window.supabase.calls);
   }
-  // Sorting on email falls back to name.
+  // Sorting by email, page 2: the order and paging come from the function.
   {
     window.supabase = client();
-    await service.listPeople({ sortKey: 'email' });
-    assert.deepEqual(window.supabase.calls.find((c) => c.table).ops.find(([op]) => op === 'order').slice(0, 2), ['order', 'name']);
+    const { data, count } = await service.listPeople({ sortKey: 'email', sortDir: 'asc', page: 1, pageSize: 1 });
+    assert.deepEqual(data.map((p) => p.name), ['Grace'], 'second by email: ada, grace, linus');
+    assert.equal(count, 3);
+    noEmailFromTable(window.supabase.calls);
   }
   // Details and update: email from the admin function.
   {
@@ -139,9 +152,11 @@ function noEmailFromTable(calls) {
     const { data, error } = await service.listPeople();
     assert.equal(error, null);
     assert.deepEqual(data.map((p) => p.email ?? null), [null, null, null]);
-    const search = await service.listPeople({ search: 'ada' });
+    const search = await service.listPeople({ search: 'ada', sortKey: 'email' });
     assert.equal(search.error, null, 'search still works, by name');
-    assert.deepEqual(window.supabase.calls.filter((c) => c.table).pop().ops.find(([op]) => op === 'ilike'), ['ilike', 'name', '%ada%']);
+    const ops = window.supabase.calls.filter((c) => c.table).pop().ops;
+    assert.deepEqual(ops.find(([op]) => op === 'ilike'), ['ilike', 'name', '%ada%']);
+    assert.deepEqual(ops.find(([op]) => op === 'order').slice(0, 2), ['order', 'name'], 'and sorts by name instead of email');
   }
   global.console = realConsole;
   console.log('Admin people emails: list, search, details, add and export use the admin-only functions, never the email column');

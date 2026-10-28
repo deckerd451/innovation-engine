@@ -30,11 +30,15 @@
 --      used to return the picked id even when another account linked it
 --      first), and visitors (anon) can no longer call it. With this, sign-in
 --      needs no email lookup of its own.
---   5. Adds two admin-only functions, so the admin People panel can keep
---      showing and searching emails once part B is applied:
+--   5. Adds three admin-only functions, so the admin People panel can keep
+--      showing, searching and sorting by email once part B is applied:
 --        admin_member_emails(uuid[])              emails for given profiles
---        admin_find_members_by_email(text, bool)  search by email
---      Both refuse anyone whose own profile isn't user_role 'Admin' and
+--        admin_find_members_by_email(text, bool)  find by email ("already
+--                                                 exists" checks)
+--        admin_search_people(...)                 the People list's search,
+--                                                 filters, sort and paging,
+--                                                 by name or email
+--      All refuse anyone whose own profile isn't user_role 'Admin' and
 --      enabled.
 --
 -- No table, column, policy or row changes. Hidden-profile protection is
@@ -231,6 +235,7 @@ DECLARE
   v_uid uuid := auth.uid();
   v_email text;
   v_id uuid;
+  v_owner uuid;
 BEGIN
   IF v_uid IS NULL THEN
     RAISE EXCEPTION 'Not authenticated' USING ERRCODE = '42501';
@@ -249,30 +254,44 @@ BEGIN
 
   -- Pick one unclaimed profile with this email and link it in the same
   -- statement; others with the same email are left exactly as they are.
-  -- A profile another sign-in is linking is skipped, and one linked in the
-  -- meantime no longer matches user_id IS NULL, so only a profile this call
-  -- actually linked is returned.
-  UPDATE community c
-  SET user_id = v_uid, updated_at = now()
-  WHERE c.id = (
-      SELECT u.id FROM community u
-      WHERE u.user_id IS NULL AND lower(trim(u.email)) = v_email
-      ORDER BY coalesce(u.profile_completed, false) DESC,
-               coalesce(u.onboarding_completed, false) DESC,
-               u.created_at ASC NULLS LAST
-      LIMIT 1
-      FOR UPDATE SKIP LOCKED
-    )
-    AND c.user_id IS NULL
-  RETURNING c.id INTO v_id;
-  IF v_id IS NOT NULL THEN
-    RETURN v_id;
-  END IF;
+  -- A profile locked by another statement is waited for, not skipped; one
+  -- linked in the meantime no longer matches user_id IS NULL. Only a profile
+  -- now linked to this account is returned.
+  FOR attempt IN 1..3 LOOP
+    v_id := NULL;
+    UPDATE community c
+    SET user_id = v_uid, updated_at = now()
+    WHERE c.id = (
+        SELECT u.id FROM community u
+        WHERE u.user_id IS NULL AND lower(trim(u.email)) = v_email
+        ORDER BY coalesce(u.profile_completed, false) DESC,
+                 coalesce(u.onboarding_completed, false) DESC,
+                 u.created_at ASC NULLS LAST
+        LIMIT 1
+        FOR UPDATE
+      )
+      AND c.user_id IS NULL
+    RETURNING c.id, c.user_id INTO v_id, v_owner;
+    IF v_id IS NOT NULL AND v_owner = v_uid THEN
+      RETURN v_id;
+    END IF;
 
-  -- Another sign-in of this same account may have linked a profile while
-  -- this one waited.
-  SELECT id INTO v_id FROM community WHERE user_id = v_uid ORDER BY created_at LIMIT 1;
-  RETURN v_id;
+    -- Another sign-in of this same account may have linked one meanwhile.
+    SELECT id INTO v_id FROM community WHERE user_id = v_uid ORDER BY created_at LIMIT 1;
+    IF v_id IS NOT NULL THEN
+      RETURN v_id;
+    END IF;
+
+    -- Nothing left to claim (another account linked the last one).
+    IF NOT EXISTS (SELECT 1 FROM community WHERE user_id IS NULL AND lower(trim(email)) = v_email) THEN
+      RETURN NULL;
+    END IF;
+  END LOOP;
+
+  -- Unclaimed profiles with this email remain but couldn't be linked just
+  -- now: fail (sign-in retries) rather than report that there are none,
+  -- which would create a new, empty profile.
+  RAISE EXCEPTION 'Profile claim busy; try again' USING ERRCODE = '55P03';
 END;
 $$;
 
@@ -337,15 +356,76 @@ BEGIN
 END;
 $$;
 
+-- One page of the People list: profiles whose name or email contains
+-- p_search (all when empty), filtered and sorted as the panel asks, with the
+-- total match count. Only ids are returned; the panel reads the rows by id.
+-- Every match is reachable by paging (no cap on matches, only on page size).
+CREATE OR REPLACE FUNCTION public.admin_search_people(
+  p_search text DEFAULT '',
+  p_role text DEFAULT NULL,
+  p_hidden boolean DEFAULT NULL,
+  p_disabled boolean DEFAULT NULL,
+  p_claimed boolean DEFAULT NULL,
+  p_sort text DEFAULT 'created_at',
+  p_ascending boolean DEFAULT false,
+  p_offset integer DEFAULT 0,
+  p_limit integer DEFAULT 50
+)
+RETURNS TABLE (id uuid, total_count bigint)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_query text := lower(trim(coalesce(p_search, '')));
+  v_pattern text;
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM community a
+                 WHERE a.user_id = auth.uid() AND a.user_role = 'Admin' AND a.is_disabled IS NOT TRUE) THEN
+    RAISE EXCEPTION 'not_authorized: admin required' USING ERRCODE = '42501';
+  END IF;
+  IF p_sort NOT IN ('name', 'email', 'user_role', 'created_at', 'updated_at', 'last_login') THEN
+    RAISE EXCEPTION 'unsupported sort %', p_sort USING ERRCODE = '22023';
+  END IF;
+  -- "%" and "_" in the search match only themselves.
+  v_pattern := '%' || replace(replace(replace(v_query, '\', '\\'), '%', '\%'), '_', '\_') || '%';
+
+  RETURN QUERY
+    WITH matches AS (
+      SELECT c.id, c.name, c.email, c.user_role, c.created_at, c.updated_at, c.last_login
+      FROM community c
+      WHERE (v_query = '' OR c.name ILIKE v_pattern OR c.email ILIKE v_pattern)
+        AND (p_role IS NULL OR c.user_role = p_role)
+        AND (p_hidden IS NULL OR c.is_hidden = p_hidden)
+        AND (p_disabled IS NULL OR c.is_disabled = p_disabled)
+        AND (p_claimed IS NULL OR (c.user_id IS NOT NULL) = p_claimed)
+    )
+    SELECT m.id, count(*) OVER () AS total_count
+    FROM matches m
+    ORDER BY
+      CASE WHEN p_ascending THEN CASE p_sort WHEN 'name' THEN m.name WHEN 'email' THEN m.email WHEN 'user_role' THEN m.user_role END END ASC,
+      CASE WHEN NOT p_ascending THEN CASE p_sort WHEN 'name' THEN m.name WHEN 'email' THEN m.email WHEN 'user_role' THEN m.user_role END END DESC,
+      CASE WHEN p_ascending THEN CASE p_sort WHEN 'created_at' THEN m.created_at WHEN 'updated_at' THEN m.updated_at WHEN 'last_login' THEN m.last_login END END ASC,
+      CASE WHEN NOT p_ascending THEN CASE p_sort WHEN 'created_at' THEN m.created_at WHEN 'updated_at' THEN m.updated_at WHEN 'last_login' THEN m.last_login END END DESC,
+      m.id
+    OFFSET greatest(coalesce(p_offset, 0), 0)
+    LIMIT least(greatest(coalesce(p_limit, 50), 1), 200);
+END;
+$$;
+
 REVOKE ALL ON FUNCTION public.admin_member_emails(uuid[]) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.admin_find_members_by_email(text, boolean) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.admin_search_people(text, text, boolean, boolean, boolean, text, boolean, integer, integer) FROM PUBLIC;
 DO $$
 BEGIN
   EXECUTE 'REVOKE ALL ON FUNCTION public.admin_member_emails(uuid[]) FROM anon';
   EXECUTE 'REVOKE ALL ON FUNCTION public.admin_find_members_by_email(text, boolean) FROM anon';
+  EXECUTE 'REVOKE ALL ON FUNCTION public.admin_search_people(text, text, boolean, boolean, boolean, text, boolean, integer, integer) FROM anon';
 END $$;
 GRANT EXECUTE ON FUNCTION public.admin_member_emails(uuid[]) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_find_members_by_email(text, boolean) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_search_people(text, text, boolean, boolean, boolean, text, boolean, integer, integer) TO authenticated;
 
 NOTIFY pgrst, 'reload schema';
 

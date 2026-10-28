@@ -46,7 +46,8 @@ INSERT INTO auth.users (id, email) VALUES
   ('a0000000-0000-4000-8000-000000000003', 'hidden@example.test'),
   ('a0000000-0000-4000-8000-000000000004', 'Old@Example.test'),
   ('a0000000-0000-4000-8000-000000000005', 'new@example.test'),
-  ('a0000000-0000-4000-8000-000000000006', 'raced@example.test');
+  ('a0000000-0000-4000-8000-000000000006', 'raced@example.test'),
+  ('a0000000-0000-4000-8000-000000000007', 'busy@example.test');
 INSERT INTO public.community (id, user_id, email, name, user_role, is_hidden, is_disabled, profile_completed, onboarding_completed, created_at, skills) VALUES
   ('10000000-0000-4000-8000-00000000000a', 'a0000000-0000-4000-8000-00000000000a', 'admin@example.test', 'Admin', 'Admin', false, false, true, true, '2026-01-01', 'design'),
   ('10000000-0000-4000-8000-00000000000d', 'a0000000-0000-4000-8000-00000000000d', 'disabled.admin@example.test', 'Former admin', 'Admin', false, true, true, true, '2026-01-01', NULL),
@@ -57,8 +58,10 @@ INSERT INTO public.community (id, user_id, email, name, user_role, is_hidden, is
   ('20000000-0000-4000-8000-000000000001', NULL, ' old@example.TEST', 'Old A', 'Member', false, false, false, false, '2025-01-01', NULL),
   ('20000000-0000-4000-8000-000000000002', NULL, 'old@example.test', 'Old B', 'Member', false, false, false, true, '2025-02-01', NULL),
   ('20000000-0000-4000-8000-000000000003', NULL, 'old@example.test', 'Old C', 'Member', false, false, true, false, '2025-03-01', NULL),
-  -- Linked by another sign-in between the claim's pick and its update.
+  -- Linked by another account between the claim's pick and its update.
   ('20000000-0000-4000-8000-000000000004', NULL, 'raced@example.test', 'Raced', 'Member', false, false, false, false, '2025-01-01', NULL),
+  -- Held by other statements for the whole claim.
+  ('20000000-0000-4000-8000-000000000007', NULL, 'busy@example.test', 'Busy', 'Member', false, false, false, false, '2025-01-01', NULL),
   -- Similar addresses, for the admin search.
   ('20000000-0000-4000-8000-000000000005', NULL, 'a_b@example.test', 'Underscore', 'Member', false, false, false, false, '2025-01-01', NULL),
   ('20000000-0000-4000-8000-000000000006', NULL, 'axb@example.test', 'Lookalike', 'Member', false, false, false, false, '2025-01-01', NULL);
@@ -73,11 +76,15 @@ INSERT INTO public.projects (id, creator_id, title) VALUES
 INSERT INTO public.project_members (project_id, user_id, role) VALUES
   ('30000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000002', 'pending');
 
--- Stands in for another sign-in linking the raced profile between the
--- claim's pick and its update (its UPDATE then matches nothing).
+-- Stands in for concurrency the test can't produce in one session:
+--   raced  another account links the profile as the claim updates it;
+--   busy   the profile can never be updated just now.
 CREATE FUNCTION pg_temp.raced() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
   IF OLD.id = '20000000-0000-4000-8000-000000000004' AND OLD.user_id IS NULL THEN
+    NEW.user_id := 'a0000000-0000-4000-8000-0000000000ff';
+  END IF;
+  IF OLD.id = '20000000-0000-4000-8000-000000000007' THEN
     RETURN NULL;
   END IF;
   RETURN NEW;
@@ -110,6 +117,7 @@ SELECT pg_temp.eq((public.get_project_interest_requests('30000000-0000-4000-8000
 -- The admin functions refuse members.
 SELECT pg_temp.fails($q$SELECT * FROM public.admin_member_emails(ARRAY['10000000-0000-4000-8000-000000000002'::uuid])$q$, 'not_authorized', 'member calls admin_member_emails');
 SELECT pg_temp.fails($q$SELECT * FROM public.admin_find_members_by_email('other')$q$, 'not_authorized', 'member calls admin_find_members_by_email');
+SELECT pg_temp.fails($q$SELECT * FROM public.admin_search_people('other')$q$, 'not_authorized', 'member calls admin_search_people');
 
 -- ===========================================================================
 -- Everything else a member does still works, and the hidden-profile rule is
@@ -120,7 +128,7 @@ SELECT pg_temp.eq((SELECT count(*)::text FROM (
          photo_visible, photo_consent_at, is_hidden, connection_count, created_at, updated_at, onboarding_completed,
          profile_completed, xp, level, login_streak, last_login, projects_created, projects_joined,
          endorsements_given, endorsements_received, is_disabled, image_path, status
-  FROM public.community) t), '10', 'member reads every other column of the profiles they can see');
+  FROM public.community) t), '11', 'member reads every other column of the profiles they can see');
 SELECT pg_temp.eq((SELECT count(*)::text FROM public.community WHERE id = '10000000-0000-4000-8000-000000000003'), '0', 'a hidden profile stays hidden from other members');
 SELECT pg_temp.eq((SELECT count(*)::text FROM public.community_with_last_seen WHERE id = '10000000-0000-4000-8000-000000000003'), '0', 'and from them through community_with_last_seen');
 SELECT pg_temp.eq((SELECT count(*)::text FROM public.community_with_last_seen WHERE id = '10000000-0000-4000-8000-000000000002' AND presence_last_seen IS NOT NULL), '1', 'community_with_last_seen still works for its other columns');
@@ -152,7 +160,9 @@ SELECT pg_temp.eq((SELECT string_agg(coalesce(user_id::text, '-') || '/' || is_h
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.eq(public.claim_community_profile_by_email()::text, '20000000-0000-4000-8000-000000000003', 'claiming again returns the linked profile');
 SELECT pg_temp.as_user('a0000000-0000-4000-8000-000000000006', 'raced@example.test');
-SELECT pg_temp.eq(public.claim_community_profile_by_email()::text, NULL, 'a profile linked by someone else meanwhile is not returned');
+SELECT pg_temp.eq(public.claim_community_profile_by_email()::text, NULL, 'a profile another account linked meanwhile is not returned');
+SELECT pg_temp.as_user('a0000000-0000-4000-8000-000000000007', 'busy@example.test');
+SELECT pg_temp.fails('SELECT public.claim_community_profile_by_email()', 'try again', 'a profile that can''t be linked just now is an error to retry, not "none"');
 SELECT pg_temp.as_user(NULL);
 SELECT pg_temp.fails('SELECT public.claim_community_profile_by_email()', 'Not authenticated', 'claim without an account');
 RESET ROLE;
@@ -170,6 +180,7 @@ SELECT pg_temp.eq((SELECT count(*)::text FROM public.community WHERE id = '10000
 SELECT pg_temp.fails('SELECT public.claim_community_profile_by_email()', 'permission denied', 'visitors can''t call the claim');
 SELECT pg_temp.fails($q$SELECT * FROM public.admin_member_emails(ARRAY['10000000-0000-4000-8000-000000000002'::uuid])$q$, 'permission denied', 'visitors can''t call admin_member_emails');
 SELECT pg_temp.fails($q$SELECT * FROM public.admin_find_members_by_email('other')$q$, 'permission denied', 'visitors can''t call admin_find_members_by_email');
+SELECT pg_temp.fails($q$SELECT * FROM public.admin_search_people('other')$q$, 'permission denied', 'visitors can''t call admin_search_people');
 RESET ROLE;
 
 -- ===========================================================================
@@ -185,6 +196,22 @@ SELECT pg_temp.eq((SELECT string_agg(name, ',' ORDER BY name) FROM public.admin_
 SELECT pg_temp.eq((SELECT string_agg(name, ',') FROM public.admin_find_members_by_email('a_b')), 'Underscore', '"_" in an admin search matches only "_"');
 SELECT pg_temp.eq((SELECT count(*)::text FROM public.admin_find_members_by_email('')), '0', 'an empty search returns nothing');
 SELECT pg_temp.fails('SELECT email FROM public.community', 'permission denied', 'admins don''t read the column directly either');
+-- The People list: search by name or email, filters, sort, paging.
+SELECT pg_temp.eq((SELECT string_agg(c.name || ':' || s.total_count, ',' ORDER BY s.ord)
+                   FROM (SELECT x.id, x.total_count, row_number() OVER () AS ord
+                         FROM public.admin_search_people('old@', p_sort => 'name', p_ascending => true, p_offset => 1, p_limit => 1) x) s
+                   JOIN public.community c ON c.id = s.id),
+                  'Old B:3', 'admin search pages through email matches, with the total');
+SELECT pg_temp.eq((SELECT string_agg(c.name, ',') FROM public.admin_search_people('hidd') s JOIN public.community c ON c.id = s.id), 'Hidden', 'admin search matches names, hidden members included');
+SELECT pg_temp.eq((SELECT string_agg(c.name, ',') FROM public.admin_search_people('', p_hidden => true) s JOIN public.community c ON c.id = s.id), 'Hidden', 'admin search filters');
+SELECT pg_temp.eq((SELECT c.name FROM public.admin_search_people('example.test', p_sort => 'email', p_ascending => false, p_limit => 1) s JOIN public.community c ON c.id = s.id), 'Raced',
+                  'admin search sorts by email (raced@ last alphabetically; by name it would be Underscore)');
+SELECT pg_temp.fails($q$SELECT * FROM public.admin_search_people('', p_sort => 'email; drop table x')$q$, 'unsupported sort', 'admin search accepts only known sorts');
+RESET ROLE;
+INSERT INTO public.community (email, name) SELECT 'bulk-' || n || '@example.test', 'Bulk ' || lpad(n::text, 3, '0') FROM generate_series(1, 250) n;
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.eq((SELECT count(*) || '/' || max(total_count) FROM public.admin_search_people('bulk-', p_sort => 'name', p_ascending => true, p_offset => 200, p_limit => 100)),
+                  '50/250', 'every match is reachable by paging (no cap on matches)');
 SELECT pg_temp.as_user('a0000000-0000-4000-8000-00000000000d', 'disabled.admin@example.test');
 SELECT pg_temp.fails($q$SELECT * FROM public.admin_member_emails(ARRAY['10000000-0000-4000-8000-000000000002'::uuid])$q$, 'not_authorized', 'a disabled admin is refused');
 RESET ROLE;

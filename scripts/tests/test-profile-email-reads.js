@@ -27,7 +27,8 @@ const read = (p) => fs.readFileSync(path.join(root, p), 'utf8');
 const PAGES = ['index.html', 'explore.html', 'opportunities.html', 'opportunity.html',
   'organizations.html', 'organization-profile.html', 'organization-admin.html'];
 const SKIP_DIRS = new Set(['node_modules', '.git', 'scripts', 'docs', 'supabase', 'sql', 'demos']);
-// The admin panel's column list; its definition is checked below (no email).
+// The admin panel's column lists; their definitions are checked below (no
+// email).
 const ADMIN_COLUMNS_FILE = 'assets/js/adminPeopleService.js';
 
 function walk(dir, out = []) {
@@ -71,7 +72,7 @@ function problemsIn(file, text) {
       if (literal !== undefined && /(^|,)\s*\*/.test(literal)) found.push(`${at(m.index)} select('*') reads every column`);
       if (literal !== undefined && /\bemail\b/.test(literal)) found.push(`${at(m.index)} selects email`);
       if (expression && !/^window\.BuildspaceProfileColumns\.(own|member)$/.test(expression)
-        && !(expression === 'ADMIN_PERSON_COLUMNS()' && file === ADMIN_COLUMNS_FILE)
+        && !(['ADMIN_PERSON_COLUMNS()', 'LIST_COLUMNS'].includes(expression) && file === ADMIN_COLUMNS_FILE)
         && !/^OWN_COLUMNS\(\)$/.test(expression)) {
         found.push(`${at(m.index)} selects an unchecked column list (${expression})`);
       }
@@ -175,7 +176,11 @@ const auth = read('auth.js');
 assert.match(auth, /const OWN_COLUMNS = \(\) => window\.BuildspaceProfileColumns\.own;/, 'sign-in reads the shared own-profile columns');
 const adminService = read('assets/js/adminPeopleService.js');
 assert.match(adminService, /const ADMIN_PERSON_COLUMNS = \(\) =>\s*`\$\{window\.BuildspaceProfileColumns\.own\}, is_disabled, image_path`;/, 'admin details: the own columns plus the admin fields, no email');
+const listColumns = adminService.match(/const LIST_COLUMNS = ([^;]+);/);
+assert.ok(listColumns, 'the People list names its columns');
+assert.doesNotMatch(listColumns[1], /email|\*/, 'and they leave out email');
 assert.match(adminService, /rpc\('admin_member_emails', \{ p_ids:/, 'the admin panel gets emails from admin_member_emails');
+assert.match(adminService, /rpc\('admin_search_people', \{/, 'and searches and sorts by email with admin_search_people');
 assert.match(adminService, /rpc\('admin_find_members_by_email', \{ p_query: query, p_exact: exact \}\)/, 'and searches them with admin_find_members_by_email');
 const adminActions = read('assets/js/dashboard-actions.js');
 assert.match(adminActions, /rpc\('admin_find_members_by_email', \{ p_query: email, p_exact: true \}\)/, 'the "already exists" check uses the admin function');

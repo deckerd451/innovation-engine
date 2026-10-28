@@ -7,10 +7,11 @@
 console.log('%c👥 Admin People Service Loading...', 'color:#00e0ff; font-weight: bold');
 
 // Members (admins included) can't read the email column
-// (docs/SECURITY_MEMBER_EMAIL_PRIVACY.md). This panel gets emails from two
+// (docs/SECURITY_MEMBER_EMAIL_PRIVACY.md). This panel gets emails from
 // admin-only database functions instead: admin_member_emails (emails for
-// given profiles) and admin_find_members_by_email (search, and the "already
-// exists" check). Everything else uses named columns
+// given profiles), admin_search_people (the list's search and email sort)
+// and admin_find_members_by_email (the "already exists" check). Everything
+// else uses named columns
 // (assets/js/profile-columns.js).
 const ADMIN_PERSON_COLUMNS = () =>
   `${window.BuildspaceProfileColumns.own}, is_disabled, image_path`;
@@ -29,6 +30,10 @@ async function withEmails(supabase, rows) {
   list.forEach((row) => { row.email = byId.get(row.id) ?? null; });
   return rows;
 }
+
+// The People list's columns (no email).
+const LIST_COLUMNS = 'id, name, user_role, is_hidden, is_disabled, photo_visible, photo_consent_at, '
+  + 'user_id, created_at, updated_at, last_login, image_url, image_path, avatar_storage_path';
 
 // Profiles whose email contains `query` (or equals it, with exact).
 async function findByEmail(supabase, query, exact = false) {
@@ -66,40 +71,49 @@ export async function listPeople({
     const supabase = window.supabase;
     if (!supabase) throw new Error('Supabase not available');
 
+    const searchTerm = search ? search.trim() : '';
+
+    // Searching (name or email) and sorting by email run in an admin-only
+    // database function, which filters, sorts and pages every match (the
+    // email column isn't readable here); the page's rows are then read by
+    // id. If the function is unavailable: names only, sorted by name.
+    if (searchTerm || sortKey === 'email') {
+      const { data: found, error: searchError } = await supabase.rpc('admin_search_people', {
+        p_search: searchTerm,
+        p_role: role,
+        p_hidden: hidden,
+        p_disabled: disabled,
+        p_claimed: claimed,
+        p_sort: sortKey,
+        p_ascending: sortDir === 'asc',
+        p_offset: page * pageSize,
+        p_limit: pageSize
+      });
+      if (!searchError) {
+        const ids = (found || []).map((row) => row.id);
+        const total = Number(found?.[0]?.total_count || 0);
+        if (!ids.length) return { data: [], count: total, error: null };
+        const { data: rows, error: rowsError } = await supabase
+          .from('community')
+          .select(LIST_COLUMNS)
+          .in('id', ids);
+        if (rowsError) throw rowsError;
+        const byId = new Map((rows || []).map((row) => [row.id, row]));
+        const ordered = ids.map((id) => byId.get(id)).filter(Boolean);
+        await withEmails(supabase, ordered);
+        return { data: ordered, count: total, error: null };
+      }
+      console.warn('⚠️ Could not search by email:', searchError.message || searchError);
+    }
+
     // Build query - fetch only list columns for performance
     let query = supabase
       .from('community')
-      .select(`
-        id,
-        name,
-        user_role,
-        is_hidden,
-        is_disabled,
-        photo_visible,
-        photo_consent_at,
-        user_id,
-        created_at,
-        updated_at,
-        last_login,
-        image_url,
-        image_path,
-        avatar_storage_path
-      `, { count: 'exact' });
+      .select(LIST_COLUMNS, { count: 'exact' });
 
     // Apply filters
-    if (search && search.trim()) {
-      const searchTerm = search.trim();
-      // Name in the table; email through the admin function (names only if
-      // it is unavailable).
-      let emailIds = [];
-      try {
-        emailIds = (await findByEmail(supabase, searchTerm)).map((row) => row.id);
-      } catch (emailError) {
-        console.warn('⚠️ Could not search emails:', emailError.message || emailError);
-      }
-      query = emailIds.length
-        ? query.or(`name.ilike.%${searchTerm}%,id.in.(${emailIds.join(',')})`)
-        : query.ilike('name', `%${searchTerm}%`);
+    if (searchTerm) {
+      query = query.ilike('name', `%${searchTerm}%`);
     }
 
     if (role) {
@@ -122,7 +136,7 @@ export async function listPeople({
       }
     }
 
-    // Apply sorting (email can't be sorted on: it isn't readable here)
+    // Apply sorting
     query = query.order(sortKey === 'email' ? 'name' : sortKey, { ascending: sortDir === 'asc' });
 
     // Apply pagination

@@ -41,7 +41,7 @@ read-only checkouts of `nearify-ios` (main, 49887ef, 2026-09-21),
 After PR #313 the only email reads left were marked ones:
 
 - **Sign-in fallback** (`auth.js`): an email lookup used when the claim failed. It's removed. A failed claim now fails the profile load, and the dashboard retries it, claim included (`window.retrySignedInProfile`). Nothing is created in the meantime.
-- **Admin People panel** (`adminPeopleService.js`, `dashboard-actions.js`): list, search, details, the "already exists" check and the export. These now use the admin functions. The Email column can no longer be sorted on.
+- **Admin People panel** (`adminPeopleService.js`, `dashboard-actions.js`): list, search, details, the "already exists" check, the export and sorting by email. These now use the admin functions.
 
 `scripts/tests/test-profile-email-reads.js` now allows no email selects,
 filters or sorts at all.
@@ -103,17 +103,22 @@ The site uses Buildspace's Supabase project directly:
 - Otherwise it picks one unclaimed profile with the sign-in email (completed, then onboarded, then oldest) and links it.
 - It leaves other duplicates exactly as they are; their projects and connections are untouched.
 
-It differs from production in four ways:
-- It links in one statement, and returns only a profile it actually linked. Production can return the picked id even when another account linked it first.
+It differs from production in five ways:
+- It links in one statement, and returns only a profile now linked to the caller. Production can return the picked id even when another account linked it first.
+- A profile locked by another statement (an admin edit, a concurrent claim) is waited for, not skipped. If unclaimed profiles with the email still remain after a few tries, it raises a retryable error ("Profile claim busy; try again"). It never reports "none", because that would make sign-in create an empty profile; sign-in retries the error.
 - If another sign-in of the same account linked a profile meanwhile, it returns that profile.
 - `anon` can no longer call it.
 - NULL completion flags count as false. Production's `DESC` ordering may put NULLs first.
 
 The website still checks that a returned profile is linked to the member, so it works with either version.
 
-**Admin access.** Two functions refuse anyone whose own profile isn't `user_role = 'Admin'` and enabled:
+**Admin access.** Three functions refuse anyone whose own profile isn't `user_role = 'Admin'` and enabled:
 - **`admin_member_emails(uuid[])`:** emails for up to 1000 given profiles.
-- **`admin_find_members_by_email(text, boolean)`:** exact (case- and space-insensitive) or partial match, at most 200 rows. `%` and `_` match only themselves.
+- **`admin_find_members_by_email(text, boolean)`:** exact (case- and space-insensitive) or partial match, at most 200 rows. Used for the "already exists" checks.
+- **`admin_search_people(...)`:** one page of the People list, matching name or email, with the panel's filters and sort (including by email) and the total count. It returns ids only, and the panel reads the rows by id.
+  - Every match is reachable by paging; only the page size is capped, at 200.
+
+In the searches, `%` and `_` match only themselves.
 
 `EXECUTE` goes to `authenticated` only.
 
@@ -196,7 +201,7 @@ Order matters: part B before part A stops itself. The website before part A work
 Fingerprints after part A (from the local model, whose functions match production's verified text):
 - `get_start_sequence_data` `ed7ee3319fe8d304b5eb708b7983d6c9`
 - `get_project_interest_requests` `2455e0331f615f2451808d2cd1d82361` (only if production's copy matched the repository's)
-- `claim_community_profile_by_email` `2037808858767c25db7b5f21e4e4e59a`
+- `claim_community_profile_by_email` `b9177746253874dea5d6c94090c04b16`
 ```sql
 SELECT has_function_privilege('anon', 'public.claim_community_profile_by_email()', 'EXECUTE') AS claim_anon_execute,
        has_function_privilege('anon', 'public.admin_member_emails(uuid[])', 'EXECUTE') AS admin_fn_anon,
@@ -229,7 +234,7 @@ BEGIN; SET LOCAL ROLE authenticated; SELECT email FROM public.community LIMIT 0;
   Run the part B rollback file later to tidy up the column grants.
 - **Part B:** `20261029b_member_email_privacy_lock_rollback.sql` restores table-level `SELECT` to the roles that held it, and removes the column grants.
 - **Part A, after part B is rolled back:** `20261029_member_email_privacy_prepare_rollback.sql` restores the saved functions (and the claim's grants), views and options, then drops the admin functions and the copies. It refuses to run while part B is applied.
-- **Website:** revert this PR if part A is rolled back, since the admin panel's emails depend on its functions. The website works with or without part B.
+- **Website:** revert this PR if part A is rolled back, since the admin panel's emails depend on its functions; without them it falls back to name search and name sort, with no emails. The website works with or without part B.
 
 The tests check that each rollback restores the catalog it started from exactly, and that both are safe to re-run.
 
@@ -242,12 +247,12 @@ The tests check that each rollback restores the catalog it started from exactly,
     - the column, `select *`, filters, search and sorting
     - `RETURNING`, an `UPDATE` filter, or the whole row
     - either view, `get_start_sequence_data` or `get_project_interest_requests`
-  - checks that admins get emails only through the admin functions (a disabled admin is refused, and `_` is literal)
+  - checks that admins get emails only through the admin functions: a disabled admin is refused, `_` is literal, the People search filters and sorts by email, and all 250 of 250 matches are reachable by paging
   - checks that hidden profiles stay hidden, through the views too
-  - checks that profiles are created and updated, that claiming picks the completed duplicate and leaves the others, that a raced claim returns nothing, and that the connection helper still works
+  - checks that profiles are created and updated, that claiming picks the completed duplicate and leaves the others, that a profile another account took meanwhile isn't returned, that a profile that can't be linked just now is a retryable error rather than "none", and that the connection helper still works
   - checks each safety stop, exact rollbacks, and the emergency statement
 - **Website tests:**
   - `test-signin-profile-claim.js`: no email query in any case, with today's claim and part A's.
   - `test-profile-recovery.js`: a failed or raced claim is retried, not replaced with a new profile.
-  - `test-admin-people-emails.js`: the admin panel uses only the admin functions; it fails on the previous service.
+  - `test-admin-people-emails.js`: the admin panel uses only the admin functions, including search and email sort with paging; it fails on the previous service.
   - `test-profile-email-reads.js`: no email reads anywhere.

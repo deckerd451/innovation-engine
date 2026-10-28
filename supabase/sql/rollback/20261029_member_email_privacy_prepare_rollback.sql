@@ -9,7 +9,7 @@
 --   - the previous claim_community_profile_by_email() and its grants
 --     (visitors can call it again, and it can again return a profile it
 --     didn't link);
--- and drops the two admin email functions and the copies.
+-- and drops the three admin email functions and the copies.
 --
 -- Roll back part B (20261029b_member_email_privacy_lock_rollback.sql) first:
 -- the restored views read email, and fail for everyone while members can't.
@@ -57,6 +57,7 @@ END $$;
 
 DROP FUNCTION IF EXISTS public.admin_member_emails(uuid[]);
 DROP FUNCTION IF EXISTS public.admin_find_members_by_email(text, boolean);
+DROP FUNCTION IF EXISTS public.admin_search_people(text, text, boolean, boolean, boolean, text, boolean, integer, integer);
 DROP TABLE IF EXISTS buildspace_rollback.member_email_privacy;
 DROP SCHEMA IF EXISTS buildspace_rollback;
 

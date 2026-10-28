@@ -40,7 +40,8 @@ BEGIN
   -- Part A first.
   IF to_regclass('buildspace_rollback.member_email_privacy') IS NULL
      OR to_regprocedure('public.admin_member_emails(uuid[])') IS NULL
-     OR to_regprocedure('public.admin_find_members_by_email(text,boolean)') IS NULL THEN
+     OR to_regprocedure('public.admin_find_members_by_email(text,boolean)') IS NULL
+     OR to_regprocedure('public.admin_search_people(text,text,boolean,boolean,boolean,text,boolean,integer,integer)') IS NULL THEN
     RAISE EXCEPTION 'Part A (20261029_member_email_privacy_prepare.sql) is not applied; not locking';
   END IF;
 
