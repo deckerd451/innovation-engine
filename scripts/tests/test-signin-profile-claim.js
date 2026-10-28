@@ -12,6 +12,8 @@
 //     second profile.
 //   - Nothing to claim: no profile (sign-in then creates one, with the
 //     session email).
+//   - Another account's profile with the same email is never returned,
+//     linked, hidden or written, by the claim or its fallback.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -53,19 +55,21 @@ function stand(rows, { claim = 'repo' } = {}) {
         eq(c, v) { q.filters.push(['eq', c, v]); return api; },
         ilike(c, v) { q.filters.push(['ilike', c, v]); return api; },
         in(c, v) { q.filters.push(['in', c, v]); return api; },
+        is(c, v) { q.filters.push(['is', c, v]); return api; },
         order(c, o) { q.order = [c, o?.ascending !== false]; return api; },
         limit(n) { q.limit = n; return api; },
-        single() { q.single = true; return api; },
-        maybeSingle() { q.single = true; return api; },
+        single() { q.single = 'one'; return api; },
+        maybeSingle() { q.single = 'maybe'; return api; },
         update(p) { q.mode = 'update'; q.payload = p; return api; },
         insert(p) { q.mode = 'insert'; q.payload = p; return api; },
         then(resolve, reject) {
           try {
             let hit = rows.filter((r) => q.filters.every(([op, c, v]) =>
-              op === 'eq' ? r[c] === v : op === 'in' ? v.includes(r[c]) : norm(r[c]) === norm(v)));
+              op === 'eq' ? r[c] === v : op === 'in' ? v.includes(r[c]) : op === 'is' ? (r[c] ?? null) === v : norm(r[c]) === norm(v)));
             if (q.order) hit = [...hit].sort((a, b) => String(a[q.order[0]]).localeCompare(String(b[q.order[0]])) * (q.order[1] ? 1 : -1));
             if (q.mode === 'update') hit.forEach((r) => Object.assign(r, q.payload));
             if (q.limit) hit = hit.slice(0, q.limit);
+            if (q.single === 'one' && hit.length === 0) return resolve({ data: null, error: { code: 'PGRST116', message: 'no rows' } });
             const data = q.single ? (hit[0] || null) : hit;
             resolve({ data: q.select === null && q.mode === 'update' ? null : data, error: null });
           } catch (e) { reject(e); }
@@ -155,6 +159,57 @@ const profile = (id, extra) => ({ id, user_id: null, email: 'member@example.test
     assert.equal(rows[0].user_id, 'auth-other');
     assert.deepEqual(emailReads(queries), []);
   }
+  // 6. The fallback never takes another account's profile. Rows owned by
+  // another account share the email; whichever is completed or oldest, it
+  // is not returned, linked, hidden or otherwise written.
+  const writesTo = (queries, id) => queries.filter((q) => q.table === 'community' && q.mode === 'update'
+    && q.filters.some(([op, c, v]) => c === 'id' && (op === 'eq' ? v === id : v.includes(id))));
+  {
+    // Claim unavailable; the only match belongs to another account.
+    const rows = [profile('theirs', { user_id: 'auth-other', profile_completed: true })];
+    const before = JSON.stringify(rows);
+    const { profile: p, queries } = await signIn(rows, me, { claim: 'missing' });
+    assert.equal(p, null, 'another account\'s profile is not returned (sign-in creates a new one)');
+    assert.equal(JSON.stringify(rows), before, 'and it is not changed');
+    assert.deepEqual(writesTo(queries, 'theirs'), [], 'and nothing is written to it');
+  }
+  {
+    // Duplicates: the oldest and completed match belongs to another account;
+    // two unclaimed ones share the email.
+    const rows = [
+      profile('theirs', { user_id: 'auth-other', created_at: '2025-01-01', profile_completed: true }),
+      profile('old-a', { created_at: '2026-01-01' }),
+      profile('old-b', { created_at: '2026-02-01' }),
+    ];
+    const theirs = JSON.stringify(rows[0]);
+    const { profile: p, queries } = await signIn(rows, me);
+    assert.equal(p.id, 'old-a', 'the oldest unclaimed profile is linked');
+    assert.equal(rows[1].user_id, 'auth-me');
+    assert.equal(rows[2].is_hidden, true, 'the other unclaimed duplicate is hidden');
+    assert.equal(JSON.stringify(rows[0]), theirs, 'another account\'s profile is not linked, hidden or changed');
+    assert.deepEqual(writesTo(queries, 'theirs'), [], 'and nothing is written to it');
+  }
+  {
+    // Claim unavailable; another account's completed profile and one
+    // unclaimed profile share the email: the unclaimed one is linked.
+    const rows = [profile('theirs', { user_id: 'auth-other', profile_completed: true }), profile('older', { created_at: '2026-03-01' })];
+    const theirs = JSON.stringify(rows[0]);
+    const { profile: p, queries } = await signIn(rows, me, { claim: 'missing' });
+    assert.equal(p.id, 'older');
+    assert.equal(rows[1].user_id, 'auth-me');
+    assert.equal(JSON.stringify(rows[0]), theirs);
+    assert.deepEqual(writesTo(queries, 'theirs'), []);
+  }
+  // Every fallback write is limited to unclaimed rows, so a profile claimed
+  // by another account in the meantime can't be taken or hidden either.
+  {
+    const rows = [profile('a'), profile('b', { created_at: '2026-02-01' })];
+    const { queries } = await signIn(rows, me);
+    const updates = queries.filter((q) => q.table === 'community' && q.mode === 'update');
+    assert.ok(updates.length >= 2);
+    for (const q of updates) assert.ok(q.filters.some(([op, c, v]) => op === 'is' && c === 'user_id' && v === null), 'fallback writes touch unclaimed rows only');
+  }
+
   // A new profile is still created with the session email (write only).
   assert.match(auth, /const newProfile = \{\s*user_id: user\.id,\s*email: user\.email,/);
   assert.match(auth, /\.insert\(\[newProfile\]\)\s*\.select\(OWN_COLUMNS\(\)\)/);

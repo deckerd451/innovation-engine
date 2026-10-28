@@ -561,13 +561,20 @@
       throw emailError;
     }
 
-    if (!emailMatches || emailMatches.length === 0) {
-      log("🔍 [PROFILE-LINK] No existing profiles found for email:", emailNorm);
+    // Only unclaimed profiles (made before accounts existed) can become this
+    // member's. A profile with this email that already belongs to another
+    // account is never returned, linked or hidden -- the same rule as the
+    // claim function. (This member's own linked profile was found by
+    // user_id above.)
+    const candidates = (emailMatches || []).filter((r) => !r.user_id || r.user_id === uid);
+
+    if (candidates.length === 0) {
+      log("🔍 [PROFILE-LINK] No unclaimed profiles found for email:", emailNorm);
       return null;
     }
 
     log(
-      `🔍 [PROFILE-LINK] Found ${emailMatches.length} profile(s) with email:`,
+      `🔍 [PROFILE-LINK] Found ${candidates.length} unclaimed profile(s) with email:`,
       emailNorm
     );
 
@@ -576,7 +583,7 @@
     // ============================================================
     log(
       "⚠️ [PROFILE-LINK] duplicate-email-detected: Found",
-      emailMatches.length,
+      candidates.length,
       "profiles for email:",
       emailNorm
     );
@@ -584,7 +591,7 @@
     // Choose canonical profile:
     // 1) completed flags, else 2) oldest created_at (already sorted)
     let canonical = null;
-    for (const row of emailMatches) {
+    for (const row of candidates) {
       if (row.profile_completed === true || row.onboarding_completed === true) {
         canonical = row;
         log("🎯 [PROFILE-LINK] Selected canonical (completed):", row.id);
@@ -592,12 +599,12 @@
       }
     }
     if (!canonical) {
-      canonical = emailMatches[0];
+      canonical = candidates[0];
       log("🎯 [PROFILE-LINK] Selected canonical (oldest):", canonical.id, "created_at:", canonical.created_at);
     }
 
     // If uid is currently on a non-canonical row, clear it
-    const uidRow = emailMatches.find((r) => r.user_id === uid);
+    const uidRow = candidates.find((r) => r.user_id === uid);
     if (uidRow && uidRow.id !== canonical.id) {
       log(
         "🔄 [PROFILE-LINK] rehomed-uid: uid",
@@ -638,28 +645,23 @@
           updated_at: new Date().toISOString(),
         })
         .eq("id", canonical.id)
+        .is("user_id", null) // still unclaimed: never take one claimed meanwhile
         .select(OWN_COLUMNS())
         .single();
 
       if (updateError) {
+        // Not linked (possibly claimed by another account meanwhile): don't
+        // treat it as this member's profile.
         err("❌ [PROFILE-LINK] Failed to link canonical profile:", updateError);
-        return canonical;
+        return null;
       }
       canonical = updatedCanonical;
       log("✅ [PROFILE-LINK] Successfully linked canonical profile to uid:", uid);
-    } else if (canonical.user_id !== uid) {
-      err(
-        "⚠️ [PROFILE-LINK] duplicate-email-collision: Canonical profile",
-        canonical.id,
-        "already linked to different uid:",
-        canonical.user_id
-      );
-      return canonical;
     }
 
     // Hide non-canonical duplicates
-    const nonCanonicalIds = emailMatches
-      .filter((r) => r.id !== canonical.id)
+    const nonCanonicalIds = candidates
+      .filter((r) => r.id !== canonical.id && !r.user_id)
       .map((r) => r.id);
 
     if (nonCanonicalIds.length > 0) {
@@ -671,7 +673,8 @@
           is_hidden: true,
           updated_at: new Date().toISOString(),
         })
-        .in("id", nonCanonicalIds);
+        .in("id", nonCanonicalIds)
+        .is("user_id", null); // unclaimed only, as above
 
       if (hideError) {
         err("❌ [PROFILE-LINK] Failed to hide non-canonical profiles:", hideError);
@@ -683,7 +686,7 @@
     setTimeout(() => {
       if (typeof window.showNotification === "function") {
         window.showNotification(
-          emailMatches.length > 1
+          candidates.length > 1
             ? "Welcome back! We've consolidated your duplicate profiles."
             : "Welcome back! Your existing profile has been linked to your account.",
           "success"
