@@ -6,6 +6,15 @@
 
 console.log('%c👥 Admin People Service Loading...', 'color:#00e0ff; font-weight: bold');
 
+// Email is the one profile column members won't be able to read once the
+// database is tightened. This panel's email reads (list, search, details,
+// "already exists" checks, export) are marked "email-read-ok: admin" and
+// still read the column directly, as before; they move to an admin-only
+// database function, here, once that function exists. Everything else uses
+// named columns (assets/js/profile-columns.js).
+const ADMIN_PERSON_COLUMNS = () =>
+  `${window.BuildspaceProfileColumns.own}, is_disabled, image_path, email`;
+
 /**
  * List people with filtering, search, pagination, and sorting
  * @param {Object} options - Query options
@@ -38,6 +47,7 @@ export async function listPeople({
     // Build query - fetch only list columns for performance
     let query = supabase
       .from('community')
+      // email-read-ok: admin (list and search)
       .select(`
         id,
         name,
@@ -114,7 +124,7 @@ export async function getPerson(id) {
 
     const { data, error } = await supabase
       .from('community')
-      .select('*')
+      .select(ADMIN_PERSON_COLUMNS()) // email-read-ok: admin (details)
       .eq('id', id)
       .single();
 
@@ -176,7 +186,7 @@ export async function updatePerson(id, patch) {
       .from('community')
       .update(updateData)
       .eq('id', id)
-      .select()
+      .select(ADMIN_PERSON_COLUMNS()) // email-read-ok: admin (details)
       .single();
 
     if (error) throw error;
@@ -203,7 +213,7 @@ export async function setRole(id, user_role) {
     // Check if this is a demotion from Admin
     const { data: currentPerson } = await supabase
       .from('community')
-      .select('user_role, name, email')
+      .select('user_role, name')
       .eq('id', id)
       .single();
 
@@ -211,7 +221,7 @@ export async function setRole(id, user_role) {
       // Check if this is the last admin
       const { count: adminCount } = await supabase
         .from('community')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true })
         .eq('user_role', 'Admin')
         .eq('is_disabled', false);
 
@@ -295,7 +305,7 @@ export async function deletePerson(id) {
       // Check if this is the last admin
       const { count: adminCount } = await supabase
         .from('community')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true })
         .eq('user_role', 'Admin')
         .eq('is_disabled', false);
 
@@ -334,8 +344,8 @@ export async function createPerson({ email, name = null }) {
     // Check if email already exists
     const { data: existing } = await supabase
       .from('community')
-      .select('id, name, email')
-      .eq('email', email)
+      .select('id, name')
+      .eq('email', email) // email-read-ok: admin ("already exists" check)
       .maybeSingle();
 
     if (existing) {
@@ -353,7 +363,7 @@ export async function createPerson({ email, name = null }) {
         is_hidden: false,
         is_disabled: false
       })
-      .select()
+      .select(ADMIN_PERSON_COLUMNS()) // email-read-ok: admin (details)
       .single();
 
     if (error) throw error;
@@ -378,14 +388,14 @@ export async function getClaimStats() {
     // Total count
     const { count: total, error: totalErr } = await supabase
       .from('community')
-      .select('*', { count: 'exact', head: true });
+      .select('id', { count: 'exact', head: true });
 
     if (totalErr) throw totalErr;
 
     // Claimed count (user_id IS NOT NULL)
     const { count: claimed, error: claimedErr } = await supabase
       .from('community')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .not('user_id', 'is', null);
 
     if (claimedErr) throw claimedErr;
@@ -412,7 +422,7 @@ export async function getEmailsForPeople(ids) {
 
     const { data, error } = await supabase
       .from('community')
-      .select('id, email, name')
+      .select('id, email, name') // email-read-ok: admin (export)
       .in('id', ids);
 
     if (error) throw error;

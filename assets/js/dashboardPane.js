@@ -637,7 +637,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
           const start = Date.now();
           const { data, error } = await state.supabase
             .from("community")
-            .select("*")
+            .select("id")
             .eq("user_id", state.authUser.id)
             .limit(1);
           const duration = Date.now() - start;
@@ -697,7 +697,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
       const { data: existing, error: exErr } = await withTimeout(
         state.supabase
           .from("community")
-          .select("*")
+          .select(window.BuildspaceProfileColumns.own)
           .eq("user_id", state.authUser.id)
           .maybeSingle(),
         15000, // 15 second timeout
@@ -740,7 +740,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         state.supabase
           .from("community")
           .insert(payload)
-          .select("*")
+          .select(window.BuildspaceProfileColumns.own)
           .single(),
         15000, // 15 second timeout
         "Profile creation"
@@ -1604,7 +1604,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
         // Search people by name, bio, AND skills
         const { data, error } = await state.supabase
           .from("community")
-          .select("*")
+          .select(window.BuildspaceProfileColumns.member)
           .or(`name.ilike.%${q}%,bio.ilike.%${q}%,skills.ilike.%${q}%`)
           .limit(25);
         if (error) console.warn("People search error:", error);
@@ -2340,7 +2340,7 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
     </div>`;
 
     try {
-      const { data: allUsers, error } = await state.supabase.from("community").select("*").limit(200);
+      const { data: allUsers, error } = await state.supabase.from("community").select(window.BuildspaceProfileColumns.member).limit(200);
       if (error) throw error;
 
       const me = state.communityProfile;

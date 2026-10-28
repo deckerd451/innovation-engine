@@ -39,7 +39,7 @@
         // Get user data with level and streak
         const { data: user, error } = await window.supabase
           .from('community')
-          .select('*')
+          .select(window.BuildspaceProfileColumns.member)
           .eq('id', userId)
           .single();
 

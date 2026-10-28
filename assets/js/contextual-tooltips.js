@@ -71,7 +71,7 @@ class ContextualTooltips {
     if (!profile) return true;
     
     let completeness = 0;
-    if (profile.name && profile.name !== profile.email?.split('@')[0]) completeness++;
+    if (profile.name && profile.name !== (window.currentAuthUser?.email || profile.email)?.split('@')[0]) completeness++;
     if (profile.bio) completeness++;
     if (profile.skills) completeness++;
     if (profile.interests?.length > 0) completeness++;

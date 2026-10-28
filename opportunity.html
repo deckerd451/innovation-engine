@@ -45,9 +45,10 @@
   </main>
 
   <script src="assets/js/photo-privacy.js?v=photo-consent-20261010a"></script>
+  <script src="assets/js/profile-columns.js?v=email-prep-20261028"></script>
   <script type="module" src="assets/js/supabaseClient.js"></script>
   <script type="module">
-    import { createNativeEmailDraft, recordFollowupBestEffort, summarizeFollowups } from './assets/js/followup-contact.js';
+    import { summarizeFollowups } from './assets/js/followup-contact.js';
     import {
       initOpportunityManager,
       getOpportunity,
@@ -55,7 +56,6 @@
       expressOpportunityInterest,
       withdrawOpportunityInterest,
       getInterestedPeople,
-      recordOpportunityInterestFollowup,
       incrementViewCount
     } from './assets/js/organizations/opportunities.js';
 
@@ -69,21 +69,9 @@
       '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;'
     })[char]);
     const formatDate = value => value ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(value)) : '';
-    const validEmail = value => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
-    const emailDraft = person => {
-      const email = String(person.email).trim();
-      const name = person.name || 'there';
-      const title = opportunity.title || 'the opportunity';
-      const subject = `Interest in ${title}`;
-      const body = `Hi ${name},\n\nThanks for your interest in ${title}. I'd like to connect and discuss it with you.`;
-      return createNativeEmailDraft({ email, recipientName: name, subject, body });
-    };
-    const emailActions = (person, index) => {
-      if (!validEmail(person.email)) return '';
-      const draft = emailDraft(person);
-      return `<a class="btn btn-secondary email-action" href="${escapeHtml(draft.href)}" data-person-index="${index}"><i class="fas fa-envelope"></i> Email</a>`;
-    };
-
+    // Posters reply with Message (Buildspace messaging); interested members'
+    // email addresses aren't shown. Earlier email follow-ups stay in the
+    // history below.
     const followupSummary = followups => {
       const summaries = summarizeFollowups(followups).map(summary => {
         const channel = summary.channel;
@@ -93,12 +81,6 @@
       });
       return summaries.length ? `<div class="follow-up-summary" aria-label="Follow-up history">${summaries.join('')}</div>` : '';
     };
-
-    function recordEmailAttempt(person) {
-      recordFollowupBestEffort(() => recordOpportunityInterestFollowup(opportunity.id, person.id, 'email'), error => {
-        console.error('Failed to record initiated email follow-up:', error);
-      });
-    }
 
     document.addEventListener('DOMContentLoaded', initialize);
 
@@ -190,7 +172,7 @@
           target.innerHTML = '<p class="hint">No one has expressed interest yet.</p>';
           return;
         }
-        target.innerHTML = people.map(({ community: person, created_at, followups = [] }, index) => person ? `
+        target.innerHTML = people.map(({ community: person, created_at, followups = [] }) => person ? `
           <article class="person">
             ${window.profilePhotoUrl?.(person) ? `<img class="avatar" src="${escapeHtml(window.profilePhotoUrl?.(person))}" alt="">` : '<span class="avatar"></span>'}
             <div class="person-info">
@@ -200,7 +182,6 @@
             </div>
             <div class="contact-actions">
               <a class="btn btn-primary" href="index.html?contact=${encodeURIComponent(person.id)}&opportunity=${encodeURIComponent(opportunity.id)}&opportunityTitle=${encodeURIComponent(opportunity.title)}"><i class="fas fa-comment"></i> Message</a>
-              ${emailActions(person, index)}
             </div>
           </article>` : `
           <article class="person">
@@ -210,9 +191,6 @@
               <p>Interested ${escapeHtml(formatDate(created_at))}</p>
             </div>
           </article>`).join('');
-        target.querySelectorAll('.email-action').forEach(button => {
-          button.addEventListener('click', () => recordEmailAttempt(people[Number(button.dataset.personIndex)].community));
-        });
       } catch (error) {
         console.error('Failed to load interested people:', error);
         target.innerHTML = '<p class="status error">Could not load interested people.</p>';

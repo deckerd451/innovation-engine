@@ -98,7 +98,7 @@ class EnhancedOnboarding {
     let completeness = 0;
     let totalFields = 5;
     
-    if (profile.name && profile.name !== profile.email?.split('@')[0]) completeness++;
+    if (profile.name && profile.name !== (window.currentAuthUser?.email || profile.email)?.split('@')[0]) completeness++;
     if (profile.bio && profile.bio.trim()) completeness++;
     if (profile.skills && this.hasContent(profile.skills)) completeness++;
     if (profile.interests && Array.isArray(profile.interests) && profile.interests.length > 0) completeness++;

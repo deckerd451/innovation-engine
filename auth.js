@@ -145,6 +145,7 @@
 
   let bootUserId = null; // booted user id for this page load
   let profileLoadPromise = null; // in-flight profile request (single flight)
+  let claimPromise = null; // this sign-in's profile claim (claimOlderProfile)
 
   let hasBootstrappedThisLoad = false;
   let signedInBootstrapStarted = false; // true as soon as SIGNED_IN bootstrap begins (before async work)
@@ -396,6 +397,7 @@
 
     bootUserId = null;
     profileLoadPromise = null;
+    claimPromise = null;
     hasBootstrappedThisLoad = false;
     signedInBootstrapStarted = false;
 
@@ -420,6 +422,51 @@
     ]);
   }
 
+  // The profile columns the website reads (assets/js/profile-columns.js):
+  // never email -- the member's own email is user.email from the session.
+  const OWN_COLUMNS = () => window.BuildspaceProfileColumns.own;
+
+  // claim_community_profile_by_email links an unclaimed profile (one made
+  // before accounts existed) that has the member's email to their account,
+  // matching the email on the server. Started once per sign-in; the profile
+  // load waits for its answer:
+  //   { id }        claimed that profile
+  //   {}            nothing to claim (none, or already linked)
+  //   { fallback }  refused (several unclaimed profiles share the email) or
+  //                 failed -- the profile load falls back to the email lookup
+  function claimOlderProfile() {
+    if (claimPromise) return claimPromise;
+    claimPromise = (async () => {
+      try {
+        log("🔗 [IDENTITY-CLAIM] Starting identity claim…");
+        const { data: claimedId, error: claimError } = await window.supabase.rpc(
+          "claim_community_profile_by_email"
+        );
+        if (claimError) {
+          const message = String(claimError.message || "");
+          // "already linked" is expected for returning users — not a real error
+          if (message.includes("already linked")) {
+            log("ℹ️ [IDENTITY-CLAIM] User already has a linked profile — skipping claim.");
+            return {};
+          }
+          warn("⚠️ [IDENTITY-CLAIM] Claim RPC error:", message || claimError);
+          return { fallback: true };
+        }
+        if (claimedId) {
+          log("✅ [IDENTITY-CLAIM] Successfully claimed community profile:", claimedId);
+          window.__claimedCommunityId = claimedId;
+          return { id: claimedId };
+        }
+        log("ℹ️ [IDENTITY-CLAIM] No orphaned profile found for this email.");
+        return {};
+      } catch (claimEx) {
+        warn("⚠️ [IDENTITY-CLAIM] Exception during claim (non-fatal):", claimEx);
+        return { fallback: true };
+      }
+    })();
+    return claimPromise;
+  }
+
   async function fetchUserProfile(user) {
     const uid = user.id;
     const emailNorm = user.email ? user.email.toLowerCase().trim() : null;
@@ -435,7 +482,7 @@
     // STEP 1: Try to find profile by user_id (primary lookup)
     // ============================================================
     const { data: uidData, error: uidError } = await withTimeout(
-      window.supabase.from("community").select("*").eq("user_id", uid).limit(1),
+      window.supabase.from("community").select(OWN_COLUMNS()).eq("user_id", uid).limit(1),
       15000,
       "Database query timeout"
     );
@@ -447,25 +494,63 @@
 
     if (uidData && uidData.length > 0) {
       const profile = uidData[0];
-      log("✅ [PROFILE-LINK] found-by-uid:", profile.id, "email:", profile.email);
+      log("✅ [PROFILE-LINK] found-by-uid:", profile.id);
       return profile;
     }
 
-    log("🔍 [PROFILE-LINK] No profile found by user_id, proceeding to email lookup");
+    log("🔍 [PROFILE-LINK] No profile found by user_id, claiming an older profile");
 
     // ============================================================
-    // STEP 2: Link by email (handle migrated profiles)
+    // STEP 2: Claim an older profile (made before accounts existed, so
+    // user_id is NULL) that has this member's email. The claim function
+    // matches the email on the server, so the website never reads members'
+    // email addresses. It refuses when several unclaimed profiles share the
+    // email; only then does the duplicate handling below look them up.
     // ============================================================
     if (!emailNorm) {
-      log("⚠️ [PROFILE-LINK] No email available, cannot link by email");
+      log("⚠️ [PROFILE-LINK] No email available, cannot claim by email");
       return null;
     }
 
+    const claim = await claimOlderProfile();
+    if (claim.id) {
+      const { data: claimedRows, error: claimedError } = await withTimeout(
+        window.supabase.from("community").select(OWN_COLUMNS()).eq("id", claim.id).limit(1),
+        15000,
+        "Database query timeout"
+      );
+      if (claimedError) {
+        err("❌ [PROFILE-LINK] Error loading the claimed profile:", claimedError);
+        throw claimedError;
+      }
+      if (claimedRows && claimedRows.length > 0) {
+        log("✅ [PROFILE-LINK] linked-by-email: Successfully linked profile", claim.id, "to uid:", uid);
+        setTimeout(() => {
+          if (typeof window.showNotification === "function") {
+            window.showNotification(
+              "Welcome back! Your existing profile has been linked to your account.",
+              "success"
+            );
+          }
+        }, 1000);
+        return claimedRows[0];
+      }
+    }
+    if (!claim.fallback) {
+      log("🔍 [PROFILE-LINK] No unclaimed profile found for this email");
+      return null;
+    }
+
+    // The claim function refused (several unclaimed profiles share this
+    // email) or couldn't answer: the older email lookup below links one, as
+    // before. It still reads by email, so it needs a server-side replacement
+    // before the database stops members reading the email column (see the
+    // PR).
     const { data: emailMatches, error: emailError } = await withTimeout(
       window.supabase
         .from("community")
-        .select("*")
-        .ilike("email", emailNorm)
+        .select(OWN_COLUMNS())
+        .ilike("email", emailNorm) // email-read-ok: duplicate claim fallback
         .order("created_at", { ascending: true, nullsLast: true }),
       15000,
       "Email lookup timeout"
@@ -487,61 +572,7 @@
     );
 
     // ============================================================
-    // CASE A: Exactly one profile with this email
-    // ============================================================
-    if (emailMatches.length === 1) {
-      const row = emailMatches[0];
-
-      // migrated profile - link it
-      if (!row.user_id) {
-        log("🔗 [PROFILE-LINK] Linking migrated profile (user_id=NULL) to user:", row.id);
-
-        const { data: updatedData, error: updateError } = await window.supabase
-          .from("community")
-          .update({
-            user_id: uid,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", row.id)
-          .select()
-          .single();
-
-        if (updateError) {
-          err("❌ [PROFILE-LINK] Failed to link migrated profile:", updateError);
-          return null;
-        }
-
-        log("✅ [PROFILE-LINK] linked-by-email: Successfully linked profile", row.id, "to uid:", uid);
-
-        setTimeout(() => {
-          if (typeof window.showNotification === "function") {
-            window.showNotification(
-              "Welcome back! Your existing profile has been linked to your account.",
-              "success"
-            );
-          }
-        }, 1000);
-
-        return updatedData;
-      }
-
-      // collision: already linked to different user_id
-      if (row.user_id !== uid) {
-        err(
-          "⚠️ [PROFILE-LINK] duplicate-email-collision: Profile",
-          row.id,
-          "already linked to different user_id:",
-          row.user_id
-        );
-        return row;
-      }
-
-      log("✅ [PROFILE-LINK] Profile already linked to this uid:", row.id);
-      return row;
-    }
-
-    // ============================================================
-    // CASE B: Multiple profiles with same email (duplicates)
+    // One or more profiles with this email (duplicates are consolidated)
     // ============================================================
     log(
       "⚠️ [PROFILE-LINK] duplicate-email-detected: Found",
@@ -607,7 +638,7 @@
           updated_at: new Date().toISOString(),
         })
         .eq("id", canonical.id)
-        .select()
+        .select(OWN_COLUMNS())
         .single();
 
       if (updateError) {
@@ -652,7 +683,9 @@
     setTimeout(() => {
       if (typeof window.showNotification === "function") {
         window.showNotification(
-          "Welcome back! We've consolidated your duplicate profiles.",
+          emailMatches.length > 1
+            ? "Welcome back! We've consolidated your duplicate profiles."
+            : "Welcome back! Your existing profile has been linked to your account.",
           "success"
         );
       }
@@ -692,7 +725,7 @@
           const { data: insertedProfile, error: insertError } = await window.supabase
             .from("community")
             .insert([newProfile])
-            .select()
+            .select(OWN_COLUMNS())
             .single();
 
           if (insertError) {
@@ -748,6 +781,7 @@
     sessionValidation = null;
     bootUserId = null;
     profileLoadPromise = null;
+    claimPromise = null;
     hasBootstrappedThisLoad = false;
     signedInBootstrapStarted = false;
     window.currentAuthUser = null;
@@ -813,32 +847,10 @@
     showAppUI(user);
 
     // ============================================================
-    // IDENTITY CLAIM: Fire in background — never blocks auth path
+    // IDENTITY CLAIM: started now, in the background; the profile load
+    // (below) waits for its answer -- never blocks the auth path
     // ============================================================
-    (async () => {
-      try {
-        log("🔗 [IDENTITY-CLAIM] Starting identity claim in background…");
-        const { data: claimedId, error: claimError } = await window.supabase.rpc(
-          "claim_community_profile_by_email"
-        );
-
-        if (claimError) {
-          // "already linked" is expected for returning users — not a real error
-          if (String(claimError.message || "").includes("already linked")) {
-            log("ℹ️ [IDENTITY-CLAIM] User already has a linked profile — skipping claim.");
-          } else {
-            warn("⚠️ [IDENTITY-CLAIM] Claim RPC error:", claimError.message || claimError);
-          }
-        } else if (claimedId) {
-          log("✅ [IDENTITY-CLAIM] Successfully claimed community profile:", claimedId);
-          window.__claimedCommunityId = claimedId;
-        } else {
-          log("ℹ️ [IDENTITY-CLAIM] No orphaned profile found for this email.");
-        }
-      } catch (claimEx) {
-        warn("⚠️ [IDENTITY-CLAIM] Exception during claim (non-fatal):", claimEx);
-      }
-    })();
+    claimOlderProfile();
 
     setTimeout(async () => {
       try {

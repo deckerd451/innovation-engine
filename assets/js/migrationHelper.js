@@ -49,7 +49,7 @@
     
     const { data } = await window.supabase
       .from('community')
-      .select('*')
+      .select(window.BuildspaceProfileColumns.own)
       .eq('user_id', authUser.id)
       .maybeSingle();
     

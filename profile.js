@@ -986,7 +986,7 @@
 
       const { data: row, error } = await supabase
         .from("community")
-        .select("*")
+        .select(window.BuildspaceProfileColumns.own)
         .eq("user_id", user.id)
         .maybeSingle();
 

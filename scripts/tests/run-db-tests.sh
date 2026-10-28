@@ -8,6 +8,8 @@
 #
 # Suites:
 #   - Assistance permission boundary (docs/VALIDATION.md).
+#   - Claiming an older profile by email on the server
+#     (claim_community_profile_by_email), which sign-in relies on.
 #   - scripts/tests/run-authz-db.sh, when present: notification, connection,
 #     membership and proximity authorization, with its own negative controls.
 set -euo pipefail
@@ -44,11 +46,24 @@ for f in \
 done
 echo "   ok"
 
+echo "2. Claiming an older profile (claim_community_profile_by_email)"
+"${PSQL[@]}" -d postgres -c "CREATE DATABASE ie_claim" >/dev/null
+# The function and its grants from the repository file (not its data fixes).
+CLAIM_FN="$(sed -n '/^CREATE OR REPLACE FUNCTION public.claim_community_profile_by_email/,/^GRANT EXECUTE ON FUNCTION public.claim_community_profile_by_email/p' "$ROOT/sql/claim_community_profile_by_email.sql")"
+for step in fixture function test; do
+  case "$step" in
+    fixture) out="$("${PSQL[@]}" -d ie_claim -f "$ROOT/scripts/tests/fixtures/claim-profile-bootstrap.sql" 2>&1)" ;;
+    function) out="$("${PSQL[@]}" -d ie_claim -c "$CLAIM_FN" 2>&1)" ;;
+    test) out="$("${PSQL[@]}" -d ie_claim -f "$ROOT/scripts/tests/claim-profile-db.sql" 2>&1)" ;;
+  esac || { echo "   FAILED ($step):"; echo "$out" | tail -5 | sed 's/^/     /'; exit 1; }
+done
+echo "   $out"
+
 if [ -f "$ROOT/scripts/tests/run-authz-db.sh" ]; then
-  echo "2. Authorization suite (scripts/tests/run-authz-db.sh)"
+  echo "3. Authorization suite (scripts/tests/run-authz-db.sh)"
   bash "$ROOT/scripts/tests/run-authz-db.sh"
 else
-  echo "2. Authorization suite: scripts/tests/run-authz-db.sh not in this tree"
+  echo "3. Authorization suite: scripts/tests/run-authz-db.sh not in this tree"
 fi
 
 echo "database checks passed"

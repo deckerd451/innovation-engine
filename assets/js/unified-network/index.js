@@ -38,7 +38,7 @@ export {
 export {
   GraphDataStore,
   graphDataStore
-} from './graph-data-store.js?v=hero-node-20260318';
+} from './graph-data-store.js?v=email-prep-20261028';
 
 // Physics and Rendering
 export {

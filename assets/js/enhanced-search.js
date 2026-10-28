@@ -63,8 +63,8 @@ async function performSearch(query) {
 async function searchPeople(query) {
   const { data } = await window.supabase
     .from('community')
-    .select('id, display_name, email, image_url, user_id, photo_visible, photo_consent_at')
-    .or(`display_name.ilike.%${query}%,email.ilike.%${query}%`)
+    .select('id, display_name, image_url, user_id, photo_visible, photo_consent_at')
+    .ilike('display_name', `%${query}%`)
     .limit(5);
   return data || [];
 }
@@ -99,7 +99,7 @@ function showSuggestions(results) {
       html += `
         <div class="suggestion-item" onclick="selectPerson('${person.id}')">
           <i class="fas fa-user"></i>
-          <span>${person.display_name || person.email}</span>
+          <span>${person.display_name || ''}</span>
         </div>
       `;
     });

@@ -218,7 +218,7 @@
         // This uses the RLS policy and is the ONLY allowed community query
         const { data, error } = await supabase
           .from('community')
-          .select('*')
+          .select(window.BuildspaceProfileColumns.own)
           .eq('user_id', authUser.id)
           .maybeSingle();
 
@@ -261,7 +261,7 @@
           console.warn('Failed to cache community user:', e);
         }
 
-        console.log('✅ Community user loaded:', data.name || data.email);
+        console.log('✅ Community user loaded:', data.name || data.id);
         return data;
 
       } catch (error) {
@@ -312,7 +312,7 @@
       // Check if user already exists (by user_id, NOT email)
       const { data: existing, error: checkError } = await supabase
         .from('community')
-        .select('*')
+        .select(window.BuildspaceProfileColumns.own)
         .eq('user_id', authUser.id)
         .maybeSingle();
 
@@ -336,7 +336,7 @@
           avatar_url: authUser.user_metadata?.avatar_url || null,
           created_at: new Date().toISOString()
         })
-        .select()
+        .select(window.BuildspaceProfileColumns.own)
         .single();
 
       if (createError) {

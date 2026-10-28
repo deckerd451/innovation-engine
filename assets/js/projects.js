@@ -363,7 +363,7 @@ export async function getAllProjectMembers() {
       .select(`
         *,
         project:projects(*),
-        user:community(*)
+        user:community(${window.BuildspaceProfileColumns.member})
       `);
 
     if (error) {

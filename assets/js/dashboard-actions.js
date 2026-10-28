@@ -236,8 +236,9 @@ function isAdminUser() {
   ];
 
   // PRIMARY CHECK: Match current user's email against admin allowlist
-  // Check currentUserProfile (set by auth.js after profile-loaded)
-  const profileEmail = window?.currentUserProfile?.email;
+  // The signed-in member's own email, from their session (set by auth.js);
+  // profiles no longer carry email.
+  const profileEmail = window?.currentAuthUser?.email;
   if (profileEmail && adminEmails.includes(profileEmail.toLowerCase())) {
     logAdminGrantedOnce('✅ Admin access granted for:', profileEmail);
     return true;
@@ -1612,8 +1613,8 @@ async function adminAddPerson() {
     // Check if email already exists
     const { data: existing } = await supabase
       .from('community')
-      .select('id, name, email')
-      .eq('email', email)
+      .select('id, name')
+      .eq('email', email) // email-read-ok: admin ("already exists" check)
       .maybeSingle();
     
     if (existing) {
@@ -1631,7 +1632,7 @@ async function adminAddPerson() {
         onboarding_completed: false,
         is_hidden: false
       })
-      .select()
+      .select('id')
       .single();
     
     if (error) throw error;
@@ -1722,7 +1723,7 @@ async function adminSearchPeople(query) {
     
     const { data: people, error } = await supabase
       .from('community')
-      .select('id, name, email, image_url, is_hidden, user_id, photo_visible, photo_consent_at')
+      .select('id, name, email, image_url, is_hidden, user_id, photo_visible, photo_consent_at') // email-read-ok: admin (search)
       .ilike('name', `%${query}%`)
       .order('name')
       .limit(50); // Increased limit to show more results including removed members

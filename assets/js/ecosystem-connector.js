@@ -282,7 +282,7 @@ const EcosystemConnector = (function() {
         // Get current user from community table
         const { data: profile } = await supabaseClient
           .from('community')
-          .select('*')
+          .select(window.BuildspaceProfileColumns.own)
           .eq('user_id', user.id)
           .single();
 
@@ -291,7 +291,7 @@ const EcosystemConnector = (function() {
         // Load all users
         const { data: users } = await supabaseClient
           .from('community')
-          .select('*');
+          .select(window.BuildspaceProfileColumns.member);
         state.allUsers = users || [];
         
         // Load ideas

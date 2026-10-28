@@ -232,7 +232,7 @@ export class GraphDataStore {
     // one surface still fetching every row unfiltered.
     const { data, error } = await this._supabase
       .from("community")
-      .select("*")
+      .select(window.BuildspaceProfileColumns.member)
       .or("is_hidden.is.null,is_hidden.eq.false");
 
     if (error) {

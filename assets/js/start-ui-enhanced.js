@@ -725,7 +725,7 @@ class EnhancedStartUI {
               
               const { data: profiles } = await window.supabase
                 .from('community')
-                .select('id, name, email, bio, skills')
+                .select('id, name, bio, skills')
                 .in('id', Array.from(userIds))
                 .or('is_hidden.is.null,is_hidden.eq.false');
               
@@ -747,7 +747,6 @@ class EnhancedStartUI {
                 return {
                   id: otherProfile.id,
                   name: otherProfile.name,
-                  email: otherProfile.email,
                   bio: otherProfile.bio,
                   skills: otherProfile.skills,
                   status: conn.status,
@@ -1035,7 +1034,6 @@ class EnhancedStartUI {
     ${acceptedConnections.map(conn => `
       <div class="connection-item">
         <div class="connection-name">${conn.name || 'Unknown'}</div>
-        <div class="connection-email">${conn.email || 'No email'}</div>
         ${conn.bio ? `<div class="connection-bio">${conn.bio}</div>` : ''}
         ${conn.skills ? `<div class="connection-meta"><strong>Skills:</strong> ${conn.skills}</div>` : ''}
         <div class="connection-meta">Connected: ${new Date(conn.created_at).toLocaleDateString()}</div>
