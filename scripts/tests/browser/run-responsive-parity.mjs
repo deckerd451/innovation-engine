@@ -1391,7 +1391,7 @@ async function settingsLayoutChecks(P) {
 
   await step(`${P}: only settings that work are shown, and saving keeps what the removed ones stored`, async () => {
     const kept = { 'quiet-mode-enabled': 'true', 'email-notifications-enabled': 'false', 'push-notifications-enabled': 'true', preferred_language: 'es' };
-    await evaluate(`(() => { const kept = ${JSON.stringify(kept)}; Object.entries(kept).forEach(([k, v]) => localStorage.setItem(k, v)); localStorage.removeItem('DEBUG'); return true; })()`);
+    await callInPage(function (kept) { Object.entries(kept).forEach(([k, v]) => localStorage.setItem(k, v)); localStorage.removeItem('DEBUG'); }, kept);
     await openSettings();
     const shown = await callInPage(function () {
       const m = document.getElementById('settings-modal');
@@ -1401,7 +1401,7 @@ async function settingsLayoutChecks(P) {
       `${P}: Settings shows Map suggestions and Privacy, with no Quiet Mode, language, email, push or Debug Mode`, JSON.stringify(shown));
     await press('#settings-save-btn', 'Save');
     await waitFor(`!${isOpen.settings}`, 'settings to close', 3000);
-    const stored = await evaluate(`JSON.stringify(Object.fromEntries(${JSON.stringify(Object.keys(kept))}.map(k => [k, localStorage.getItem(k)])))`);
+    const stored = await callInPage(function (keys) { return JSON.stringify(Object.fromEntries(keys.map(k => [k, localStorage.getItem(k)]))); }, Object.keys(kept));
     check(stored === JSON.stringify(kept), `${P}: saving leaves the stored Quiet Mode, email, push and language values as they were`, stored);
   });
 

@@ -316,7 +316,8 @@ const settings = () => callInPage(function () {
     focusInside: modal.contains(document.activeElement),
   };
 });
-const stored = keys => evaluate(`JSON.stringify(Object.fromEntries(${JSON.stringify(keys)}.map(k => [k, localStorage.getItem(k)])))`);
+// Values go in as arguments, never into generated code.
+const stored = keys => callInPage(function (keys) { return JSON.stringify(Object.fromEntries(keys.map(k => [k, localStorage.getItem(k)]))); }, keys);
 
 try {
   await send('Page.enable');
@@ -382,7 +383,7 @@ try {
 
     // 3. Removed controls: Save leaves what they stored.
     const kept = { 'quiet-mode-enabled': 'true', 'email-notifications-enabled': 'false', 'push-notifications-enabled': 'true', preferred_language: 'es' };
-    await evaluate(`(() => { Object.entries(${JSON.stringify(kept)}).forEach(([k, v]) => localStorage.setItem(k, v)); return true; })()`);
+    await callInPage(function (kept) { Object.entries(kept).forEach(([k, v]) => localStorage.setItem(k, v)); }, kept);
     await openSettings();
     await closeWith('#settings-save-btn', 'Save');
     check((await stored(Object.keys(kept))) === JSON.stringify(kept), `${name}: Save leaves the stored Quiet Mode, language, email and push values alone`, await stored(Object.keys(kept)));
