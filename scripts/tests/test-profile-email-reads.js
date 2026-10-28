@@ -7,9 +7,7 @@
 //     and no embedded community(*) in another table's select.
 //   - No email in a profile select, filter or embedded profile, except the
 //     reads marked "email-read-ok:" in the admin People panel and sign-in's
-//     duplicate handling (the claim fallback, and hiding the duplicates the
-//     deployed claim function leaves). Those move to database functions in
-//     a later migration.
+//     claim fallback. Those move to database functions in a later migration.
 //   - The shared column lists (assets/js/profile-columns.js) exclude email,
 //     and every page that queries profiles loads them first.
 //   - Members' emails are not shown: profile pages, Inbox, Network overview,
@@ -117,11 +115,12 @@ const problems = [...live].flatMap((f) => problemsIn(f, source.get(f)));
 assert.deepEqual(problems, [], `live profile queries must name their columns and leave out email:\n  ${problems.join('\n  ')}`);
 
 // The marked email reads are only where expected (admin panel, sign-in's
-// duplicate handling), so the later migration knows what to replace.
+// claim fallback), so the later migration knows what to replace.
 const marked = [...live].flatMap((f) => (source.get(f).match(/email-read-ok:[^\n]*/g) || []).map((m) => `${f}: ${m}`));
 for (const m of marked) assert.ok([...EMAIL_READ_ALLOWED].some((f) => m.startsWith(`${f}:`)), `unexpected email read: ${m}`);
 assert.ok(marked.some((m) => m.startsWith('auth.js: email-read-ok: duplicate claim fallback')), 'the duplicate-claim fallback is marked');
-assert.ok(marked.some((m) => m.startsWith('auth.js: email-read-ok: duplicates left by the claim')), 'hiding the duplicates the claim leaves is marked');
+assert.equal(marked.filter((m) => m.startsWith('auth.js:')).length, 1, 'sign-in has one email read, the claim fallback');
+assert.doesNotMatch(read('auth.js'), /is_hidden: true|consolidated your duplicate profiles/, 'sign-in never hides leftover duplicate profiles or claims to have consolidated them');
 
 // The presence view has only these columns of the ones the site asks for
 // (production check, 2026-10-28: no photo_visible or photo_consent_at), so

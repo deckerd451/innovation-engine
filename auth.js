@@ -476,33 +476,12 @@
     return claimPromise;
   }
 
-  // The deployed claim function links one of several unclaimed profiles
-  // that share the email and leaves the others as they were. Hide those
-  // others (unclaimed only; never deleted), as the duplicate handling in
-  // fetchUserProfile does. Returns how many were hidden.
-  async function hideUnclaimedDuplicates(emailNorm) {
-    try {
-      const { data, error } = await withTimeout(
-        window.supabase
-          .from("community")
-          .update({ is_hidden: true, updated_at: new Date().toISOString() })
-          .ilike("email", emailPattern(emailNorm)) // email-read-ok: duplicates left by the claim
-          .is("user_id", null)
-          .select("id"),
-        15000,
-        "Duplicate cleanup timeout"
-      );
-      if (error) {
-        err("❌ [PROFILE-LINK] Failed to hide duplicate profiles left by the claim:", error);
-        return 0;
+  function notifyLinked() {
+    setTimeout(() => {
+      if (typeof window.showNotification === "function") {
+        window.showNotification("Welcome back! Your existing profile has been linked to your account.", "success");
       }
-      const count = (data || []).length;
-      if (count > 0) log("🗑️ [PROFILE-LINK] Hid", count, "unclaimed duplicate profile(s) left by the claim");
-      return count;
-    } catch (e) {
-      err("❌ [PROFILE-LINK] Exception hiding duplicate profiles:", e);
-      return 0;
-    }
+    }, 1000);
   }
 
   async function fetchUserProfile(user) {
@@ -542,9 +521,11 @@
     // STEP 2: Claim an older profile (made before accounts existed, so
     // user_id is NULL) that has this member's email. The claim function
     // matches the email on the server, so the website never reads members'
-    // email addresses. If several share the email, it links one and the
-    // others are hidden. Only when it fails, or returns a profile that isn't
-    // linked to this account, does the duplicate handling below look them up.
+    // email addresses. If several share the email, it links one and leaves
+    // the others as they are (they may have their own projects or
+    // connections; cleaning them up is a separate, later task). Only when it
+    // fails, or returns a profile that isn't linked to this account, does
+    // the lookup below find them by email.
     // ============================================================
     if (!emailNorm) {
       log("⚠️ [PROFILE-LINK] No email available, cannot claim by email");
@@ -568,17 +549,7 @@
       }
       if (claimedRows && claimedRows.length > 0) {
         log("✅ [PROFILE-LINK] linked-by-email: Successfully linked profile", claim.id, "to uid:", uid);
-        const hidden = await hideUnclaimedDuplicates(emailNorm);
-        setTimeout(() => {
-          if (typeof window.showNotification === "function") {
-            window.showNotification(
-              hidden > 0
-                ? "Welcome back! We've consolidated your duplicate profiles."
-                : "Welcome back! Your existing profile has been linked to your account.",
-              "success"
-            );
-          }
-        }, 1000);
+        notifyLinked();
         return claimedRows[0];
       }
       warn("⚠️ [PROFILE-LINK] The claimed profile", claim.id, "is not linked to this account; looking for another unclaimed profile");
@@ -611,9 +582,8 @@
 
     // Only unclaimed profiles (made before accounts existed) can become this
     // member's. A profile with this email that already belongs to another
-    // account is never returned, linked or hidden -- the same rule as the
-    // claim function. (This member's own linked profile was found by
-    // user_id above.)
+    // account is never returned or changed -- the same rule as the claim
+    // function.
     const candidates = (emailMatches || []).filter((r) => !r.user_id || r.user_id === uid);
 
     if (candidates.length === 0) {
@@ -621,119 +591,43 @@
       return null;
     }
 
-    log(
-      `🔍 [PROFILE-LINK] Found ${candidates.length} unclaimed profile(s) with email:`,
-      emailNorm
-    );
+    // Linked to this account meanwhile (another tab): that's their profile.
+    const own = candidates.find((r) => r.user_id === uid);
+    if (own) {
+      log("✅ [PROFILE-LINK] found-by-email, already linked:", own.id);
+      return own;
+    }
 
-    // ============================================================
-    // One or more profiles with this email (duplicates are consolidated)
-    // ============================================================
-    log(
-      "⚠️ [PROFILE-LINK] duplicate-email-detected: Found",
-      candidates.length,
-      "profiles for email:",
-      emailNorm
-    );
-
-    // Choose canonical profile, in the claim function's order: completed,
-    // then onboarded, then oldest created_at (already sorted; sort is stable)
+    // Link one, in the claim function's order: completed, then onboarded,
+    // then oldest created_at (already sorted; sort is stable). Any others are
+    // left as they are, as the claim function leaves them.
     const rank = (r) => (r.profile_completed === true ? 2 : 0) + (r.onboarding_completed === true ? 1 : 0);
-    let canonical = [...candidates].sort((a, b) => rank(b) - rank(a))[0];
-    log("🎯 [PROFILE-LINK] Selected canonical:", canonical.id, "created_at:", canonical.created_at);
+    const canonical = [...candidates].sort((a, b) => rank(b) - rank(a))[0];
+    log(
+      `🔗 [PROFILE-LINK] Linking profile ${canonical.id} of ${candidates.length} unclaimed with this email to uid:`,
+      uid
+    );
 
-    // If uid is currently on a non-canonical row, clear it
-    const uidRow = candidates.find((r) => r.user_id === uid);
-    if (uidRow && uidRow.id !== canonical.id) {
-      log(
-        "🔄 [PROFILE-LINK] rehomed-uid: uid",
-        uid,
-        "currently on non-canonical profile",
-        uidRow.id,
-        "- rehoming to canonical",
-        canonical.id
-      );
-      try {
-        const { error: clearError } = await window.supabase
-          .from("community")
-          .update({
-            user_id: null,
-            is_hidden: true,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", uidRow.id);
+    const { data: linked, error: updateError } = await window.supabase
+      .from("community")
+      .update({
+        user_id: uid,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", canonical.id)
+      .is("user_id", null) // still unclaimed: never take one claimed meanwhile
+      .select(OWN_COLUMNS())
+      .single();
 
-        if (clearError) {
-          err("❌ [PROFILE-LINK] Failed to clear old uid link:", clearError);
-        } else {
-          log("✅ [PROFILE-LINK] Cleared uid from non-canonical profile:", uidRow.id);
-        }
-      } catch (e) {
-        err("❌ [PROFILE-LINK] Exception during rehome clear:", e);
-      }
+    if (updateError) {
+      // Not linked (possibly claimed by another account meanwhile): don't
+      // treat it as this member's profile.
+      err("❌ [PROFILE-LINK] Failed to link profile:", updateError);
+      return null;
     }
-
-    // Link canonical to this uid
-    if (!canonical.user_id) {
-      log("🔗 [PROFILE-LINK] Linking canonical profile", canonical.id, "to uid:", uid);
-
-      const { data: updatedCanonical, error: updateError } = await window.supabase
-        .from("community")
-        .update({
-          user_id: uid,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", canonical.id)
-        .is("user_id", null) // still unclaimed: never take one claimed meanwhile
-        .select(OWN_COLUMNS())
-        .single();
-
-      if (updateError) {
-        // Not linked (possibly claimed by another account meanwhile): don't
-        // treat it as this member's profile.
-        err("❌ [PROFILE-LINK] Failed to link canonical profile:", updateError);
-        return null;
-      }
-      canonical = updatedCanonical;
-      log("✅ [PROFILE-LINK] Successfully linked canonical profile to uid:", uid);
-    }
-
-    // Hide non-canonical duplicates
-    const nonCanonicalIds = candidates
-      .filter((r) => r.id !== canonical.id && !r.user_id)
-      .map((r) => r.id);
-
-    if (nonCanonicalIds.length > 0) {
-      log("🗑️ [PROFILE-LINK] Hiding", nonCanonicalIds.length, "non-canonical duplicate profile(s):", nonCanonicalIds);
-
-      const { error: hideError } = await window.supabase
-        .from("community")
-        .update({
-          is_hidden: true,
-          updated_at: new Date().toISOString(),
-        })
-        .in("id", nonCanonicalIds)
-        .is("user_id", null); // unclaimed only, as above
-
-      if (hideError) {
-        err("❌ [PROFILE-LINK] Failed to hide non-canonical profiles:", hideError);
-      } else {
-        log("✅ [PROFILE-LINK] Successfully hid non-canonical profiles");
-      }
-    }
-
-    setTimeout(() => {
-      if (typeof window.showNotification === "function") {
-        window.showNotification(
-          candidates.length > 1
-            ? "Welcome back! We've consolidated your duplicate profiles."
-            : "Welcome back! Your existing profile has been linked to your account.",
-          "success"
-        );
-      }
-    }, 1000);
-
-    return canonical;
+    log("✅ [PROFILE-LINK] Successfully linked profile to uid:", uid);
+    notifyLinked();
+    return linked;
   }
 
   async function loadUserProfileOnce(user) {

@@ -77,7 +77,7 @@ SET LOCAL ROLE authenticated;
 SELECT pg_temp.eq(public.claim_community_profile_by_email()::text, '10000000-0000-4000-8000-000000000001', 'a linked member gets their own profile back');
 
 -- Duplicates: one is picked (completed first) and linked; the others are
--- left unclaimed and visible, so sign-in hides them.
+-- left unclaimed and visible (sign-in leaves them too; cleanup is later).
 SELECT pg_temp.as_member('a0000000-0000-4000-8000-000000000002');
 SELECT pg_temp.eq(public.claim_community_profile_by_email()::text, '10000000-0000-4000-8000-000000000004', 'duplicates: the completed profile is picked');
 RESET ROLE;
