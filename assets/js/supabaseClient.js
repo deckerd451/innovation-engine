@@ -156,15 +156,26 @@ export async function ensureCommunityUser() {
 
   // --- STEP 2.5: CLAIM A MIGRATED PROFILE (matched by email on the server) ---
   // This handles users from the old app who are logging in for the first
-  // time; claim_community_profile_by_email links the one unclaimed profile
-  // with their email, without the website reading anyone's email.
+  // time; claim_community_profile_by_email links an unclaimed profile with
+  // their email, without the website reading anyone's email. It returns the
+  // profile it picked even if another account linked it first, so check the
+  // profile is now this account's.
   const { data: claimedId, error: claimError } = await supabase.rpc(
     "claim_community_profile_by_email"
   );
 
   if (!claimError && claimedId) {
-    console.log(`✅ Successfully reclaimed profile ${claimedId} for ${user.email}`);
-    return;
+    const { data: claimed } = await supabase
+      .from("community")
+      .select("id")
+      .eq("id", claimedId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (claimed) {
+      console.log(`✅ Successfully reclaimed profile ${claimedId} for ${user.email}`);
+      return;
+    }
+    console.warn(`⚠️ Claimed profile ${claimedId} is not linked to this account`);
   }
 
   // --- STEP 3: ONLY INSERT IF NEW USER ---

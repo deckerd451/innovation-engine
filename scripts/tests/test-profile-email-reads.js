@@ -6,9 +6,10 @@
 //   - No select('*') / select() on community or community_with_last_seen,
 //     and no embedded community(*) in another table's select.
 //   - No email in a profile select, filter or embedded profile, except the
-//     reads marked "email-read-ok:" in the admin People panel and the
-//     duplicate-claim fallback in sign-in. Those move to database functions
-//     in a later migration.
+//     reads marked "email-read-ok:" in the admin People panel and sign-in's
+//     duplicate handling (the claim fallback, and hiding the duplicates the
+//     deployed claim function leaves). Those move to database functions in
+//     a later migration.
 //   - The shared column lists (assets/js/profile-columns.js) exclude email,
 //     and every page that queries profiles loads them first.
 //   - Members' emails are not shown: profile pages, Inbox, Network overview,
@@ -115,11 +116,12 @@ assert.ok(problemsIn('x.js', "supabase.from('community').select('id, email') // 
 const problems = [...live].flatMap((f) => problemsIn(f, source.get(f)));
 assert.deepEqual(problems, [], `live profile queries must name their columns and leave out email:\n  ${problems.join('\n  ')}`);
 
-// The marked email reads are only where expected (admin panel, the
-// duplicate-claim fallback), so the later migration knows what to replace.
+// The marked email reads are only where expected (admin panel, sign-in's
+// duplicate handling), so the later migration knows what to replace.
 const marked = [...live].flatMap((f) => (source.get(f).match(/email-read-ok:[^\n]*/g) || []).map((m) => `${f}: ${m}`));
 for (const m of marked) assert.ok([...EMAIL_READ_ALLOWED].some((f) => m.startsWith(`${f}:`)), `unexpected email read: ${m}`);
 assert.ok(marked.some((m) => m.startsWith('auth.js: email-read-ok: duplicate claim fallback')), 'the duplicate-claim fallback is marked');
+assert.ok(marked.some((m) => m.startsWith('auth.js: email-read-ok: duplicates left by the claim')), 'hiding the duplicates the claim leaves is marked');
 
 // The presence view has only these columns of the ones the site asks for
 // (production check, 2026-10-28: no photo_visible or photo_consent_at), so
@@ -176,8 +178,10 @@ const auth = read('auth.js');
 assert.match(auth, /const OWN_COLUMNS = \(\) => window\.BuildspaceProfileColumns\.own;/, 'sign-in reads the shared own-profile columns');
 assert.match(read('assets/js/adminPeopleService.js'), /const ADMIN_PERSON_COLUMNS = \(\) =>\s*`\$\{window\.BuildspaceProfileColumns\.own\}, is_disabled, image_path, email`;/, 'admin details: the own columns plus the admin fields');
 assert.match(auth, /rpc\(\s*"claim_community_profile_by_email"\s*\)/);
-assert.match(auth, /const claim = await claimOlderProfile\(\);[\s\S]*if \(claim\.id\)[\s\S]*if \(!claim\.fallback\)[\s\S]*\.ilike\("email", emailNorm\) \/\/ email-read-ok: duplicate claim fallback/,
-  'sign-in claims an older profile on the server and only falls back to the email lookup when the claim function refuses or fails');
+assert.match(auth, /const claim = await claimOlderProfile\(\);[\s\S]*if \(claim\.id\)[\s\S]*\.eq\("id", claim\.id\)\.eq\("user_id", uid\)[\s\S]*if \(!useFallback\)[\s\S]*\.ilike\("email", emailPattern\(emailNorm\)\) \/\/ email-read-ok: duplicate claim fallback/,
+  'sign-in claims an older profile on the server, uses it only if it is now linked to this account, and falls back to the email lookup only when the claim fails or returns another account\'s profile');
+assert.doesNotMatch(auth, /\.ilike\("email", emailNorm\)/, 'email lookups escape wildcards, so "_" or "%" in an address matches only itself');
+assert.match(read('assets/js/supabaseClient.js'), /\.eq\("id", claimedId\)\s*\.eq\("user_id", user\.id\)/, 'the legacy profile helper also checks the claimed profile is this account\'s');
 assert.match(auth, /email: user\.email,/, 'a new profile is still created with the session email');
 assert.doesNotMatch(read('assets/js/supabaseClient.js'), /\.eq\("email"|select\("[^"]*email/, 'the legacy profile helper claims through the claim function too');
 

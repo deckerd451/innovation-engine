@@ -426,14 +426,23 @@
   // never email -- the member's own email is user.email from the session.
   const OWN_COLUMNS = () => window.BuildspaceProfileColumns.own;
 
+  // The member's email as an exact, case-insensitive ilike pattern: "_" and
+  // "%" in an address match only themselves, never other addresses.
+  const emailPattern = (email) => email.replace(/[\\%_]/g, (c) => `\\${c}`);
+
   // claim_community_profile_by_email links an unclaimed profile (one made
   // before accounts existed) that has the member's email to their account,
   // matching the email on the server. Started once per sign-in; the profile
-  // load waits for its answer:
-  //   { id }        claimed that profile
-  //   {}            nothing to claim (none, or already linked)
-  //   { fallback }  refused (several unclaimed profiles share the email) or
-  //                 failed -- the profile load falls back to the email lookup
+  // load waits for its answer. As deployed, the function returns the
+  // caller's already-linked profile; otherwise it picks one unclaimed
+  // profile (completed, then onboarded, then oldest), links it if it's
+  // still unclaimed, and returns its id either way -- so the profile load
+  // checks the id is now linked to this account before using it.
+  //   { id }        the profile the function returned (not yet verified)
+  //   {}            nothing to claim
+  //   { fallback }  failed (or refused, as the repository's older version of
+  //                 the function does for duplicates) -- the profile load
+  //                 falls back to the email lookup
   function claimOlderProfile() {
     if (claimPromise) return claimPromise;
     claimPromise = (async () => {
@@ -465,6 +474,35 @@
       }
     })();
     return claimPromise;
+  }
+
+  // The deployed claim function links one of several unclaimed profiles
+  // that share the email and leaves the others as they were. Hide those
+  // others (unclaimed only; never deleted), as the duplicate handling in
+  // fetchUserProfile does. Returns how many were hidden.
+  async function hideUnclaimedDuplicates(emailNorm) {
+    try {
+      const { data, error } = await withTimeout(
+        window.supabase
+          .from("community")
+          .update({ is_hidden: true, updated_at: new Date().toISOString() })
+          .ilike("email", emailPattern(emailNorm)) // email-read-ok: duplicates left by the claim
+          .is("user_id", null)
+          .select("id"),
+        15000,
+        "Duplicate cleanup timeout"
+      );
+      if (error) {
+        err("❌ [PROFILE-LINK] Failed to hide duplicate profiles left by the claim:", error);
+        return 0;
+      }
+      const count = (data || []).length;
+      if (count > 0) log("🗑️ [PROFILE-LINK] Hid", count, "unclaimed duplicate profile(s) left by the claim");
+      return count;
+    } catch (e) {
+      err("❌ [PROFILE-LINK] Exception hiding duplicate profiles:", e);
+      return 0;
+    }
   }
 
   async function fetchUserProfile(user) {
@@ -504,8 +542,9 @@
     // STEP 2: Claim an older profile (made before accounts existed, so
     // user_id is NULL) that has this member's email. The claim function
     // matches the email on the server, so the website never reads members'
-    // email addresses. It refuses when several unclaimed profiles share the
-    // email; only then does the duplicate handling below look them up.
+    // email addresses. If several share the email, it links one and the
+    // others are hidden. Only when it fails, or returns a profile that isn't
+    // linked to this account, does the duplicate handling below look them up.
     // ============================================================
     if (!emailNorm) {
       log("⚠️ [PROFILE-LINK] No email available, cannot claim by email");
@@ -513,9 +552,13 @@
     }
 
     const claim = await claimOlderProfile();
+    let useFallback = Boolean(claim.fallback);
     if (claim.id) {
+      // The function returns the profile it picked even when another account
+      // linked that profile first, so only a profile now linked to this
+      // account is theirs.
       const { data: claimedRows, error: claimedError } = await withTimeout(
-        window.supabase.from("community").select(OWN_COLUMNS()).eq("id", claim.id).limit(1),
+        window.supabase.from("community").select(OWN_COLUMNS()).eq("id", claim.id).eq("user_id", uid).limit(1),
         15000,
         "Database query timeout"
       );
@@ -525,32 +568,37 @@
       }
       if (claimedRows && claimedRows.length > 0) {
         log("✅ [PROFILE-LINK] linked-by-email: Successfully linked profile", claim.id, "to uid:", uid);
+        const hidden = await hideUnclaimedDuplicates(emailNorm);
         setTimeout(() => {
           if (typeof window.showNotification === "function") {
             window.showNotification(
-              "Welcome back! Your existing profile has been linked to your account.",
+              hidden > 0
+                ? "Welcome back! We've consolidated your duplicate profiles."
+                : "Welcome back! Your existing profile has been linked to your account.",
               "success"
             );
           }
         }, 1000);
         return claimedRows[0];
       }
+      warn("⚠️ [PROFILE-LINK] The claimed profile", claim.id, "is not linked to this account; looking for another unclaimed profile");
+      useFallback = true;
     }
-    if (!claim.fallback) {
+    if (!useFallback) {
       log("🔍 [PROFILE-LINK] No unclaimed profile found for this email");
       return null;
     }
 
-    // The claim function refused (several unclaimed profiles share this
-    // email) or couldn't answer: the older email lookup below links one, as
-    // before. It still reads by email, so it needs a server-side replacement
-    // before the database stops members reading the email column (see the
-    // PR).
+    // The claim function couldn't answer (or refused), or the profile it
+    // returned belongs to another account: the older email lookup below
+    // links one, as before. It still reads by email, so it needs a
+    // server-side replacement before the database stops members reading the
+    // email column (see the PR).
     const { data: emailMatches, error: emailError } = await withTimeout(
       window.supabase
         .from("community")
         .select(OWN_COLUMNS())
-        .ilike("email", emailNorm) // email-read-ok: duplicate claim fallback
+        .ilike("email", emailPattern(emailNorm)) // email-read-ok: duplicate claim fallback
         .order("created_at", { ascending: true, nullsLast: true }),
       15000,
       "Email lookup timeout"
@@ -588,20 +636,11 @@
       emailNorm
     );
 
-    // Choose canonical profile:
-    // 1) completed flags, else 2) oldest created_at (already sorted)
-    let canonical = null;
-    for (const row of candidates) {
-      if (row.profile_completed === true || row.onboarding_completed === true) {
-        canonical = row;
-        log("🎯 [PROFILE-LINK] Selected canonical (completed):", row.id);
-        break;
-      }
-    }
-    if (!canonical) {
-      canonical = candidates[0];
-      log("🎯 [PROFILE-LINK] Selected canonical (oldest):", canonical.id, "created_at:", canonical.created_at);
-    }
+    // Choose canonical profile, in the claim function's order: completed,
+    // then onboarded, then oldest created_at (already sorted; sort is stable)
+    const rank = (r) => (r.profile_completed === true ? 2 : 0) + (r.onboarding_completed === true ? 1 : 0);
+    let canonical = [...candidates].sort((a, b) => rank(b) - rank(a))[0];
+    log("🎯 [PROFILE-LINK] Selected canonical:", canonical.id, "created_at:", canonical.created_at);
 
     // If uid is currently on a non-canonical row, clear it
     const uidRow = candidates.find((r) => r.user_id === uid);
