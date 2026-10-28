@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Authorization tests (notifications, connections, memberships, proximity
-# connections) against a throwaway local PostgreSQL cluster. Never touches a
+# connections, People you met) against a throwaway local PostgreSQL cluster. Never touches a
 # Supabase project: it creates its own cluster in a fresh temporary
 # directory, listens on 127.0.0.1 only, and removes the directory on exit.
 #
@@ -8,7 +8,7 @@
 #
 # Checks:
 #   1. Negative control: every test file FAILS on the production baseline.
-#   2. Both migrations apply in order, and apply again (idempotent).
+#   2. The migrations apply in order, and apply again (idempotent).
 #   3. Every test file PASSES after the migrations.
 #   4. Undoing any single protection makes a test fail.
 #   5. Simultaneous Connect taps from both members end in one accepted
@@ -17,13 +17,15 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-BASELINES=("$ROOT/scripts/tests/fixtures/notification-connection-prod-baseline.sql" "$ROOT/scripts/tests/fixtures/membership-edge-prod-baseline.sql")
+BASELINES=("$ROOT/scripts/tests/fixtures/notification-connection-prod-baseline.sql" "$ROOT/scripts/tests/fixtures/membership-edge-prod-baseline.sql" "$ROOT/scripts/tests/fixtures/nearify-peers-prod-baseline.sql")
 HELPERS="$ROOT/scripts/tests/fixtures/authz-test-helpers.sql"
 M1="$ROOT/supabase/sql/migrations/20261013_notification_connection_authz.sql"
 M2="$ROOT/supabase/sql/migrations/20261013b_membership_and_proximity_authz.sql"
 R1="$ROOT/supabase/sql/rollback/20261013_notification_connection_authz_rollback.sql"
 R2="$ROOT/supabase/sql/rollback/20261013b_membership_and_proximity_authz_rollback.sql"
-TESTS=(notification-authz-db.sql connection-authz-db.sql membership-authz-db.sql)
+M3="$ROOT/supabase/sql/migrations/20261028_nearify_peers_hidden_members.sql"
+R3="$ROOT/supabase/sql/rollback/20261028_nearify_peers_hidden_members_rollback.sql"
+TESTS=(notification-authz-db.sql connection-authz-db.sql membership-authz-db.sql nearify-peers-authz-db.sql)
 PORT="${AUTHZ_PG_PORT:-54331}"
 
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/ie-authz-XXXXXX")"
@@ -80,7 +82,7 @@ for test in "${TESTS[@]}"; do
 done
 
 echo "2. Migrations apply in order, twice"
-fresh_db authz_migrated "$M1" "$M2" "$M1" "$M2"
+fresh_db authz_migrated "$M1" "$M2" "$M3" "$M1" "$M2" "$M3"
 echo "   ok"
 
 echo "3. Tests pass after the migrations"
@@ -94,7 +96,7 @@ done
 
 echo "4. Each protection is load-bearing: undoing it alone makes a test fail"
 sabotage() { # label, test file, SQL that undoes one protection
-  fresh_db authz_sabotage "$M1" "$M2"
+  fresh_db authz_sabotage "$M1" "$M2" "$M3"
   "${PSQL[@]}" -d authz_sabotage -c "$3" >/dev/null 2>&1
   if out="$("${PSQL[@]}" -d authz_sabotage -f "$ROOT/scripts/tests/$2" 2>&1)"; then
     echo "   NOT CAUGHT: $1"; fail=1
@@ -124,6 +126,13 @@ sabotage "ingest_nearify_interaction executable by members" membership-authz-db.
   "GRANT EXECUTE ON FUNCTION public.ingest_nearify_interaction(uuid, uuid, uuid, uuid, uuid, text, numeric, timestamp with time zone, jsonb, text, text) TO anon, authenticated"
 sabotage "promote_edge_to_connection consent removed" membership-authz-db.sql \
   "$(sed -n '/^CREATE OR REPLACE FUNCTION public.promote_edge_to_connection/,/^\$function\$;/p' "$R2" | sed "s/SET status = 'promoted', updated_at = now()/SET status = 'accepted'/")"
+
+sabotage "People you met shows hidden members to everyone" nearify-peers-authz-db.sql \
+  "$(cat "$R3")"
+sabotage "People you met hides hidden members from accepted connections too" nearify-peers-authz-db.sql \
+  "$(sed -n '/^CREATE OR REPLACE FUNCTION public.get_nearify_event_peers/,/^\$\$;/p' "$M3" | sed "s/WHERE k.status = 'accepted'/WHERE false/")"
+sabotage "People you met shows hidden members once any request exists" nearify-peers-authz-db.sql \
+  "$(sed -n '/^CREATE OR REPLACE FUNCTION public.get_nearify_event_peers/,/^\$\$;/p' "$M3" | sed "s/WHERE k.status = 'accepted'/WHERE k.status IS NOT NULL/")"
 
 sabotage "requester sent an invitation for their own join request" notification-authz-db.sql \
   "$(sed -n '/^CREATE OR REPLACE FUNCTION public.notify_project_invite/,/^\$function\$;/p' "$R1")"
@@ -186,10 +195,12 @@ fresh_db authz_rollback
 s0="$(snapshot authz_rollback)"
 apply authz_rollback "$M1"; s1="$(snapshot authz_rollback)"
 apply authz_rollback "$M2"; s2="$(snapshot authz_rollback)"
+apply authz_rollback "$M3"; s3="$(snapshot authz_rollback)"
+apply authz_rollback "$R3"; s2b="$(snapshot authz_rollback)"
 apply authz_rollback "$R2"; s1b="$(snapshot authz_rollback)"
 apply authz_rollback "$R1"; s0b="$(snapshot authz_rollback)"
-if [ "$s1" = "$s2" ] || [ "$s0" = "$s1" ]; then echo "   a migration changed nothing?"; fail=1; fi
-for pair in "s1:s1b:membership rollback" "s0:s0b:notification rollback"; do
+if [ "$s1" = "$s2" ] || [ "$s0" = "$s1" ] || [ "$s2" = "$s3" ]; then echo "   a migration changed nothing?"; fail=1; fi
+for pair in "s2:s2b:People you met rollback" "s1:s1b:membership rollback" "s0:s0b:notification rollback"; do
   IFS=: read -r a b label <<<"$pair"
   if [ "${!a}" = "${!b}" ]; then
     echo "   ok: $label ($(wc -l <<<"${!a}" | tr -d ' ') catalog entries identical)"
