@@ -312,8 +312,8 @@ const extra = `(() => {
 })();`;
 
 const WORDS = {
-  visible: 'People you meet at Nearify events can see your name, short bio and the events you were both at, under People you met in Buildspace. Your photo shows only if you chose to show it.',
-  none: 'Connect from the Nearify app to use your community profile there. Once connected, people you meet at Nearify events can see your name, short bio and the events you were both at, under People you met in Buildspace. Your photo shows only if you chose to show it.',
+  visible: 'People you meet at Nearify events can see your name, short bio and the events you were both at, under People you met in Buildspace..',
+  none: 'Connect from the Nearify app to use your community profile there. Once connected, people you meet at Nearify events can see your name, short bio and the events you were both at, under People you met in Buildspace..',
   disconnect: 'Disconnecting unlinks your accounts and stops Nearify using your profile. It doesn’t erase encounters already recorded: people you met can still see them.',
 };
 const nearifyRow = () => callInPage(function () {
