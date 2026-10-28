@@ -45,7 +45,10 @@
   const PORTAL_AUTH_CHANNEL = "chs-buildspace-auth-v1";
   const BUILDSPACE_EMBEDDED_IN_PORTAL =
     window.parent !== window && window.location.origin === "https://deckerd451.github.io";
-  if (BUILDSPACE_EMBEDDED_IN_PORTAL) window.__CH_PORTAL_AUTH_HANDOFF__ = true;
+  if (BUILDSPACE_EMBEDDED_IN_PORTAL) {
+    window.__CH_PORTAL_AUTH_HANDOFF__ = true;
+    window.__CH_PORTAL_AUTH_PENDING__ = true;
+  }
 
   // -----------------------------
   // Helpers
@@ -233,8 +236,14 @@
       setHint("Sign in through Community Chat in the Member Portal to unlock Buildspace.");
       const oauthButtons = document.querySelector(".ie-oauth-buttons");
       const oauthLabel = document.querySelector(".ie-login-module-label");
-      if (oauthButtons) oauthButtons.hidden = true;
-      if (oauthLabel) oauthLabel.hidden = true;
+      if (oauthButtons) {
+        oauthButtons.hidden = true;
+        oauthButtons.style.display = "none";
+      }
+      if (oauthLabel) {
+        oauthLabel.hidden = true;
+        oauthLabel.style.display = "none";
+      }
     } else {
       setHint("Continue with GitHub or Google to get started.");
     }
@@ -872,6 +881,11 @@
       if (event === "INITIAL_SESSION" && !session?.user) {
         log("🟡 INITIAL_SESSION received - no active session");
         cancelSessionTimer();
+        if (window.__CH_PORTAL_AUTH_HANDOFF__ && window.__CH_PORTAL_AUTH_PENDING__) {
+          setHint("Verifying your CharlestonHacks member sign-in…");
+          markAuthReadyOnce();
+          return;
+        }
         showLoginUI();
         markAuthReadyOnce();
         return;
@@ -917,6 +931,7 @@
       if (event.origin !== PORTAL_AUTH_ORIGIN || event.source !== window.parent) return;
       const message = event.data;
       if (!message || message.channel !== PORTAL_AUTH_CHANNEL || message.nonce !== nonce) return;
+      window.__CH_PORTAL_AUTH_PENDING__ = false;
 
       if (message.type === "SESSION") {
         const tokens = message.tokens;
@@ -1021,13 +1036,17 @@
           await bootstrapForSession(session, "getSession");
         } else {
           log("🟡 No active session");
+          if (window.__CH_PORTAL_AUTH_HANDOFF__ && window.__CH_PORTAL_AUTH_PENDING__) {
+            setHint("Verifying your CharlestonHacks member sign-in…");
+            return;
+          }
           showLoginUI();
         }
       } catch (e) {
         err("❌ Session check failed:", e);
         if (hasBootstrappedThisLoad || signedInBootstrapStarted || sessionValidation) {
           log("🛡️ [AUTH-GUARD] Session check timeout ignored — authenticated bootstrap already started");
-        } else {
+        } else if (!(window.__CH_PORTAL_AUTH_HANDOFF__ && window.__CH_PORTAL_AUTH_PENDING__)) {
           showLoginUI();
         }
       }
