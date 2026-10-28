@@ -90,7 +90,7 @@ function isAdmin() {
     }
   }
 
-  console.warn('❌ Admin access denied. Email:', currentUserProfile?.email, 'Role:', role);
+  console.warn('❌ Admin access denied. Email:', window.currentAuthUser?.email, 'Role:', role);
   return false;
 }
 

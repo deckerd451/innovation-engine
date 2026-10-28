@@ -18,7 +18,9 @@
  * Requirements:
  * - window.supabase exists (from supabaseClient.js)
  * - Tables:
- *   - community(id, user_id, name, email, image_url, skills, ..., photo_visible, photo_consent_at)
+ *   - community(id, user_id, name, image_url, skills, ..., photo_visible, photo_consent_at)
+ *     (never email: the member's own comes from their session, and other
+ *     members' emails aren't shown)
  *   - conversations(participant_1_id, participant_2_id, context_type, context_id, context_title, last_message_at, last_message_preview)
  *   - messages(conversation_id, sender_id [community.id], content, read, created_at)
  */
@@ -108,7 +110,7 @@ const MessagingModule = (function () {
       // Load community profile by auth user_id
       const { data: profile, error: profErr } = await window.supabase
         .from("community")
-        .select("*")
+        .select("id, user_id, name, image_url, avatar_storage_path, photo_visible, photo_consent_at")
         .eq("user_id", state.authUser.id)
         .single();
 
@@ -488,10 +490,10 @@ const MessagingModule = (function () {
       .select(`
         *,
         participant_1:community!conversations_participant_1_id_fkey(
-          id, user_id, name, email, image_url, photo_visible, photo_consent_at
+          id, user_id, name, image_url, photo_visible, photo_consent_at
         ),
         participant_2:community!conversations_participant_2_id_fkey(
-          id, user_id, name, email, image_url, photo_visible, photo_consent_at
+          id, user_id, name, image_url, photo_visible, photo_consent_at
         )
       `)
       .or(`participant_1_id.eq.${myCid},participant_2_id.eq.${myCid}`)
@@ -514,14 +516,12 @@ const MessagingModule = (function () {
               authId: other.user_id,
               communityId: other.id,
               name: other.name || "Unknown",
-              email: other.email || "",
               avatar: window.profilePhotoUrl?.(other) || null
             }
           : {
               authId: null,
               communityId: null,
               name: "Unknown",
-              email: "",
               avatar: null
             }
       };
@@ -677,7 +677,7 @@ const MessagingModule = (function () {
     // Load all other community members
     const { data, error } = await window.supabase
       .from("community")
-      .select("id, user_id, name, email, skills, image_url, photo_visible, photo_consent_at")
+      .select("id, user_id, name, skills, image_url, photo_visible, photo_consent_at")
       .neq("id", state.currentUser.communityId);
 
     if (error) {
@@ -1164,7 +1164,6 @@ const MessagingModule = (function () {
         </div>
         <div class="chat-header-info">
           <div class="chat-header-name">${escapeHtml(user.name || "Unknown")}</div>
-          <div class="chat-header-status">${escapeHtml(user.email || "")}</div>
         </div>
         ${
           state.activeConversation.context_title
@@ -1325,7 +1324,7 @@ const MessagingModule = (function () {
             </div>
             <div class="user-item-info">
               <div class="user-item-name">${escapeHtml(user.name || "Unknown")}</div>
-              <div class="user-item-details">${skills ? escapeHtml(skills) : escapeHtml(user.email || "")}</div>
+              ${skills ? `<div class="user-item-details">${escapeHtml(skills)}</div>` : ""}
             </div>
           </div>
         `;
@@ -1391,9 +1390,8 @@ const MessagingModule = (function () {
     const q = (query || "").toLowerCase();
     const filtered = state.allUsers.filter((user) => {
       const name = (user.name || "").toLowerCase();
-      const email = (user.email || "").toLowerCase();
       const skills = (typeof user.skills === "string" ? user.skills : "").toLowerCase();
-      return name.includes(q) || email.includes(q) || skills.includes(q);
+      return name.includes(q) || skills.includes(q);
     });
     renderUsersList(filtered);
   }

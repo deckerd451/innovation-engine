@@ -156,7 +156,7 @@ const DailyEngagement = (function () {
   async function loadUserStats() {
     const { data: profile, error } = await state.supabase
       .from("community")
-      .select("*")
+      .select("id, name, xp, level, login_streak, last_login, connection_count, endorsements_given, endorsements_received")
       .eq("user_id", state.currentUser.id)
       .single();
 

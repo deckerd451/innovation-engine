@@ -7,7 +7,8 @@
  * Rules:
  * - Caches results in-memory and sessionStorage
  * - Dedupes concurrent calls (promise caching)
- * - Runs ensureCommunityUser() exactly once per session
+ * - Never creates a profile: ensureCommunityUser() waits for auth.js, which
+ *   claims an older profile before creating a new one
  * - NO other module should query community by email
  * 
  * @module bootstrapSession
@@ -37,14 +38,11 @@
   let authUserPromise = null;
   let communityUserPromise = null;
   
-  // Session tracking
-  let ensureCommunityUserRan = false;
-  
   // SessionStorage keys
   const STORAGE_KEYS = {
     AUTH_USER: 'ch_auth_user_cache',
     COMMUNITY_USER: 'ch_community_user_cache',
-    ENSURE_RAN: 'ch_ensure_community_ran'
+    ENSURE_RAN: 'ch_ensure_community_ran' // no longer set; cleared on logout
   };
 
   // ============================================================================
@@ -61,13 +59,8 @@
     }
     
     supabase = supabaseClient;
-    
-    // Check if ensureCommunityUser already ran this session
-    ensureCommunityUserRan = sessionStorage.getItem(STORAGE_KEYS.ENSURE_RAN) === 'true';
-    
-    console.log('✅ Bootstrap session initialized', {
-      ensureAlreadyRan: ensureCommunityUserRan
-    });
+
+    console.log('✅ Bootstrap session initialized');
   }
 
   // ============================================================================
@@ -218,7 +211,7 @@
         // This uses the RLS policy and is the ONLY allowed community query
         const { data, error } = await supabase
           .from('community')
-          .select('*')
+          .select(window.BuildspaceProfileColumns.own)
           .eq('user_id', authUser.id)
           .maybeSingle();
 
@@ -228,9 +221,9 @@
           return null;
         }
 
-        // If no community user exists, ensure it's created (once per session)
+        // No profile linked yet: wait for sign-in to claim or create it
         if (!data) {
-          console.log('👤 No community user found, ensuring creation...');
+          console.log('👤 No community user found, waiting for sign-in to load it...');
           const created = await ensureCommunityUser();
           communityUserCache = created;
           
@@ -261,7 +254,7 @@
           console.warn('Failed to cache community user:', e);
         }
 
-        console.log('✅ Community user loaded:', data.name || data.email);
+        console.log('✅ Community user loaded:', data.name || data.id);
         return data;
 
       } catch (error) {
@@ -277,80 +270,61 @@
   }
 
   // ============================================================================
-  // ENSURE COMMUNITY USER (Runs Once Per Session)
+  // ENSURE COMMUNITY USER (waits for sign-in; never creates)
   // ============================================================================
 
   /**
-   * Ensure community user exists (creates if missing)
-   * This runs AT MOST ONCE per tab session
-   * 
-   * @returns {Promise<object|null>} Created/existing community user
+   * The signed-in member's profile, once auth.js has loaded it.
+   *
+   * auth.js resolves the profile at sign-in: by account, then by claiming an
+   * older profile with the member's email, and only then by creating a new
+   * one. Creating a profile here as well could win that race and leave a
+   * returning member on a new, empty profile (their older one never
+   * claimed), so this only waits for auth.js's answer.
+   *
+   * @returns {Promise<object|null>} The member's profile, or null if sign-in
+   *   didn't load one in time
    */
   async function ensureCommunityUser() {
-    // Guard: only run once per session
-    if (ensureCommunityUserRan) {
-      console.log('⏭️ ensureCommunityUser already ran this session, skipping');
-      return communityUserCache;
-    }
-
-    ensureCommunityUserRan = true;
-    sessionStorage.setItem(STORAGE_KEYS.ENSURE_RAN, 'true');
-
     try {
       const authUser = await getAuthUser();
       if (!authUser) {
         console.warn('⚠️ No auth user, cannot ensure community user');
         return null;
       }
-
-      if (!supabase) {
-        throw new Error('Supabase not initialized');
-      }
-
-      console.log('🔨 Ensuring community user exists for:', authUser.email);
-
-      // Check if user already exists (by user_id, NOT email)
-      const { data: existing, error: checkError } = await supabase
-        .from('community')
-        .select('*')
-        .eq('user_id', authUser.id)
-        .maybeSingle();
-
-      if (checkError) {
-        console.error('❌ Error checking for existing user:', checkError);
-        return null;
-      }
-
-      if (existing) {
-        console.log('✅ Community user already exists');
-        return existing;
-      }
-
-      // Create new community user
-      const { data: created, error: createError } = await supabase
-        .from('community')
-        .insert({
-          user_id: authUser.id,
-          email: authUser.email,
-          name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
-          avatar_url: authUser.user_metadata?.avatar_url || null,
-          created_at: new Date().toISOString()
-        })
-        .select()
-        .single();
-
-      if (createError) {
-        console.error('❌ Error creating community user:', createError);
-        return null;
-      }
-
-      console.log('✅ Community user created:', created.name);
-      return created;
-
+      const profile = await waitForSignedInProfile(authUser.id);
+      if (profile) console.log('✅ Community user loaded by sign-in');
+      else console.warn('⚠️ Sign-in did not load a community user');
+      return profile;
     } catch (error) {
       console.error('❌ Error in ensureCommunityUser:', error);
       return null;
     }
+  }
+
+  // Resolves with auth.js's profile for this account (window.currentUserProfile,
+  // or the next 'profile-loaded'), or null on sign-out or after timeoutMs.
+  // 'profile-new' doesn't end the wait: the load may still be running (its
+  // time limit), and the dashboard retries it (dashboardPane.js).
+  function waitForSignedInProfile(authUserId, timeoutMs = 30000) {
+    const own = (profile) => (profile && profile.user_id === authUserId ? profile : null);
+    if (own(window.currentUserProfile)) return Promise.resolve(window.currentUserProfile);
+    return new Promise((resolve) => {
+      const finish = (profile) => {
+        clearTimeout(timer);
+        window.removeEventListener('profile-loaded', onLoaded);
+        window.removeEventListener('user-logged-out', onNone);
+        resolve(profile);
+      };
+      const onLoaded = (e) => {
+        const profile = own(e?.detail?.profile);
+        if (profile) finish(profile);
+      };
+      const onNone = () => finish(null);
+      const timer = setTimeout(onNone, timeoutMs);
+      window.addEventListener('profile-loaded', onLoaded);
+      window.addEventListener('user-logged-out', onNone);
+    });
   }
 
   // ============================================================================
@@ -387,7 +361,6 @@
     communityUserCache = null;
     authUserPromise = null;
     communityUserPromise = null;
-    ensureCommunityUserRan = false;
 
     try {
       sessionStorage.removeItem(STORAGE_KEYS.AUTH_USER);
@@ -470,9 +443,6 @@
     },
     get hasCachedCommunity() {
       return communityUserCache !== null;
-    },
-    get ensureRan() {
-      return ensureCommunityUserRan;
     }
   };
 

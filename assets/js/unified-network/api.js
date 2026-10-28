@@ -3,7 +3,7 @@
 // Version: 1.0.0
 
 import { SystemMode } from './types.js';
-import { graphDataStore } from './graph-data-store.js?v=hero-node-20260318';
+import { graphDataStore } from './graph-data-store.js?v=email-prep-20261028';
 import { relevanceScoreEngine } from './relevance-engine.js';
 import { presenceEnergyTracker } from './presence-tracker.js';
 import { stateManager } from './state-manager.js?v=discovery-setting-20261019';

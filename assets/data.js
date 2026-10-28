@@ -12,7 +12,7 @@ function safeRows(result) {
 export async function getCommunity() {
   const res = await supabase
     .from('community')
-    .select('id, name, email, image_url, skills, interests, bio, availability, user_role, connection_count, x, y')
+    .select('id, name, image_url, skills, interests, bio, availability, user_role, connection_count, x, y')
     .or('is_hidden.is.null,is_hidden.eq.false')
     .limit(200); // Reduced from 1000 - most users don't need that many
   return safeRows(res);
@@ -23,7 +23,7 @@ export async function searchByName(q) {
   // ✅ EGRESS OPTIMIZATION: Only fetch fields needed for search results
   const res = await supabase
     .from('community')
-    .select('id, name, email, image_url, skills, bio, user_role, connection_count')
+    .select('id, name, image_url, skills, bio, user_role, connection_count')
     .ilike('name', `%${q}%`)
     .or('is_hidden.is.null,is_hidden.eq.false');
   return safeRows(res);
@@ -35,7 +35,7 @@ export async function searchBySkills(skills = []) {
   // ✅ EGRESS OPTIMIZATION: Only fetch fields needed for search results
   const res = await supabase
     .from('community')
-    .select('id, name, email, image_url, skills, bio, user_role, connection_count')
+    .select('id, name, image_url, skills, bio, user_role, connection_count')
     .ilike('skills::text', `%${terms.join('%')}%`)
     .or('is_hidden.is.null,is_hidden.eq.false');
   return safeRows(res);

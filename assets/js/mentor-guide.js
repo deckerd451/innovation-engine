@@ -457,7 +457,7 @@ async function loadPeopleContent(contentDiv) {
     // Get people with overlapping interests/skills with timeout
     const peoplePromise = mentorState.supabase
       .from('community')
-      .select('*')
+      .select(window.BuildspaceProfileColumns.member)
       .neq('id', userId)
       .or('is_hidden.is.null,is_hidden.eq.false')
       .limit(50);

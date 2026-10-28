@@ -229,7 +229,7 @@ async function getCommunityByIds(ids) {
 
   const { data, error } = await supabase
     .from("community")
-    .select("id, name, image_url, email, user_id, photo_visible, photo_consent_at")
+    .select("id, name, image_url, user_id, photo_visible, photo_consent_at")
     .in("id", uniqueIds);
 
   if (error) {

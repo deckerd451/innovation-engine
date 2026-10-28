@@ -6,7 +6,7 @@
 
 import { makeProfileImageClickable } from './profile-image-modal.js';
 import { getRelationshipEvidence } from './relationship-evidence.js';
-import { createNativeEmailDraft, recordFollowupBestEffort, summarizeFollowups } from './followup-contact.js';
+import { summarizeFollowups } from './followup-contact.js';
 
 const NODE_PANEL_VERSION = 'v2.2-' + Date.now();
 console.log(`%c👤 Node Panel ${NODE_PANEL_VERSION} (Project Approval Fix)`, "color:#0ff; font-weight: bold; font-size: 16px");
@@ -1672,16 +1672,28 @@ async function getLatestInPersonInteraction(currentCommunityId, targetCommunityI
 
 // Render person profile panel
 async function renderPersonPanel(nodeData) {
-  // Fetch full profile data including presence fields from the view
-  const { data: profile, error } = await supabase
-    .from('community_with_last_seen')
-    .select('*')
-    .eq('id', nodeData.id)
-    .single();
+  // The profile fields this panel shows, with presence from the view (never
+  // email: members' emails aren't shown on profiles). The view has no photo
+  // consent columns, so those come from the profile itself, under the same
+  // row rules; without them the photo stays hidden (fails closed).
+  const [{ data: profile, error }, { data: photoChoice }] = await Promise.all([
+    supabase
+      .from('community_with_last_seen')
+      .select('id, user_id, name, bio, skills, availability, user_role, image_url, connection_count, projects_created, presence_last_seen, presence_expires_at')
+      .eq('id', nodeData.id)
+      .single(),
+    supabase
+      .from('community')
+      .select('photo_visible, photo_consent_at')
+      .eq('id', nodeData.id)
+      .maybeSingle(),
+  ]);
 
   if (error || !profile) {
     throw error;
   }
+  profile.photo_visible = photoChoice?.photo_visible === true;
+  profile.photo_consent_at = photoChoice?.photo_consent_at || null;
 
   // Seed PresenceRealtime cache immediately so presence-ui.js updates
   // use DB-sourced data rather than overwriting with "Last seen: unknown".
@@ -1876,13 +1888,6 @@ async function renderPersonPanel(nodeData) {
           <div class="met-in-person-badge" title="QR-confirmed interaction" style="display: inline-flex; align-items: center; gap: 0.4rem; background: rgba(0,255,136,0.15); color: #00ff88; padding: 0.3rem 0.75rem; border-radius: 12px; font-size: 0.8rem; font-weight: 600; border: 1px solid rgba(0,255,136,0.3); margin-bottom: 0.5rem;">
             <i class="fas fa-handshake" style="font-size: 0.75rem;"></i> Met in person
           </div>
-        ` : ''}
-
-        <!-- Show email to admins or connected users -->
-        ${((typeof window.isAdminUser === 'function' && window.isAdminUser()) || connectionStatus === 'accepted') && profile.email ? `
-          <a href="mailto:${profile.email}" style="color: rgba(255,170,0,0.9); font-size: 0.85rem; margin-bottom: 0.5rem; padding: 0.5rem 0.75rem; background: rgba(255,170,0,0.1); border: 1px solid rgba(255,170,0,0.3); border-radius: 6px; display: inline-block; text-decoration: none; transition: all 0.2s; cursor: pointer;" onmouseover="this.style.background='rgba(255,170,0,0.2)'; this.style.borderColor='rgba(255,170,0,0.5)'" onmouseout="this.style.background='rgba(255,170,0,0.1)'; this.style.borderColor='rgba(255,170,0,0.3)'">
-            <i class="fas fa-envelope"></i> ${profile.email}
-          </a>
         ` : ''}
 
         <!-- Level and Streak Badges (shown on mobile, hidden on desktop) -->
@@ -4336,7 +4341,7 @@ window.manageProjectRequests = async function(projectId) {
       throw new Error('Database connection not available');
     }
 
-    // Owner-gated RPC keeps requester email and follow-up history private.
+    // Owner-gated RPC keeps follow-up history private.
     const { data: requestResult, error } = await supabase
       .rpc('get_project_interest_requests', { p_project_id: projectId });
 
@@ -4373,16 +4378,10 @@ window.manageProjectRequests = async function(projectId) {
               <p style="margin-top: 1rem;">No pending requests</p>
             </div>
           ` : pendingRequests.map(request => {
+            // Reply with Message (Buildspace messaging); requesters' email
+            // addresses aren't shown.
             const user = request.user;
             const escape = escapeHtml;
-            const email = String(user.email || '').trim();
-            const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-            const emailDraft = validEmail ? createNativeEmailDraft({
-              email,
-              recipientName: user.name || 'there',
-              subject: `Join request for ${projectTitle}`,
-              body: `Hi ${user.name || 'there'},\n\nThanks for your interest in joining ${projectTitle}. I'd like to connect and discuss the project with you.`
-            }) : null;
             const history = summarizeFollowups(request.followups).map(summary => {
               const label = summary.channel === 'message' ? 'Message' : 'Email';
               const attempts = summary.count > 1 ? ` · ${summary.count} attempts` : '';
@@ -4433,9 +4432,6 @@ window.manageProjectRequests = async function(projectId) {
                   <button class="message-request-btn" type="button" data-project-id="${escape(projectId)}" data-project-title="${escape(projectTitle)}" data-request-id="${escape(request.id)}" data-user-id="${escape(user.id)}" style="flex:1; padding:.65rem; background:#00e0ff; border:0; border-radius:8px; color:#041018; font-weight:bold; cursor:pointer;">
                     <i class="fas fa-comment"></i> Message
                   </button>
-                  ${emailDraft ? `<a class="email-request-action" href="${escape(emailDraft.href)}" data-request-id="${escape(request.id)}" style="flex:1; padding:.65rem; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.2); border-radius:8px; color:white; font-weight:bold; text-decoration:none; text-align:center;">
-                    <i class="fas fa-envelope"></i> Email
-                  </a>` : ''}
                 </div>
 
                 <!-- Action Buttons -->
@@ -4490,21 +4486,6 @@ window.manageProjectRequests = async function(projectId) {
           console.error('Unable to start project message follow-up:', contactError);
           if (!messagesModal?.classList.contains('active')) restoreRequestModal();
         }
-      });
-    });
-
-    modal.querySelectorAll('.email-request-action').forEach(link => {
-      link.addEventListener('click', event => {
-        const requestId = event.currentTarget.dataset.requestId;
-        recordFollowupBestEffort(
-          () => supabase.rpc('record_project_interest_followup', {
-            p_project_member_id: requestId,
-            p_channel: 'email',
-          }).then(({ error: followupError }) => {
-            if (followupError) throw followupError;
-          }),
-          followupError => console.error('Unable to record project email follow-up:', followupError)
-        );
       });
     });
 

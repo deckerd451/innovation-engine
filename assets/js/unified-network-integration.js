@@ -9,7 +9,7 @@
  * - GRACEFUL FALLBACK: Errors fall back to legacy synapse.
  */
 
-import { unifiedNetworkApi } from './unified-network/api.js?v=discovery-setting-20261019';
+import { unifiedNetworkApi } from './unified-network/api.js?v=email-prep-20261028';
 import { logger } from './logger.js';
 import { initializeErrorHandling } from './unified-network/error-integration.js';
 import { installUnifiedTierProbe } from './unified-tier-probe.js';
@@ -326,7 +326,7 @@ async function _openFallbackPanel(node) {
 
   try {
     const { data: profile, error } = await supabase
-      .from('community').select('*').eq('id', node.id).single();
+      .from('community').select(window.BuildspaceProfileColumns.member).eq('id', node.id).single();
     if (error || !profile) throw error || new Error('Not found');
 
     const initials = (profile.name || '?').split(' ').map(n => n[0]).join('').toUpperCase();

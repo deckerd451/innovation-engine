@@ -117,7 +117,7 @@ export async function ensureCommunityUser() {
     console.log('✅ Using bootstrapSession.getCommunityUser()');
     const communityUser = await window.bootstrapSession.getCommunityUser();
     if (communityUser) {
-      console.log(`✅ Community user loaded via bootstrap: ${communityUser.email}`);
+      console.log(`✅ Community user loaded via bootstrap: ${communityUser.id}`);
       return communityUser;
     }
     // If bootstrap returns null, fall through to legacy logic
@@ -137,7 +137,7 @@ export async function ensureCommunityUser() {
   // --- STEP 1: CHECK IF PROFILE ALREADY EXISTS (by user_id) ---
   const { data: existingProfile, error: fetchError } = await supabase
     .from("community")
-    .select("id, email, user_id")
+    .select("id, user_id")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -149,40 +149,33 @@ export async function ensureCommunityUser() {
   // --- STEP 2: IF PROFILE EXISTS, DO NOTHING (PRESERVE USER DATA!) ---
   if (existingProfile) {
     console.log(
-      `✅ Profile already exists for: ${existingProfile.email} (id: ${existingProfile.id})`
+      `✅ Profile already exists for: ${user.email} (id: ${existingProfile.id})`
     );
     return;
   }
 
-  // --- STEP 2.5: CHECK FOR MIGRATED PROFILE (by email) ---
-  // This handles users from the old app who are logging in for the first time
-  const { data: migratedProfile, error: migratedError } = await supabase
-    .from("community")
-    .select("id, email, user_id, name")
-    .eq("email", user.email)
-    .is("user_id", null) // Only match profiles without user_id (migrated users)
-    .maybeSingle();
+  // --- STEP 2.5: CLAIM A MIGRATED PROFILE (matched by email on the server) ---
+  // This handles users from the old app who are logging in for the first
+  // time; claim_community_profile_by_email links an unclaimed profile with
+  // their email, without the website reading anyone's email. It returns the
+  // profile it picked even if another account linked it first, so check the
+  // profile is now this account's.
+  const { data: claimedId, error: claimError } = await supabase.rpc(
+    "claim_community_profile_by_email"
+  );
 
-  if (!migratedError && migratedProfile) {
-    // Found a migrated profile! Link it to this auth user
-    console.log(
-      `🔗 Found migrated profile for ${user.email}! Linking to auth user...`
-    );
-    
-    const { error: updateError } = await supabase
+  if (!claimError && claimedId) {
+    const { data: claimed } = await supabase
       .from("community")
-      .update({ user_id: user.id })
-      .eq("id", migratedProfile.id);
-
-    if (updateError) {
-      console.error("❌ Failed to link migrated profile:", updateError);
+      .select("id")
+      .eq("id", claimedId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (claimed) {
+      console.log(`✅ Successfully reclaimed profile ${claimedId} for ${user.email}`);
       return;
     }
-
-    console.log(
-      `✅ Successfully reclaimed profile: ${migratedProfile.name} (${migratedProfile.email})`
-    );
-    return;
+    console.warn(`⚠️ Claimed profile ${claimedId} is not linked to this account`);
   }
 
   // --- STEP 3: ONLY INSERT IF NEW USER ---
@@ -203,7 +196,7 @@ export async function ensureCommunityUser() {
   const { data, error } = await supabase
     .from("community")
     .insert(payload)
-    .select()
+    .select("id")
     .single();
 
   if (error) {
@@ -212,7 +205,7 @@ export async function ensureCommunityUser() {
   }
 
   console.log(
-    `✅ New profile created for: ${data.email} → id: ${data.id}`
+    `✅ New profile created for: ${user.email} → id: ${data.id}`
   );
 }
 
@@ -376,7 +369,7 @@ export async function getUserProfile() {
 
   const { data, error } = await supabase
     .from("community")
-    .select("*")
+    .select(window.BuildspaceProfileColumns.own)
     .eq("user_id", user.id)
     .single();
 
