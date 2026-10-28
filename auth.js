@@ -384,7 +384,10 @@
       }, PORTAL_AUTH_ORIGIN);
     }
 
-    const { error } = await window.supabase.auth.signOut({ scope: "local" });
+    const signOutOptions = window.__CH_PORTAL_AUTH_HANDOFF__ ? { scope: "local" } : undefined;
+    const { error } = signOutOptions
+      ? await window.supabase.auth.signOut(signOutOptions)
+      : await window.supabase.auth.signOut();
     if (error) {
       err("❌ Logout error:", error);
       showNotification("Logout failed. Please try again.", "error");
