@@ -4,7 +4,7 @@
 // Admins control listing and can inspect member-owned photo sharing choices.
 // Photo sharing is private by default and can only be enabled by its owner.
 
-import { listPeople, setHidden } from './adminPeopleService.js';
+import { listPeople, setHidden } from './adminPeopleService.js?v=email-lock-20261029';
 
 function esc(str) {
   if (str == null) return '';

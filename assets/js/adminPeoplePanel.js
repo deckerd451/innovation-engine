@@ -16,7 +16,7 @@ import {
   createPerson,
   getClaimStats,
   getEmailsForPeople
-} from './adminPeopleService.js';
+} from './adminPeopleService.js?v=email-lock-20261029';
 import { getCardAvatarUrl } from './avatar-utils.js';
 
 // Escape user-supplied content before injecting into innerHTML

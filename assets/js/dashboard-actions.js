@@ -1610,12 +1610,12 @@ async function adminAddPerson() {
     const supabase = window.supabase;
     if (!supabase) throw new Error('Supabase not available');
     
-    // Check if email already exists
-    const { data: existing } = await supabase
-      .from('community')
-      .select('id, name')
-      .eq('email', email) // email-read-ok: admin ("already exists" check)
-      .maybeSingle();
+    // Check if email already exists (admin-only function: members can't
+    // read the email column)
+    const { data: matches, error: findError } = await supabase
+      .rpc('admin_find_members_by_email', { p_query: email, p_exact: true });
+    if (findError) throw findError;
+    const existing = matches?.[0];
     
     if (existing) {
       setAdminStatus(statusEl, '#ffaa00', 'fa-info-circle', `User already exists: ${existing.name || email}`);
@@ -1723,12 +1723,22 @@ async function adminSearchPeople(query) {
     
     const { data: people, error } = await supabase
       .from('community')
-      .select('id, name, email, image_url, is_hidden, user_id, photo_visible, photo_consent_at') // email-read-ok: admin (search)
+      .select('id, name, image_url, is_hidden, user_id, photo_visible, photo_consent_at')
       .ilike('name', `%${query}%`)
       .order('name')
       .limit(50); // Increased limit to show more results including removed members
     
     if (error) throw error;
+
+    // Emails come from an admin-only function (members can't read the
+    // column); without it, the rows show no email.
+    if (people?.length) {
+      const { data: emails, error: emailError } = await supabase
+        .rpc('admin_member_emails', { p_ids: people.map((person) => person.id) });
+      if (emailError) console.warn('⚠️ Could not load emails:', emailError.message || emailError);
+      const byId = new Map((emails || []).map((row) => [row.id, row.email]));
+      people.forEach((person) => { person.email = byId.get(person.id) ?? null; });
+    }
     
     if (!people || people.length === 0) {
       listEl.innerHTML = `

@@ -5,9 +5,11 @@
 //
 //   - No select('*') / select() on community or community_with_last_seen,
 //     and no embedded community(*) in another table's select.
-//   - No email in a profile select, filter or embedded profile, except the
-//     reads marked "email-read-ok:" in the admin People panel and sign-in's
-//     claim fallback. Those move to database functions in a later migration.
+//   - No email in any profile select, filter or embedded profile -- none at
+//     all: members (admins included) can't read the column
+//     (docs/SECURITY_MEMBER_EMAIL_PRIVACY.md). Sign-in claims older profiles
+//     on the server; the admin People panel reads emails through admin-only
+//     database functions.
 //   - The shared column lists (assets/js/profile-columns.js) exclude email,
 //     and every page that queries profiles loads them first.
 //   - Members' emails are not shown: profile pages, Inbox, Network overview,
@@ -25,9 +27,9 @@ const read = (p) => fs.readFileSync(path.join(root, p), 'utf8');
 const PAGES = ['index.html', 'explore.html', 'opportunities.html', 'opportunity.html',
   'organizations.html', 'organization-profile.html', 'organization-admin.html'];
 const SKIP_DIRS = new Set(['node_modules', '.git', 'scripts', 'docs', 'supabase', 'sql', 'demos']);
-// Files whose marked email reads are expected until the admin-only and
-// claim database functions exist.
-const EMAIL_READ_ALLOWED = new Set(['assets/js/adminPeopleService.js', 'assets/js/dashboard-actions.js', 'auth.js']);
+// The admin panel's column lists; their definitions are checked below (no
+// email).
+const ADMIN_COLUMNS_FILE = 'assets/js/adminPeopleService.js';
 
 function walk(dir, out = []) {
   for (const entry of fs.readdirSync(path.join(root, dir), { withFileTypes: true })) {
@@ -56,7 +58,6 @@ for (let grew = true; grew;) {
 function problemsIn(file, text) {
   const found = [];
   const at = (i) => `${file}:${text.slice(0, i).split('\n').length}`;
-  const allowed = EMAIL_READ_ALLOWED.has(file);
   // Each query on the profile table or the presence view, to the end of
   // its statement.
   const query = /from\(\s*['"](community|community_with_last_seen)['"]\s*\)/g;
@@ -64,20 +65,19 @@ function problemsIn(file, text) {
     let segment = text.slice(m.index, m.index + 900);
     const end = segment.search(/;|\n\s*\n/);
     if (end > 0) segment = segment.slice(0, end);
-    const marked = /email-read-ok:/.test(segment);
     for (const sel of segment.matchAll(/\.select\(\s*(?:(['"`])([\s\S]*?)\1|([^,)]*))/g)) {
       const literal = sel[2];
       const expression = (sel[3] || '').trim().replace(/\($/, '()');
       if (literal === undefined && expression === '') found.push(`${at(m.index)} select() reads every column`);
       if (literal !== undefined && /(^|,)\s*\*/.test(literal)) found.push(`${at(m.index)} select('*') reads every column`);
-      if (literal !== undefined && /\bemail\b/.test(literal) && !(allowed && marked)) found.push(`${at(m.index)} selects email`);
+      if (literal !== undefined && /\bemail\b/.test(literal)) found.push(`${at(m.index)} selects email`);
       if (expression && !/^window\.BuildspaceProfileColumns\.(own|member)$/.test(expression)
-        && !(expression === 'ADMIN_PERSON_COLUMNS()' && allowed && marked)
+        && !(['ADMIN_PERSON_COLUMNS()', 'LIST_COLUMNS'].includes(expression) && file === ADMIN_COLUMNS_FILE)
         && !/^OWN_COLUMNS\(\)$/.test(expression)) {
         found.push(`${at(m.index)} selects an unchecked column list (${expression})`);
       }
     }
-    if (/\.(eq|neq|ilike|like|in|is|or|not)\(\s*['"`][^'"`]*\bemail\b/.test(segment) && !(allowed && marked)) {
+    if (/\.(eq|neq|ilike|like|in|is|or|not|order)\(\s*['"`][^'"`]*\bemail\b/.test(segment)) {
       found.push(`${at(m.index)} filters by email`);
     }
   }
@@ -100,7 +100,8 @@ const bad = {
   view: "supabase.from('community_with_last_seen').select('*');",
   embeddedStar: "supabase.from('project_members').select(`*, user:community(*)`);",
   embeddedEmail: "supabase.from('opportunity_interests').select(`id, community:community_id (id, name, email)`);",
-  unmarkedAdmin: "supabase.from('community').select(ADMIN_PERSON_COLUMNS()).eq('id', id);",
+  markedEmail: "supabase.from('community').select('id, email') // email-read-ok: admin\n;",
+  emailOrder: "supabase.from('community').select('id').order('email');",
   unchecked: "supabase.from('community').select(columns).eq('id', id);",
 };
 for (const [kind, snippet] of Object.entries(bad)) {
@@ -108,18 +109,16 @@ for (const [kind, snippet] of Object.entries(bad)) {
 }
 assert.deepEqual(problemsIn('x.js', "supabase.from('community').select(window.BuildspaceProfileColumns.member).eq('id', id);"), []);
 assert.deepEqual(problemsIn('x.js', "supabase.from('community').select('id', { count: 'exact', head: true });"), []);
-assert.ok(problemsIn('x.js', "supabase.from('community').select('id, email') // email-read-ok: admin\n;").length > 0, 'a marker only counts in the allowed admin and sign-in files');
+assert.ok(problemsIn('x.js', "supabase.from('community').select(ADMIN_PERSON_COLUMNS()).eq('id', id);").length > 0, 'the admin column list counts only in the admin service');
+assert.deepEqual(problemsIn(ADMIN_COLUMNS_FILE, "supabase.from('community').select(ADMIN_PERSON_COLUMNS()).eq('id', id);"), []);
 
 // 1. Live code.
 const problems = [...live].flatMap((f) => problemsIn(f, source.get(f)));
 assert.deepEqual(problems, [], `live profile queries must name their columns and leave out email:\n  ${problems.join('\n  ')}`);
 
-// The marked email reads are only where expected (admin panel, sign-in's
-// claim fallback), so the later migration knows what to replace.
+// No email reads remain, marked or not.
 const marked = [...live].flatMap((f) => (source.get(f).match(/email-read-ok:[^\n]*/g) || []).map((m) => `${f}: ${m}`));
-for (const m of marked) assert.ok([...EMAIL_READ_ALLOWED].some((f) => m.startsWith(`${f}:`)), `unexpected email read: ${m}`);
-assert.ok(marked.some((m) => m.startsWith('auth.js: email-read-ok: duplicate claim fallback')), 'the duplicate-claim fallback is marked');
-assert.equal(marked.filter((m) => m.startsWith('auth.js:')).length, 1, 'sign-in has one email read, the claim fallback');
+assert.deepEqual(marked, [], 'no marked email reads remain');
 assert.doesNotMatch(read('auth.js'), /is_hidden: true|consolidated your duplicate profiles/, 'sign-in never hides leftover duplicate profiles or claims to have consolidated them');
 
 // The presence view has only these columns of the ones the site asks for
@@ -175,10 +174,21 @@ for (const page of PAGES.filter((p) => source.has(p) && /supabaseClient\.js|auth
 // profiles are claimed by the server-side claim function first.
 const auth = read('auth.js');
 assert.match(auth, /const OWN_COLUMNS = \(\) => window\.BuildspaceProfileColumns\.own;/, 'sign-in reads the shared own-profile columns');
-assert.match(read('assets/js/adminPeopleService.js'), /const ADMIN_PERSON_COLUMNS = \(\) =>\s*`\$\{window\.BuildspaceProfileColumns\.own\}, is_disabled, image_path, email`;/, 'admin details: the own columns plus the admin fields');
+const adminService = read('assets/js/adminPeopleService.js');
+assert.match(adminService, /const ADMIN_PERSON_COLUMNS = \(\) =>\s*`\$\{window\.BuildspaceProfileColumns\.own\}, is_disabled, image_path`;/, 'admin details: the own columns plus the admin fields, no email');
+const listColumns = adminService.match(/const LIST_COLUMNS = ([^;]+);/);
+assert.ok(listColumns, 'the People list names its columns');
+assert.doesNotMatch(listColumns[1], /email|\*/, 'and they leave out email');
+assert.match(adminService, /rpc\('admin_member_emails', \{ p_ids:/, 'the admin panel gets emails from admin_member_emails');
+assert.match(adminService, /rpc\('admin_search_people', \{/, 'and searches and sorts by email with admin_search_people');
+assert.match(adminService, /rpc\('admin_find_members_by_email', \{ p_query: query, p_exact: exact \}\)/, 'and searches them with admin_find_members_by_email');
+const adminActions = read('assets/js/dashboard-actions.js');
+assert.match(adminActions, /rpc\('admin_find_members_by_email', \{ p_query: email, p_exact: true \}\)/, 'the "already exists" check uses the admin function');
+assert.match(adminActions, /rpc\('admin_member_emails', \{ p_ids: people\.map/, 'admin search results get emails from the admin function');
 assert.match(auth, /rpc\(\s*"claim_community_profile_by_email"\s*\)/);
-assert.match(auth, /const claim = await claimOlderProfile\(\);[\s\S]*if \(claim\.id\)[\s\S]*\.eq\("id", claim\.id\)\.eq\("user_id", uid\)[\s\S]*if \(!useFallback\)[\s\S]*\.ilike\("email", emailPattern\(emailNorm\)\) \/\/ email-read-ok: duplicate claim fallback/,
-  'sign-in claims an older profile on the server, uses it only if it is now linked to this account, and falls back to the email lookup only when the claim fails or returns another account\'s profile');
+assert.match(auth, /const claim = await claimOlderProfile\(\);\s*if \(claim\.failed\) \{[\s\S]*?throw new Error\("Profile claim failed"\);[\s\S]*?\.eq\("id", claim\.id\)\.eq\("user_id", uid\)/,
+  'sign-in claims an older profile on the server only, fails (to be retried) if the claim fails, and uses a profile only if it is linked to this account');
+assert.doesNotMatch(auth, /\.(ilike|eq|like)\(\s*["']email["']/, 'sign-in never looks profiles up by email');
 assert.doesNotMatch(auth, /\.ilike\("email", emailNorm\)/, 'email lookups escape wildcards, so "_" or "%" in an address matches only itself');
 assert.match(read('assets/js/supabaseClient.js'), /\.eq\("id", claimedId\)\s*\.eq\("user_id", user\.id\)/, 'the legacy profile helper also checks the claimed profile is this account\'s');
 assert.match(auth, /email: user\.email,/, 'a new profile is still created with the session email');
@@ -194,4 +204,4 @@ assert.doesNotMatch(read('assets/js/start-ui-enhanced.js'), /connection-email">\
 assert.doesNotMatch(read('opportunity.html'), /email-action|mailto:|person\.email/, 'opportunity posters reply with Message, not email');
 assert.match(read('opportunity.html'), /<i class="fas fa-comment"><\/i> Message<\/a>/);
 
-console.log(`Profile email reads: ${live.size} live files, no select('*') and no email outside ${marked.length} marked admin/claim reads`);
+console.log(`Profile email reads: ${live.size} live files, no select('*') and no email selected, filtered or sorted on`);

@@ -6,14 +6,41 @@
 
 console.log('%c👥 Admin People Service Loading...', 'color:#00e0ff; font-weight: bold');
 
-// Email is the one profile column members won't be able to read once the
-// database is tightened. This panel's email reads (list, search, details,
-// "already exists" checks, export) are marked "email-read-ok: admin" and
-// still read the column directly, as before; they move to an admin-only
-// database function, here, once that function exists. Everything else uses
-// named columns (assets/js/profile-columns.js).
+// Members (admins included) can't read the email column
+// (docs/SECURITY_MEMBER_EMAIL_PRIVACY.md). This panel gets emails from
+// admin-only database functions instead: admin_member_emails (emails for
+// given profiles), admin_search_people (the list's search and email sort)
+// and admin_find_members_by_email (the "already exists" check). Everything
+// else uses named columns
+// (assets/js/profile-columns.js).
 const ADMIN_PERSON_COLUMNS = () =>
-  `${window.BuildspaceProfileColumns.own}, is_disabled, image_path, email`;
+  `${window.BuildspaceProfileColumns.own}, is_disabled, image_path`;
+
+// Adds `email` to each row (one row, or an array). If the function is
+// unavailable or refuses, the rows are returned without email.
+async function withEmails(supabase, rows) {
+  const list = Array.isArray(rows) ? rows : rows ? [rows] : [];
+  if (!list.length) return rows;
+  const { data, error } = await supabase.rpc('admin_member_emails', { p_ids: list.map((row) => row.id) });
+  if (error) {
+    console.warn('⚠️ Could not load emails:', error.message || error);
+    return rows;
+  }
+  const byId = new Map((data || []).map((row) => [row.id, row.email]));
+  list.forEach((row) => { row.email = byId.get(row.id) ?? null; });
+  return rows;
+}
+
+// The People list's columns (no email).
+const LIST_COLUMNS = 'id, name, user_role, is_hidden, is_disabled, photo_visible, photo_consent_at, '
+  + 'user_id, created_at, updated_at, last_login, image_url, image_path, avatar_storage_path';
+
+// Profiles whose email contains `query` (or equals it, with exact).
+async function findByEmail(supabase, query, exact = false) {
+  const { data, error } = await supabase.rpc('admin_find_members_by_email', { p_query: query, p_exact: exact });
+  if (error) throw error;
+  return data || [];
+}
 
 /**
  * List people with filtering, search, pagination, and sorting
@@ -44,32 +71,49 @@ export async function listPeople({
     const supabase = window.supabase;
     if (!supabase) throw new Error('Supabase not available');
 
+    const searchTerm = search ? search.trim() : '';
+
+    // Searching (name or email) and sorting by email run in an admin-only
+    // database function, which filters, sorts and pages every match (the
+    // email column isn't readable here); the page's rows are then read by
+    // id. If the function is unavailable: names only, sorted by name.
+    if (searchTerm || sortKey === 'email') {
+      const { data: found, error: searchError } = await supabase.rpc('admin_search_people', {
+        p_search: searchTerm,
+        p_role: role,
+        p_hidden: hidden,
+        p_disabled: disabled,
+        p_claimed: claimed,
+        p_sort: sortKey,
+        p_ascending: sortDir === 'asc',
+        p_offset: page * pageSize,
+        p_limit: pageSize
+      });
+      if (!searchError) {
+        const ids = (found || []).map((row) => row.id);
+        const total = Number(found?.[0]?.total_count || 0);
+        if (!ids.length) return { data: [], count: total, error: null };
+        const { data: rows, error: rowsError } = await supabase
+          .from('community')
+          .select(LIST_COLUMNS)
+          .in('id', ids);
+        if (rowsError) throw rowsError;
+        const byId = new Map((rows || []).map((row) => [row.id, row]));
+        const ordered = ids.map((id) => byId.get(id)).filter(Boolean);
+        await withEmails(supabase, ordered);
+        return { data: ordered, count: total, error: null };
+      }
+      console.warn('⚠️ Could not search by email:', searchError.message || searchError);
+    }
+
     // Build query - fetch only list columns for performance
     let query = supabase
       .from('community')
-      // email-read-ok: admin (list and search)
-      .select(`
-        id,
-        name,
-        email,
-        user_role,
-        is_hidden,
-        is_disabled,
-        photo_visible,
-        photo_consent_at,
-        user_id,
-        created_at,
-        updated_at,
-        last_login,
-        image_url,
-        image_path,
-        avatar_storage_path
-      `, { count: 'exact' });
+      .select(LIST_COLUMNS, { count: 'exact' });
 
     // Apply filters
-    if (search && search.trim()) {
-      const searchTerm = search.trim();
-      query = query.or(`name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`);
+    if (searchTerm) {
+      query = query.ilike('name', `%${searchTerm}%`);
     }
 
     if (role) {
@@ -93,7 +137,7 @@ export async function listPeople({
     }
 
     // Apply sorting
-    query = query.order(sortKey, { ascending: sortDir === 'asc' });
+    query = query.order(sortKey === 'email' ? 'name' : sortKey, { ascending: sortDir === 'asc' });
 
     // Apply pagination
     const from = page * pageSize;
@@ -104,6 +148,7 @@ export async function listPeople({
 
     if (error) throw error;
 
+    await withEmails(supabase, data || []);
     return { data: data || [], count: count || 0, error: null };
 
   } catch (error) {
@@ -124,12 +169,13 @@ export async function getPerson(id) {
 
     const { data, error } = await supabase
       .from('community')
-      .select(ADMIN_PERSON_COLUMNS()) // email-read-ok: admin (details)
+      .select(ADMIN_PERSON_COLUMNS())
       .eq('id', id)
       .single();
 
     if (error) throw error;
 
+    await withEmails(supabase, data);
     return { data, error: null };
 
   } catch (error) {
@@ -186,11 +232,12 @@ export async function updatePerson(id, patch) {
       .from('community')
       .update(updateData)
       .eq('id', id)
-      .select(ADMIN_PERSON_COLUMNS()) // email-read-ok: admin (details)
+      .select(ADMIN_PERSON_COLUMNS())
       .single();
 
     if (error) throw error;
 
+    await withEmails(supabase, data);
     return { data, error: null };
 
   } catch (error) {
@@ -342,11 +389,7 @@ export async function createPerson({ email, name = null }) {
     if (!supabase) throw new Error('Supabase not available');
 
     // Check if email already exists
-    const { data: existing } = await supabase
-      .from('community')
-      .select('id, name')
-      .eq('email', email) // email-read-ok: admin ("already exists" check)
-      .maybeSingle();
+    const [existing] = await findByEmail(supabase, email, true);
 
     if (existing) {
       throw new Error(`User already exists: ${existing.name || email}`);
@@ -363,11 +406,12 @@ export async function createPerson({ email, name = null }) {
         is_hidden: false,
         is_disabled: false
       })
-      .select(ADMIN_PERSON_COLUMNS()) // email-read-ok: admin (details)
+      .select(ADMIN_PERSON_COLUMNS())
       .single();
 
     if (error) throw error;
 
+    data.email = email;
     return { data, error: null };
 
   } catch (error) {
@@ -422,11 +466,12 @@ export async function getEmailsForPeople(ids) {
 
     const { data, error } = await supabase
       .from('community')
-      .select('id, email, name') // email-read-ok: admin (export)
+      .select('id, name')
       .in('id', ids);
 
     if (error) throw error;
 
+    await withEmails(supabase, data || []);
     return { data: data || [], error: null };
 
   } catch (error) {

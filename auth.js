@@ -432,23 +432,21 @@
   // never email -- the member's own email is user.email from the session.
   const OWN_COLUMNS = () => window.BuildspaceProfileColumns.own;
 
-  // The member's email as an exact, case-insensitive ilike pattern: "_" and
-  // "%" in an address match only themselves, never other addresses.
-  const emailPattern = (email) => email.replace(/[\\%_]/g, (c) => `\\${c}`);
-
   // claim_community_profile_by_email links an unclaimed profile (one made
   // before accounts existed) that has the member's email to their account,
   // matching the email on the server. Started once per sign-in; the profile
-  // load waits for its answer. As deployed, the function returns the
-  // caller's already-linked profile; otherwise it picks one unclaimed
-  // profile (completed, then onboarded, then oldest), links it if it's
-  // still unclaimed, and returns its id either way -- so the profile load
-  // checks the id is now linked to this account before using it.
-  //   { id }        the profile the function returned (not yet verified)
-  //   {}            nothing to claim
-  //   { fallback }  failed (or refused, as the repository's older version of
-  //                 the function does for duplicates) -- the profile load
-  //                 falls back to the email lookup
+  // load waits for its answer. The function returns the caller's
+  // already-linked profile; otherwise it picks one unclaimed profile
+  // (completed, then onboarded, then oldest) and links it, leaving any
+  // others as they are. Members can't read email (see
+  // docs/SECURITY_MEMBER_EMAIL_PRIVACY.md), so there is no client-side
+  // lookup to fall back on: a failed claim fails the profile load, which
+  // the dashboard retries (window.retrySignedInProfile), claim included.
+  // An older deployed version could return a profile it hadn't linked, so
+  // the profile load still checks the id is linked to this account.
+  //   { id }      the profile the function returned (not yet verified)
+  //   {}          nothing to claim
+  //   { failed }  the claim failed
   function claimOlderProfile() {
     if (claimPromise) return claimPromise;
     claimPromise = (async () => {
@@ -465,7 +463,7 @@
             return {};
           }
           warn("⚠️ [IDENTITY-CLAIM] Claim RPC error:", message || claimError);
-          return { fallback: true };
+          return { failed: true };
         }
         if (claimedId) {
           log("✅ [IDENTITY-CLAIM] Successfully claimed community profile:", claimedId);
@@ -475,8 +473,8 @@
         log("ℹ️ [IDENTITY-CLAIM] No orphaned profile found for this email.");
         return {};
       } catch (claimEx) {
-        warn("⚠️ [IDENTITY-CLAIM] Exception during claim (non-fatal):", claimEx);
-        return { fallback: true };
+        warn("⚠️ [IDENTITY-CLAIM] Exception during claim:", claimEx);
+        return { failed: true };
       }
     })();
     return claimPromise;
@@ -529,9 +527,7 @@
     // matches the email on the server, so the website never reads members'
     // email addresses. If several share the email, it links one and leaves
     // the others as they are (they may have their own projects or
-    // connections; cleaning them up is a separate, later task). Only when it
-    // fails, or returns a profile that isn't linked to this account, does
-    // the lookup below find them by email.
+    // connections; cleaning them up is a separate, later task).
     // ============================================================
     if (!emailNorm) {
       log("⚠️ [PROFILE-LINK] No email available, cannot claim by email");
@@ -539,101 +535,35 @@
     }
 
     const claim = await claimOlderProfile();
-    let useFallback = Boolean(claim.fallback);
-    if (claim.id) {
-      // The function returns the profile it picked even when another account
-      // linked that profile first, so only a profile now linked to this
-      // account is theirs.
-      const { data: claimedRows, error: claimedError } = await withTimeout(
-        window.supabase.from("community").select(OWN_COLUMNS()).eq("id", claim.id).eq("user_id", uid).limit(1),
-        15000,
-        "Database query timeout"
-      );
-      if (claimedError) {
-        err("❌ [PROFILE-LINK] Error loading the claimed profile:", claimedError);
-        throw claimedError;
-      }
-      if (claimedRows && claimedRows.length > 0) {
-        log("✅ [PROFILE-LINK] linked-by-email: Successfully linked profile", claim.id, "to uid:", uid);
-        notifyLinked();
-        return claimedRows[0];
-      }
-      warn("⚠️ [PROFILE-LINK] The claimed profile", claim.id, "is not linked to this account; looking for another unclaimed profile");
-      useFallback = true;
+    if (claim.failed) {
+      // Don't create a profile: the member may have an older one. The
+      // dashboard retries the load (profile-new "error").
+      throw new Error("Profile claim failed");
     }
-    if (!useFallback) {
+    if (!claim.id) {
       log("🔍 [PROFILE-LINK] No unclaimed profile found for this email");
       return null;
     }
 
-    // The claim function couldn't answer (or refused), or the profile it
-    // returned belongs to another account: the older email lookup below
-    // links one, as before. It still reads by email, so it needs a
-    // server-side replacement before the database stops members reading the
-    // email column (see the PR).
-    const { data: emailMatches, error: emailError } = await withTimeout(
-      window.supabase
-        .from("community")
-        .select(OWN_COLUMNS())
-        .ilike("email", emailPattern(emailNorm)) // email-read-ok: duplicate claim fallback
-        .order("created_at", { ascending: true, nullsLast: true }),
+    // Only a profile now linked to this account is theirs.
+    const { data: claimedRows, error: claimedError } = await withTimeout(
+      window.supabase.from("community").select(OWN_COLUMNS()).eq("id", claim.id).eq("user_id", uid).limit(1),
       15000,
-      "Email lookup timeout"
+      "Database query timeout"
     );
-
-    if (emailError) {
-      err("❌ [PROFILE-LINK] Error looking up profiles by email:", emailError);
-      throw emailError;
+    if (claimedError) {
+      err("❌ [PROFILE-LINK] Error loading the claimed profile:", claimedError);
+      throw claimedError;
     }
-
-    // Only unclaimed profiles (made before accounts existed) can become this
-    // member's. A profile with this email that already belongs to another
-    // account is never returned or changed -- the same rule as the claim
-    // function.
-    const candidates = (emailMatches || []).filter((r) => !r.user_id || r.user_id === uid);
-
-    if (candidates.length === 0) {
-      log("🔍 [PROFILE-LINK] No unclaimed profiles found for email:", emailNorm);
-      return null;
+    if (!claimedRows || claimedRows.length === 0) {
+      // Linked by another account first: claim again on the retry, which
+      // finds another unclaimed profile or none.
+      warn("⚠️ [PROFILE-LINK] The claimed profile", claim.id, "is not linked to this account");
+      throw new Error("Claimed profile is not linked to this account");
     }
-
-    // Linked to this account meanwhile (another tab): that's their profile.
-    const own = candidates.find((r) => r.user_id === uid);
-    if (own) {
-      log("✅ [PROFILE-LINK] found-by-email, already linked:", own.id);
-      return own;
-    }
-
-    // Link one, in the claim function's order: completed, then onboarded,
-    // then oldest created_at (already sorted; sort is stable). Any others are
-    // left as they are, as the claim function leaves them.
-    const rank = (r) => (r.profile_completed === true ? 2 : 0) + (r.onboarding_completed === true ? 1 : 0);
-    const canonical = [...candidates].sort((a, b) => rank(b) - rank(a))[0];
-    log(
-      `🔗 [PROFILE-LINK] Linking profile ${canonical.id} of ${candidates.length} unclaimed with this email to uid:`,
-      uid
-    );
-
-    const { data: linked, error: updateError } = await window.supabase
-      .from("community")
-      .update({
-        user_id: uid,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", canonical.id)
-      .is("user_id", null) // still unclaimed: never take one claimed meanwhile
-      .select(OWN_COLUMNS())
-      .single();
-
-    if (updateError) {
-      // Not linked (possibly claimed by another account meanwhile): don't
-      // treat it as this member's profile.
-      err("❌ [PROFILE-LINK] Failed to link profile:", updateError);
-      return null;
-    }
-    log("✅ [PROFILE-LINK] Successfully linked profile to uid:", uid);
+    log("✅ [PROFILE-LINK] linked-by-email: Successfully linked profile", claim.id, "to uid:", uid);
     notifyLinked();
-    return linked;
+    return claimedRows[0];
   }
 
   async function loadUserProfileOnce(user) {
