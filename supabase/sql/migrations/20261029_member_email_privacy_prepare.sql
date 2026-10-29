@@ -162,6 +162,7 @@ DECLARE
   v_aliases text[];
   v_cols_before text;
   v_cols_after text;
+  v_column_names text;
 BEGIN
   SELECT attnum, format_type(atttypid, atttypmod) INTO v_attnum, v_type
   FROM pg_attribute WHERE attrelid = 'public.community'::regclass AND attname = 'email' AND NOT attisdropped;
@@ -191,18 +192,20 @@ BEGIN
 
     v_new := v_def;
     FOREACH v_alias IN ARRAY v_aliases LOOP
-      -- "<alias>.email AS <name>" keeps <name>; a bare "<alias>.email" is named email.
-      v_new := regexp_replace(v_new, '\m' || v_alias || '\.email\M\s+AS\s+([a-z_][a-z0-9_]*)', 'NULL::' || v_type || ' AS \1', 'gi');
-      v_new := regexp_replace(v_new, '\m' || v_alias || '\.email\M', 'NULL::' || v_type || ' AS email', 'gi');
+      -- Replace every reference, including email values nested in JSON.
+      -- The explicit view column list below preserves bare output-column names.
+      v_new := regexp_replace(v_new, '\m' || v_alias || '\.email\M', 'NULL::' || v_type, 'gi');
     END LOOP;
 
+    SELECT string_agg(quote_ident(attname), ', ' ORDER BY attnum) INTO v_column_names
+    FROM pg_attribute WHERE attrelid = r.oid AND attnum > 0 AND NOT attisdropped;
     SELECT string_agg(attname || ' ' || format_type(atttypid, atttypmod), ', ' ORDER BY attnum) INTO v_cols_before
     FROM pg_attribute WHERE attrelid = r.oid AND attnum > 0 AND NOT attisdropped;
 
-    -- Options are restated: CREATE OR REPLACE VIEW without them resets
-    -- security_invoker, and the view would then bypass the hidden-profile
-    -- policy.
-    EXECUTE format('CREATE OR REPLACE VIEW %s%s AS %s', r.name,
+    -- Explicitly restate the view's column names so bare email expressions
+    -- keep their output names after becoming NULL::type. Also restate options:
+    -- omitting security_invoker would bypass hidden-profile protection.
+    EXECUTE format('CREATE OR REPLACE VIEW %s (%s)%s AS %s', r.name, v_column_names,
       CASE WHEN r.reloptions IS NULL THEN '' ELSE ' WITH (' || array_to_string(r.reloptions, ', ') || ')' END,
       v_new);
 
