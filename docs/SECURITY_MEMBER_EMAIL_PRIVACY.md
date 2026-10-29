@@ -29,7 +29,7 @@ read-only checkouts of `nearify-ios` (main, 49887ef, 2026-09-21),
 | `community` table | `anon`/`authenticated` `SELECT` on every column | Anyone can read every email | B: column `SELECT` on email removed |
 | `community_with_last_seen` (view, `security_invoker`) | Includes `email` | Would fail for **every** query, not just ones asking for email (tested) | A: email returned as null; same columns, options and grants |
 | `admin_ideas_overview` (view, `security_invoker`) | Includes email | Same | A: same |
-| `get_start_sequence_data(uuid)` (invoker; prod = repo, `97558dd2…`) | `'email', c.email` for any visible profile, by any caller | Would fail | A: returns `email: null`; nothing else changes |
+| `get_start_sequence_data(uuid)` (invoker; production `e23d29fa…`, the repository's logic with trailing spaces removed) | `'email', c.email` for any visible profile, by any caller | Would fail | A: returns `email: null`; nothing else changes |
 | `get_project_interest_requests(uuid)` (definer, project owners) | Requester email, hidden members included | Keeps exposing email | A: returns `email: null` |
 | `claim_community_profile_by_email()` (definer) | Matches the caller's sign-in email | Keeps working | A: replaced; see section 2 |
 | `get_community_id_from_auth()` (definer; used by connection policies) | Finds the caller's profile by `auth.email()` | Keeps working (runs as owner) | None |
@@ -93,9 +93,14 @@ The site uses Buildspace's Supabase project directly:
 **Views keep running as the caller.** `CREATE OR REPLACE VIEW` without its `WITH (...)` clause silently resets `security_invoker`. The view would then run as its owner and **bypass the hidden-profile policy**. Part A restates the saved options and stops if options, grants or columns change. The tests check that hidden profiles stay hidden through both views.
 
 **Rewritten from production, not from this repository.** Part A doesn't contain copies of the two functions or two views. At apply time it takes production's own definition and changes only the email expression:
-- **Functions:** `'email', c.email` becomes `'email', NULL::text`, and the expression must occur exactly once.
-- **Views:** each `<community alias>.email` output becomes `NULL::<type> AS <same name>`.
-- **Stops if:** the expression isn't found as expected, or the result would still read email, change columns, or change options or grants. Nothing is left half-applied (one transaction).
+- **Functions:** `'email', c.email,` becomes `'email', NULL::text,` (`requester.email` for `get_project_interest_requests`).
+  - The expression must occur exactly once.
+  - If it's already replaced, part A changes nothing.
+  - Otherwise it stops, and afterwards it checks no `c.email` / `requester.email` remains.
+- **Views:** every `<community alias>.email` reference becomes `NULL::<type>`, including email values nested in JSON, and the view's column names are restated so they don't change.
+  - This replaces references anywhere in the view, so confirm in P3 that email appears only as a returned value, not in a `WHERE`, `JOIN`, `GROUP BY` or `ORDER BY`.
+- **Stops if:** a function's expression isn't found exactly once, or the result would still read email, change columns, or change options or grants. Nothing is left half-applied (one transaction).
+- **No fingerprint check:** part A doesn't compare fingerprints. Its safeguards are the exact-expression and after-the-change checks above. The fingerprints in sections 3 and 5 are for the operator to check before and after applying it.
 - **Reviewing first:** preflight P3 shows the current definitions.
 
 **Claiming, server-side only.** Part A's `claim_community_profile_by_email()` keeps production's behaviour:
@@ -163,10 +168,12 @@ FROM pg_policies WHERE (coalesce(qual, '') || ' ' || coalesce(with_check, '')) ~
 ORDER BY 1, 2;
 ```
 
-**P3. The definitions part A rewrites.** Expect:
-- `get_start_sequence_data` `97558dd2a13da70ee9712a460475fbe2`
-- `get_project_interest_requests` `482f7bee15d24855f1a2b8d22e8a5584` (this repository's copy; production's is unverified)
-- two views with `security_invoker=true`, each with an `<alias>.email` output column.
+**P3. The definitions part A rewrites.** Expect the verified production values (read-only check, 2026-10-29):
+- `get_start_sequence_data` `e23d29fa4f223d44febbf5ac148e4ad2`. This is the repository's `supabase/sql/functions/get_start_sequence_data.sql` with trailing spaces removed from each line; the logic is the same. The repository file itself fingerprints as `97558dd2…`, which is **not** what production runs.
+- `get_project_interest_requests` `482f7bee15d24855f1a2b8d22e8a5584` (matches the repository).
+- two views with `security_invoker=true`, using email only as returned values (confirmed 2026-10-29).
+
+Run P3 again **immediately before** applying part A, and go ahead only if these values are unchanged. Part A doesn't check them itself.
 ```sql
 SELECT 'view' AS kind, c.oid::regclass::text AS name, array_to_string(c.reloptions, ',') AS detail, pg_get_viewdef(c.oid, true) AS definition
 FROM pg_class c WHERE c.oid IN ('public.community_with_last_seen'::regclass, 'public.admin_ideas_overview'::regclass)
@@ -198,10 +205,15 @@ Order matters: part B before part A stops itself. The website before part A work
 - both views `security_invoker=true`
 - P2 shows no views
 
-Fingerprints after part A (from the local model, whose functions match production's verified text):
-- `get_start_sequence_data` `ed7ee3319fe8d304b5eb708b7983d6c9`
-- `get_project_interest_requests` `2455e0331f615f2451808d2cd1d82361` (only if production's copy matched the repository's)
-- `claim_community_profile_by_email` `b9177746253874dea5d6c94090c04b16`
+Fingerprints after part A. They come from applying part A to a local model whose two functions have the production starting fingerprints above:
+
+| Function | Before part A (production) | After part A |
+|---|---|---|
+| `get_start_sequence_data(uuid)` | `e23d29fa4f223d44febbf5ac148e4ad2` | `99c9f175333eccabbfcea7f53d38465e` |
+| `get_project_interest_requests(uuid)` | `482f7bee15d24855f1a2b8d22e8a5584` | `2455e0331f615f2451808d2cd1d82361` |
+| `claim_community_profile_by_email()` | (replaced in full) | `b9177746253874dea5d6c94090c04b16` |
+
+If an after-value differs, stop and compare before going further (rollback: section 6).
 ```sql
 SELECT has_function_privilege('anon', 'public.claim_community_profile_by_email()', 'EXECUTE') AS claim_anon_execute,
        has_function_privilege('anon', 'public.admin_member_emails(uuid[])', 'EXECUTE') AS admin_fn_anon,

@@ -9,8 +9,10 @@
 --   - Table grants: anon and authenticated hold every privilege on
 --     community (read-only catalog check, 2026-10-28).
 --   - get_start_sequence_data(uuid): applied from
---     supabase/sql/functions/get_start_sequence_data.sql, whose body matches
---     production (md5(prosrc) 97558dd2a13da70ee9712a460475fbe2).
+--     supabase/sql/functions/get_start_sequence_data.sql (md5(prosrc)
+--     97558dd2...). Production's copy (e23d29fa..., 2026-10-29) is the same
+--     text with trailing spaces removed from each line: the same logic, and
+--     the same single 'email', c.email, expression part A rewrites.
 --   - get_community_id_from_auth(): the production definition, as in
 --     notification-connection-prod-baseline.sql.
 --   - The claim function: the model of the deployed version
