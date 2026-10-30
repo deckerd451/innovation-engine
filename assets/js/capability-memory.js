@@ -405,13 +405,14 @@
       if (person) {
         const id = person.dataset.personId;
         const name = person.dataset.personName || 'Community member';
-        if (window.startConversationWithUser) window.startConversationWithUser(id, name);
+        if (window.openMessageForUser) window.openMessageForUser(id);
+        else if (window.startConversationWithUser) window.startConversationWithUser(id, name);
         else window.openNodePanel?.({ id, type: 'person', name });
         return;
       }
       const relatedProject = event.target.closest('[data-action="open-related-project"]');
       if (relatedProject) {
-        window.viewProjectDetails?.(relatedProject.dataset.projectId, 'work');
+        window.viewProjectDetails?.(relatedProject.dataset.projectId, 'tasks');
         return;
       }
       const use = event.target.closest('[data-action="use"]');
