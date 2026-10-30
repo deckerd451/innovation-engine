@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS public.project_tasks (
   project_id UUID NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   description TEXT,
+  completion_note TEXT,
   status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'in_progress', 'done')),
   priority TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('high', 'medium', 'low')),
   owner_id UUID REFERENCES public.community(id) ON DELETE SET NULL,
