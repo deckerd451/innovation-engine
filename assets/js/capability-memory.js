@@ -324,7 +324,7 @@
     const canUse = Boolean(options.canUse);
     const canEdit = Boolean(options.canEdit);
     container.innerHTML = `<div class="cm-shell cm-goal-flow">
-      <div class="cm-intro"><div><h3>Find a way forward</h3><p>Describe the result in your own words. We’ll show methods members have tried and explain why they may fit.</p></div></div>
+      <div class="cm-intro"><div><h3>Find a way forward</h3><p>Describe a concrete project result. We’ll find relevant methods and, when you’re signed in, people or projects from your network that may help.</p></div></div>
       <form class="cm-goal-form"><input name="goal" required maxlength="280" autocomplete="off" placeholder="e.g. Validate my business idea this week"><button type="submit" class="cm-primary-btn"><i class="fas fa-search"></i> Find useful methods</button></form>
       <div class="cm-active-attempts"></div><div class="cm-goal-results"><div class="cm-empty"><strong>Start with a concrete outcome.</strong><p>Matching and evidence will appear here.</p></div></div>
     </div>`;
@@ -337,22 +337,56 @@
       return `<form class="cm-form cm-outcome-form" data-attempt-id="${esc(item.id)}"><div class="cm-form-title">How did “${esc(item.goal || 'this goal')}” go?</div><p class="cm-form-help">Record what happened after you finish the project tasks.</p><div class="cm-two-col"><label>Typical hours <input type="number" name="baseline_hours" min="0" step="0.1" value="${item.baseline_hours ?? ''}"></label><label>Your hours <input type="number" name="actual_hours" min="0" step="0.1" value="${item.actual_hours ?? ''}"></label></div><div class="cm-two-col"><label>Typical cost <input type="number" name="baseline_cost" min="0" step="1" value="${item.baseline_cost ?? ''}"></label><label>Your cost <input type="number" name="actual_cost" min="0" step="1" value="${item.actual_cost ?? ''}"></label></div><label>Did it help? <select name="outcome_status">${option('succeeded')}${option('not_succeeded')}${option('in_progress')}</select></label><label>What changed? <textarea name="notes" rows="2" maxlength="500">${esc(item.notes || '')}</textarea></label><button type="submit" class="cm-primary-btn">Save result</button></form>`;
     }
 
+    function projectDiscoveryMarkup(people, projects) {
+      const sections = [];
+      if (people.length) {
+        sections.push(`<div class="cm-project-match-group"><h4>People in your network</h4><p class="cm-project-match-note">Matched by listed skills or interests. This does not indicate availability.</p>${people.map(({ person, match }) => `<article class="cm-project-match"><div><strong>${esc(person.name || 'Community member')}</strong><span>${esc(match.reason || 'Relevant profile match')}</span></div><button type="button" class="cm-match-action" data-action="message-person" data-person-id="${esc(person.id)}" data-person-name="${esc(person.name || '')}">Open chat</button></article>`).join('')}</div>`);
+      }
+      if (projects.length) {
+        sections.push(`<div class="cm-project-match-group"><h4>Related projects you can access</h4>${projects.map(({ project, match }) => `<button type="button" class="cm-project-match cm-related-project" data-action="open-related-project" data-project-id="${esc(project.id)}"><span><strong>${esc(project.title || 'Project')}</strong><span>${esc(match.reason || 'Related to this goal')}</span></span><span aria-hidden="true">›</span></button>`).join('')}</div>`);
+      }
+      const empty = sections.length ? '' : '<p class="cm-project-match-note">No close personal matches for this goal yet.</p>';
+      return `<section class="cm-project-discovery" aria-labelledby="cm-project-discovery-title"><div><h3 id="cm-project-discovery-title">Also relevant to this project</h3><p class="cm-project-match-note">Personalized from your connections and projects you can access.</p></div>${sections.join('')}${empty}</section>`;
+    }
+
+    async function findProjectPartners(goal) {
+      if (!memberId || !window.MobileTaskAssistance) return { people: [], projects: [] };
+      const terms = window.AssistanceEngine?.distinctiveTerms?.(goal) || goalTokens(goal);
+      const [people, projects] = await Promise.all([
+        window.MobileTaskAssistance.findPeople(terms, memberId).catch(() => []),
+        window.MobileTaskAssistance.findProjects(goal, memberId, project.id).catch(() => []),
+      ]);
+      return { people: people || [], projects: projects || [] };
+    }
+
     async function renderActiveAttempts() {
       const attempts = await fetchOwnAttempts(project.id, memberId);
       const open = attempts.filter(item => item.outcome_status === 'planned' || item.outcome_status === 'in_progress');
       active.innerHTML = open.length ? `<div class="cm-active-title">In progress</div>${open.map(outcomeForm).join('')}` : '';
     }
 
+    let latestDiscoveryRequest = 0;
+
     async function renderGoalResults(goal) {
+      const requestId = ++latestDiscoveryRequest;
       window.CapabilityJourney?.emit('goal_entered', { surface: 'project' });
-      results.innerHTML = '<div class="cm-loading">Searching community work…</div>';
-      const packageResult = await fetchSharedPackages();
-      if (packageResult.unavailable) { results.innerHTML = `<div class="cm-empty cm-search-error" data-error-kind="${esc(packageResult.reason || 'unknown')}"><strong>${esc(searchErrorMessage(packageResult.reason))}</strong><p>Search again after resolving the issue.</p></div>`; return; }
+      results.innerHTML = '<div class="cm-loading">Finding methods and project-specific connections…</div>';
+      const [packageResult, partners] = await Promise.all([
+        fetchSharedPackages(),
+        findProjectPartners(goal),
+      ]);
+      if (requestId !== latestDiscoveryRequest) return;
+      const partnersMarkup = projectDiscoveryMarkup(partners.people, partners.projects);
+      if (packageResult.unavailable) {
+        results.innerHTML = `<div class="cm-empty cm-search-error" data-error-kind="${esc(packageResult.reason || 'unknown')}"><strong>${esc(searchErrorMessage(packageResult.reason))}</strong><p>Search again after resolving the issue.</p></div>${partnersMarkup}`;
+        return;
+      }
       const packages = packageResult.data;
       const stats = await fetchAttemptStats(packages.map(item => item.id));
+      if (requestId !== latestDiscoveryRequest) return;
       const ranked = rankPackages(packages, stats, goal);
       const directMatches = ranked.filter(item => goalMatch(item, goal).relevant);
-      results.innerHTML = `<div class="cm-results-title">${directMatches.length} relevant method${directMatches.length === 1 ? '' : 's'} found <span>from ${packages.length} shared package${packages.length === 1 ? '' : 's'}</span></div>${ranked.length ? ranked.map(item => packageCard(item, stats, canUse, goal, canEdit)).join('') : '<div class="cm-empty"><strong>No shared methods yet.</strong><p>Try a broader goal, or create the first reusable result in this project.</p></div>'}`;
+      results.innerHTML = `<div class="cm-results-title">${directMatches.length} relevant method${directMatches.length === 1 ? '' : 's'} found <span>from ${packages.length} shared package${packages.length === 1 ? '' : 's'}</span></div>${ranked.length ? ranked.map(item => packageCard(item, stats, canUse, goal, canEdit)).join('') : '<div class="cm-empty"><strong>No shared methods yet.</strong><p>Try a broader goal, or create the first reusable result in this project.</p></div>'}${partnersMarkup}`;
     }
 
     async function startCapability(pkg, goal) {
@@ -367,6 +401,20 @@
       if (goal) await renderGoalResults(goal);
     });
     container.addEventListener('click', async event => {
+      const person = event.target.closest('[data-action="message-person"]');
+      if (person) {
+        const id = person.dataset.personId;
+        const name = person.dataset.personName || 'Community member';
+        if (window.openMessageForUser) window.openMessageForUser(id);
+        else if (window.startConversationWithUser) window.startConversationWithUser(id, name);
+        else window.openNodePanel?.({ id, type: 'person', name });
+        return;
+      }
+      const relatedProject = event.target.closest('[data-action="open-related-project"]');
+      if (relatedProject) {
+        window.viewProjectDetails?.(relatedProject.dataset.projectId, 'tasks');
+        return;
+      }
       const use = event.target.closest('[data-action="use"]');
       if (!use) return;
       const card = use.closest('[data-package-id]');
