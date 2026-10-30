@@ -345,7 +345,7 @@
       if (projects.length) {
         sections.push(`<div class="cm-project-match-group"><h4>Related projects you can access</h4>${projects.map(({ project, match }) => `<button type="button" class="cm-project-match cm-related-project" data-action="open-related-project" data-project-id="${esc(project.id)}"><span><strong>${esc(project.title || 'Project')}</strong><span>${esc(match.reason || 'Related to this goal')}</span></span><span aria-hidden="true">›</span></button>`).join('')}</div>`);
       }
-      const empty = sections.length ? '' : '<p class="cm-project-match-note">No close personal matches for this goal yet. You can still browse the wider community.</p>';
+      const empty = sections.length ? '' : '<p class="cm-project-match-note">No close personal matches for this goal yet.</p>';
       return `<section class="cm-project-discovery" aria-labelledby="cm-project-discovery-title"><div><h3 id="cm-project-discovery-title">Also relevant to this project</h3><p class="cm-project-match-note">Personalized from your connections and projects you can access.</p></div>${sections.join('')}${empty}</section>`;
     }
 
