@@ -596,10 +596,21 @@
     }
     if (target.closest('[data-mta-complete]') && session.task && session.canWork) {
       const button = target.closest('[data-mta-complete]');
+      const entered = window.prompt('What was accomplished? Add a brief summary to complete this task.', session.task.completion_note || '');
+      if (entered === null) return;
+      const completionNote = entered.trim();
+      if (!completionNote) {
+        alert('Add a brief completion summary before marking this task done.');
+        return;
+      }
+      if (completionNote.length > 500) {
+        alert('Keep the completion summary to 500 characters or fewer.');
+        return;
+      }
       button.disabled = true;
       try {
-        const updated = await window.ProjectTasks.updateTask(session.task, { status: 'done' }, session.memberId);
-        session.task = { ...session.task, ...(updated || {}), status: 'done' };
+        const updated = await window.ProjectTasks.updateTask(session.task, { status: 'done', completion_note: completionNote }, session.memberId);
+        session.task = { ...session.task, ...(updated || {}), status: 'done', completion_note: completionNote };
         window.dispatchEvent(new CustomEvent('project-task-updated'));
         render(session);
       } catch (error) { button.disabled = false; button.textContent = 'Couldn’t update — try again'; }
