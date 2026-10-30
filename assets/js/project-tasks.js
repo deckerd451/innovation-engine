@@ -163,6 +163,7 @@
   async function createTask(projectId, fields, actorId) {
     const title = (fields.title || '').trim();
     if (!title) throw new Error('Title is required');
+    if (String(fields.completion_note || '').trim().length > 500) throw new Error('Completion summaries must be 500 characters or fewer.');
     if (fields.status === 'done' && !String(fields.completion_note || '').trim()) {
       throw new Error('A completion summary is required before marking a task done.');
     }
@@ -191,6 +192,9 @@
 
   async function updateTask(task, fields, actorId) {
     const payload = { updated_by: actorId || null };
+    if ('completion_note' in fields && String(fields.completion_note || '').trim().length > 500) {
+      throw new Error('Completion summaries must be 500 characters or fewer.');
+    }
     if ('title' in fields) payload.title = (fields.title || '').trim();
     if ('description' in fields) payload.description = (fields.description || '').trim() || null;
     if ('completion_note' in fields) payload.completion_note = String(fields.completion_note || '').trim() || null;
@@ -299,6 +303,7 @@
       .pt-completion-summary strong { display:block; color:#78eaff; font-size:.72rem; letter-spacing:.04em; text-transform:uppercase; margin-bottom:.25rem; }
       .pt-completion-summary p { color:#d8e0eb; font-size:.86rem; line-height:1.45; margin:0; white-space:pre-line; overflow-wrap:anywhere; }
       .pt-completion-summary-missing { color:#aab2c2 !important; font-style:italic; }
+      .pt-summary-edit-label { display:block; color:#aab2c2; font-size:.78rem; font-weight:600; margin:.6rem 0; }
       .pt-task-meta { display:flex; gap:0.4rem; flex-wrap:wrap; margin:0 0 0.7rem; }
       .pt-chip { display:inline-flex; align-items:center; gap:0.3rem; background:rgba(255,255,255,0.06); color:#c3cad8; font-size:0.75rem; padding:0.2rem 0.55rem; border-radius:8px; text-decoration:none; }
       .pt-chip.pt-overdue { color:#ff6b6b; background:rgba(255,107,107,0.12); }
