@@ -324,7 +324,7 @@
     const canUse = Boolean(options.canUse);
     const canEdit = Boolean(options.canEdit);
     container.innerHTML = `<div class="cm-shell cm-goal-flow">
-      <div class="cm-intro"><div><h3>Find a way forward</h3><p>Describe a concrete project result. We’ll find relevant methods and, when you’re signed in, people or projects from your network that may help.</p></div></div>
+      <div class="cm-intro"><div><h3>Find a way forward</h3><p>Describe a concrete project result. We’ll search shared methods, member skills and interests, and projects you can access.</p></div></div>
       <form class="cm-goal-form"><input name="goal" required maxlength="280" autocomplete="off" placeholder="e.g. Validate my business idea this week"><button type="submit" class="cm-primary-btn"><i class="fas fa-search"></i> Find useful methods</button></form>
       <div class="cm-active-attempts"></div><div class="cm-goal-results"><div class="cm-empty"><strong>Start with a concrete outcome.</strong><p>Matching and evidence will appear here.</p></div></div>
     </div>`;
@@ -340,23 +340,56 @@
     function projectDiscoveryMarkup(people, projects) {
       const sections = [];
       if (people.length) {
-        sections.push(`<div class="cm-project-match-group"><h4>People in your network</h4><p class="cm-project-match-note">Matched by listed skills or interests. This does not indicate availability.</p>${people.map(({ person, match }) => `<article class="cm-project-match"><div><strong>${esc(person.name || 'Community member')}</strong><span>${esc(match.reason || 'Relevant profile match')}</span></div><button type="button" class="cm-match-action" data-action="message-person" data-person-id="${esc(person.id)}" data-person-name="${esc(person.name || '')}">Open chat</button></article>`).join('')}</div>`);
+        sections.push(`<div class="cm-project-match-group"><h4>Matching members</h4><p class="cm-project-match-note">Matched by listed skills or interests. This does not indicate availability.</p>${people.map(({ person, match }) => `<article class="cm-project-match"><div><strong>${esc(person.name || 'Community member')}</strong><span>${esc(match.reason || 'Relevant profile match')}</span></div><button type="button" class="cm-match-action" data-action="message-person" data-person-id="${esc(person.id)}" data-person-name="${esc(person.name || '')}">Open chat</button></article>`).join('')}</div>`);
       }
       if (projects.length) {
         sections.push(`<div class="cm-project-match-group"><h4>Related projects you can access</h4>${projects.map(({ project, match }) => `<button type="button" class="cm-project-match cm-related-project" data-action="open-related-project" data-project-id="${esc(project.id)}"><span><strong>${esc(project.title || 'Project')}</strong><span>${esc(match.reason || 'Related to this goal')}</span></span><span aria-hidden="true">›</span></button>`).join('')}</div>`);
       }
       const empty = sections.length ? '' : '<p class="cm-project-match-note">No close personal matches for this goal yet.</p>';
-      return `<section class="cm-project-discovery" aria-labelledby="cm-project-discovery-title"><div><h3 id="cm-project-discovery-title">Also relevant to this project</h3><p class="cm-project-match-note">Personalized from your connections and projects you can access.</p></div>${sections.join('')}${empty}</section>`;
+      return `<section class="cm-project-discovery" aria-labelledby="cm-project-discovery-title"><div><h3 id="cm-project-discovery-title">Project resources</h3><p class="cm-project-match-note">Matched from visible member skills and interests, plus projects you can access.</p></div>${sections.join('')}${empty}</section>`;
     }
 
-    async function findProjectPartners(goal) {
-      if (!memberId || !window.MobileTaskAssistance) return { people: [], projects: [] };
-      const terms = window.AssistanceEngine?.distinctiveTerms?.(goal) || goalTokens(goal);
-      const [people, projects] = await Promise.all([
-        window.MobileTaskAssistance.findPeople(terms, memberId).catch(() => []),
-        window.MobileTaskAssistance.findProjects(goal, memberId, project.id).catch(() => []),
-      ]);
-      return { people: people || [], projects: projects || [] };
+    async function findProjectResources(goal) {
+      const E = window.AssistanceEngine;
+      if (!memberId || !supa() || !E?.personRelevance || !E?.projectRelevance) return { people: [], projects: [] };
+      const terms = E.distinctiveTerms?.(goal) || goalTokens(goal);
+      if (!terms.length) return { people: [], projects: [] };
+
+      // RLS limits this minimal profile query to profiles the signed-in member
+      // may see. No email, bio, photo, or private fields are requested.
+      let profiles = [];
+      try {
+        const { data, error } = await supa().from('community')
+          .select('id, name, skills, interests')
+          .neq('id', memberId)
+          .limit(1000);
+        if (error) console.warn('[CapabilityMemory] member resource search failed:', error.message);
+        else profiles = data || [];
+      } catch (error) {
+        console.warn('[CapabilityMemory] member resource search failed:', error?.message);
+      }
+
+      let accessibleProjects = [];
+      try {
+        if (window.MobileGoalDiscovery?.authorizedProjects) {
+          accessibleProjects = await window.MobileGoalDiscovery.authorizedProjects(memberId);
+        }
+      } catch (error) {
+        console.warn('[CapabilityMemory] project resource search failed:', error?.message);
+      }
+
+      const people = profiles
+        .map(person => ({ person, match: E.personRelevance(person, terms) }))
+        .filter(item => item.match?.relevant)
+        .sort((a, b) => (b.match.score || 0) - (a.match.score || 0))
+        .slice(0, 5);
+      const projects = (accessibleProjects || [])
+        .filter(item => item.id !== project.id)
+        .map(item => ({ project: item, match: E.projectRelevance(item, goal) }))
+        .filter(item => item.match?.relevant)
+        .sort((a, b) => (b.match.score || 0) - (a.match.score || 0))
+        .slice(0, 3);
+      return { people, projects };
     }
 
     async function renderActiveAttempts() {
@@ -373,7 +406,7 @@
       results.innerHTML = '<div class="cm-loading">Finding methods and project-specific connections…</div>';
       const [packageResult, partners] = await Promise.all([
         fetchSharedPackages(),
-        findProjectPartners(goal),
+        findProjectResources(goal),
       ]);
       if (requestId !== latestDiscoveryRequest) return;
       const partnersMarkup = projectDiscoveryMarkup(partners.people, partners.projects);
@@ -386,7 +419,7 @@
       if (requestId !== latestDiscoveryRequest) return;
       const ranked = rankPackages(packages, stats, goal);
       const directMatches = ranked.filter(item => goalMatch(item, goal).relevant);
-      results.innerHTML = `<div class="cm-results-title">${directMatches.length} relevant method${directMatches.length === 1 ? '' : 's'} found <span>from ${packages.length} shared package${packages.length === 1 ? '' : 's'}</span></div>${ranked.length ? ranked.map(item => packageCard(item, stats, canUse, goal, canEdit)).join('') : '<div class="cm-empty"><strong>No shared methods yet.</strong><p>Try a broader goal, or create the first reusable result in this project.</p></div>'}${partnersMarkup}`;
+      results.innerHTML = `<div class="cm-results-title">${directMatches.length} relevant method${directMatches.length === 1 ? '' : 's'} found <span>searched ${packages.length} shared method${packages.length === 1 ? '' : 's'}</span></div>${directMatches.length ? directMatches.map(item => packageCard(item, stats, canUse, goal, canEdit)).join('') : '<div class="cm-empty"><strong>No relevant shared methods found.</strong><p>Try a different wording. We will show only methods that match this goal.</p></div>'}${partnersMarkup}`;
     }
 
     async function startCapability(pkg, goal) {
