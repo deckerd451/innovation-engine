@@ -324,7 +324,7 @@
     const canUse = Boolean(options.canUse);
     const canEdit = Boolean(options.canEdit);
     container.innerHTML = `<div class="cm-shell cm-goal-flow">
-      <div class="cm-intro"><div><h3>Find a way forward</h3><p>Describe the result in your own words. We’ll show methods members have tried and explain why they may fit.</p></div></div>
+      <div class="cm-intro"><div><h3>Find a way forward</h3><p>Describe a concrete project result. We’ll find relevant methods and, when you’re signed in, people or projects from your network that may help.</p></div></div>
       <form class="cm-goal-form"><input name="goal" required maxlength="280" autocomplete="off" placeholder="e.g. Validate my business idea this week"><button type="submit" class="cm-primary-btn"><i class="fas fa-search"></i> Find useful methods</button></form>
       <div class="cm-active-attempts"></div><div class="cm-goal-results"><div class="cm-empty"><strong>Start with a concrete outcome.</strong><p>Matching and evidence will appear here.</p></div></div>
     </div>`;
@@ -346,7 +346,7 @@
         sections.push(`<div class="cm-project-match-group"><h4>Related projects you can access</h4>${projects.map(({ project, match }) => `<button type="button" class="cm-project-match cm-related-project" data-action="open-related-project" data-project-id="${esc(project.id)}"><span><strong>${esc(project.title || 'Project')}</strong><span>${esc(match.reason || 'Related to this goal')}</span></span><span aria-hidden="true">›</span></button>`).join('')}</div>`);
       }
       const empty = sections.length ? '' : '<p class="cm-project-match-note">No close personal matches for this goal yet. You can still browse the wider community.</p>';
-      return `<section class="cm-project-discovery" aria-labelledby="cm-project-discovery-title"><div><h3 id="cm-project-discovery-title">Also relevant to this project</h3><p class="cm-project-match-note">Personalized from your connections and projects you can access.</p></div>${sections.join('')}${empty}<a class="cm-discover-link" href="opportunities.html">Browse all opportunities</a></section>`;
+      return `<section class="cm-project-discovery" aria-labelledby="cm-project-discovery-title"><div><h3 id="cm-project-discovery-title">Also relevant to this project</h3><p class="cm-project-match-note">Personalized from your connections and projects you can access.</p></div>${sections.join('')}${empty}</section>`;
     }
 
     async function findProjectPartners(goal) {
