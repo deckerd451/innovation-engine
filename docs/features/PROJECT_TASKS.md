@@ -36,6 +36,8 @@ That script creates the table, indexes, a status/timestamp trigger, RLS
 policies, and grants. It's idempotent (`IF NOT EXISTS` / `DROP POLICY IF
 EXISTS` throughout) so it's safe to re-run.
 
+For an existing installation, apply `supabase/sql/migrations/20261030_project_task_completion_summaries.sql` before deploying the UI change. It adds the task completion summary column without changing RLS or existing task data.
+
 ## Data model
 
 | Column | Notes |
@@ -44,6 +46,7 @@ EXISTS` throughout) so it's safe to re-run.
 | `project_id` | FK → `projects.id`, `ON DELETE CASCADE` |
 | `title` | required |
 | `description` | optional |
+| `completion_note` | optional 500-character summary recorded when a task is marked done |
 | `status` | `open` \| `in_progress` \| `done` (default `open`) |
 | `priority` | `high` \| `medium` \| `low` (default `medium`) |
 | `owner_id` | FK → `community.id` (nullable — reuses the existing Person model, no new member system) |

@@ -163,10 +163,15 @@
   async function createTask(projectId, fields, actorId) {
     const title = (fields.title || '').trim();
     if (!title) throw new Error('Title is required');
+    if (String(fields.completion_note || '').trim().length > 500) throw new Error('Completion summaries must be 500 characters or fewer.');
+    if (fields.status === 'done' && !String(fields.completion_note || '').trim()) {
+      throw new Error('A completion summary is required before marking a task done.');
+    }
     const payload = {
       project_id: projectId,
       title,
       description: (fields.description || '').trim() || null,
+      completion_note: fields.completion_note ? String(fields.completion_note).trim() || null : null,
       status: fields.status || 'open',
       priority: fields.priority || 'medium',
       owner_id: fields.owner_id || null,
@@ -187,8 +192,12 @@
 
   async function updateTask(task, fields, actorId) {
     const payload = { updated_by: actorId || null };
+    if ('completion_note' in fields && String(fields.completion_note || '').trim().length > 500) {
+      throw new Error('Completion summaries must be 500 characters or fewer.');
+    }
     if ('title' in fields) payload.title = (fields.title || '').trim();
     if ('description' in fields) payload.description = (fields.description || '').trim() || null;
+    if ('completion_note' in fields) payload.completion_note = String(fields.completion_note || '').trim() || null;
     if ('priority' in fields) payload.priority = fields.priority;
     if ('owner_id' in fields) payload.owner_id = fields.owner_id || null;
     if ('related_url' in fields) payload.related_url = safeRelatedUrl(fields.related_url);
@@ -197,6 +206,11 @@
 
     const prevStatus = task.status;
     const prevOwnerId = task.owner_id;
+    const prevCompletionNote = task.completion_note || null;
+
+    if (payload.status === 'done' && prevStatus !== 'done' && !payload.completion_note && !prevCompletionNote) {
+      throw new Error('A completion summary is required before marking a task done.');
+    }
 
     const { data, error } = await supa()
       .from('project_tasks')
@@ -208,10 +222,13 @@
 
     if ('status' in payload && payload.status !== prevStatus) {
       if (payload.status === 'done') {
-        logActivity('task_completed', { project_id: task.project_id, task_id: task.id, title: data.title });
+        logActivity('task_completed', { project_id: task.project_id, task_id: task.id, title: data.title, completion_note: data.completion_note || null });
       } else if (prevStatus === 'done') {
         logActivity('task_reopened', { project_id: task.project_id, task_id: task.id, title: data.title });
       }
+    }
+    if ('completion_note' in payload && payload.completion_note !== prevCompletionNote && !(payload.status === 'done' && prevStatus !== 'done')) {
+      logActivity('task_completion_summary_updated', { project_id: task.project_id, task_id: task.id, title: data.title, completion_note: data.completion_note || null });
     }
     if ('owner_id' in payload && payload.owner_id !== prevOwnerId) {
       logActivity('task_owner_changed', {
@@ -282,6 +299,11 @@
       .pt-detail { padding:0 0.75rem 0.85rem 2.45rem; }
       .pt-detail[hidden] { display:none; }
       .pt-task-desc { color:#c3cad8; font-size:0.85rem; line-height:1.5; margin:0 0 0.6rem; white-space:pre-line; overflow-wrap:anywhere; }
+      .pt-completion-summary { margin:.65rem 0; padding:.65rem .75rem; border-left:2px solid rgba(0,224,255,.55); border-radius:0 8px 8px 0; background:rgba(0,224,255,.05); }
+      .pt-completion-summary strong { display:block; color:#78eaff; font-size:.72rem; letter-spacing:.04em; text-transform:uppercase; margin-bottom:.25rem; }
+      .pt-completion-summary p { color:#d8e0eb; font-size:.86rem; line-height:1.45; margin:0; white-space:pre-line; overflow-wrap:anywhere; }
+      .pt-completion-summary-missing { color:#aab2c2 !important; font-style:italic; }
+      .pt-summary-edit-label { display:block; color:#aab2c2; font-size:.78rem; font-weight:600; margin:.6rem 0; }
       .pt-task-meta { display:flex; gap:0.4rem; flex-wrap:wrap; margin:0 0 0.7rem; }
       .pt-chip { display:inline-flex; align-items:center; gap:0.3rem; background:rgba(255,255,255,0.06); color:#c3cad8; font-size:0.75rem; padding:0.2rem 0.55rem; border-radius:8px; text-decoration:none; }
       .pt-chip.pt-overdue { color:#ff6b6b; background:rgba(255,107,107,0.12); }
@@ -340,6 +362,7 @@
     const t = task || {};
     return `
       <textarea class="pt-field" data-field="description" placeholder="Description (optional)" rows="2">${escapeHtml(visibleDescription(t.description))}</textarea>
+      ${t.status === 'done' ? `<label class="pt-summary-edit-label">Completion summary (required)<textarea class="pt-field" data-field="completion_note" maxlength="500" rows="2" required placeholder="What was accomplished?">${escapeHtml(t.completion_note || '')}</textarea></label>` : ''}
       <div class="pt-add-details">
         <select class="pt-field" data-field="priority">
           <option value="high" ${t.priority === 'high' ? 'selected' : ''}>High priority</option>
@@ -368,6 +391,9 @@
     const overdue = isOverdue(task);
     const safeUrl = task.related_url; // already sanitized at write time
     const description = visibleDescription(task.description);
+    const completionSummary = task.status === 'done'
+      ? `<div class="pt-completion-summary"><strong>Completion summary</strong><p${task.completion_note ? '' : ' class="pt-completion-summary-missing"'}>${task.completion_note ? escapeHtml(task.completion_note) : 'No summary recorded yet. Edit this task to add one.'}</p></div>`
+      : '';
     const due = task.due_date ? `${overdue ? '<span class="pt-overdue-text">Overdue · ' : 'Due '}${formatDate(task.due_date)}${overdue ? '</span>' : ''}` : '';
     const rowMeta = [
       task.status !== 'done' && task.priority === 'high' ? 'High priority' : '',
@@ -408,6 +434,7 @@
         </button>
         <div class="pt-detail" id="${detailId}" ${expanded ? '' : 'hidden'}>
           ${description ? `<p class="pt-task-desc">${escapeHtml(description)}</p>` : ''}
+          ${completionSummary}
           <div class="pt-task-meta">${metaChips}</div>
           ${actionsHTML}
         </div>
@@ -735,9 +762,24 @@
       if (statusBtn && canEdit) {
         const newStatus = statusBtn.dataset.status;
         if (newStatus === task.status) return;
+        let completionNote;
+        if (newStatus === 'done') {
+          const entered = window.prompt('What was accomplished? Add a brief summary to complete this task.', task.completion_note || '');
+          if (entered === null) return;
+          completionNote = entered.trim();
+          if (!completionNote) {
+            alert('Add a brief completion summary before marking this task done.');
+            return;
+          }
+          if (completionNote.length > 500) {
+            alert('Keep the completion summary to 500 characters or fewer.');
+            return;
+          }
+        }
         statusBtn.closest('.pt-status-toggle').querySelectorAll('button').forEach(b => b.disabled = true);
         try {
-          const updated = await updateTask(task, { status: newStatus }, actorId);
+          const fields = newStatus === 'done' ? { status: newStatus, completion_note: completionNote } : { status: newStatus };
+          const updated = await updateTask(task, fields, actorId);
           Object.assign(task, updated);
           renderGroups();
           announce(`“${task.title}” moved to ${newStatus === 'done' ? 'Done' : newStatus === 'in_progress' ? 'In progress' : 'To do'}.`);
@@ -792,6 +834,15 @@
         const fields = readDetailFields(form);
         fields.title = form.querySelector('[data-field="title"]').value.trim();
         if (!fields.title) return;
+        if (task.status === 'done' && !String(fields.completion_note || '').trim()) {
+          alert('Add a brief completion summary before saving this completed task.');
+          form.querySelector('[data-field="completion_note"]')?.focus();
+          return;
+        }
+        if (String(fields.completion_note || '').length > 500) {
+          alert('Keep the completion summary to 500 characters or fewer.');
+          return;
+        }
         // The member edits what they can see; working notes stay as stored.
         fields.description = withWorkingNotes(fields.description, task.description);
         const submitBtn = form.querySelector('.pt-submit-btn');
