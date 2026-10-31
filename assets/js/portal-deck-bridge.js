@@ -17,7 +17,7 @@
   let start = null;
   let suppressClickUntil = 0;
   const ignored = (target) => !!target?.closest?.(
-    "input, textarea, select, button, a, [contenteditable='true'], [data-no-deck-swipe]"
+    "input, textarea, select, button, a, [contenteditable='true'], #synapse-svg, [data-no-deck-swipe]"
   );
 
   function begin(x, y, target, pointerType) {
