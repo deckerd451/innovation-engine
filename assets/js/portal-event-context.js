@@ -58,7 +58,6 @@
     people.addEventListener("click", () => {
       if (typeof window.AppNav?.go === "function" && window.currentUserProfile?.id) {
         window.AppNav.go("network");
-        panel.remove();
       } else {
         document.getElementById("login-section")?.scrollIntoView({ behavior: "smooth", block: "center" });
       }
