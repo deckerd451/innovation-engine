@@ -114,6 +114,8 @@ window.CommandDashboard = (() => {
   let _briefCache = null;       // cache brief to avoid refetching on tab switches
   let _briefGenerating = false;
   let _enrichedDataLoadVersion = 0; // latest refresh wins when requests overlap
+  // Keep People loading/error states separate for Explore directory vs Network relationships.
+  let _peopleDataStatus = { explore: 'idle', network: 'idle' };
   // New state for unified dashboard UX
   let _profile = null;          // community profile for identity layer
   let _unreadMessages = 0;      // unread messages from notification system
@@ -554,9 +556,19 @@ window.CommandDashboard = (() => {
      ================================================================ */
 
   async function _loadEnrichedData() {
-    if (!window.supabase || !_userId) return;
     const loadVersion = ++_enrichedDataLoadVersion;
     const isCurrentLoad = () => loadVersion === _enrichedDataLoadVersion;
+    if (!window.supabase || !_userId) {
+      _peopleDataStatus = { explore: 'error', network: 'error' };
+      _renderCompactStatus(_currentTier);
+      _renderResources(_currentTier);
+      return;
+    }
+    // Show a real in-flight state for both People sources while they refresh.
+    _peopleDataStatus.explore = 'loading';
+    _peopleDataStatus.network = 'loading';
+    _renderCompactStatus(_currentTier);
+    if (_activeResourceTab === 'people') _renderResources(_currentTier);
     try {
       const [connResult, pendingResult, projResult, myProjResult, orgResult, myOrgResult, oppResult, directoryResult] = await Promise.all([
         // Accepted connections only (both directions)
@@ -621,6 +633,17 @@ window.CommandDashboard = (() => {
       ]);
       if (!isCurrentLoad()) return;
 
+      if (connResult.error) {
+        _peopleDataStatus.network = 'error';
+      } else {
+        _peopleDataStatus.network = 'ready';
+      }
+      if (directoryResult?.error) {
+        _peopleDataStatus.explore = 'error';
+      } else {
+        _peopleDataStatus.explore = 'ready';
+      }
+
       if (connResult.data) {
         // Multiple connection rows can reference the same peer (e.g. an
         // accepted row exists in both directions), so dedupe peer ids by
@@ -633,11 +656,12 @@ window.CommandDashboard = (() => {
         // Resolve names for accepted peers so the people list doesn't
         // depend on graph nodes being loaded.
         if (acceptedPeerIds.length > 0) {
-          const { data: acceptedPeers } = await window.supabase
+          const { data: acceptedPeers, error: acceptedPeersError } = await window.supabase
             .from('community')
             .select('id, name, skills')
             .in('id', acceptedPeerIds);
           if (!isCurrentLoad()) return;
+          if (acceptedPeersError) _peopleDataStatus.network = 'error';
           const nameMap = new Map((acceptedPeers || []).map(p => [p.id, p]));
           _enrichedData.acceptedConnections = acceptedPeerIds.map(id => ({
             id,
@@ -649,7 +673,7 @@ window.CommandDashboard = (() => {
         }
       }
 
-      if (directoryResult?.data) {
+      if (directoryResult?.data && !directoryResult.error) {
         // Never the member themselves (a duplicate row for them included).
         const selfAuth = _profile?.user_id != null ? String(_profile.user_id) : null;
         _enrichedData.directory = directoryResult.data
@@ -657,15 +681,17 @@ window.CommandDashboard = (() => {
           .map(p => ({ id: p.id, name: p.name || 'Member', skills: p.skills || [], interests: p.interests || [] }));
       }
 
+      if (pendingResult.error) _peopleDataStatus.network = 'error';
       if (pendingResult.data && pendingResult.data.length > 0) {
         const peerIds = [...new Set(pendingResult.data.map(c =>
           c.from_user_id === _userId ? c.to_user_id : c.from_user_id
         ))];
-        const { data: peers } = await window.supabase
+        const { data: peers, error: pendingPeersError } = await window.supabase
           .from('community')
           .select('id, name, skills')
           .in('id', peerIds);
         if (!isCurrentLoad()) return;
+        if (pendingPeersError) _peopleDataStatus.network = 'error';
         const nameMap = new Map((peers || []).map(p => [p.id, p]));
         _enrichedData.pendingConnections = peerIds.map(peerId => (
           { id: peerId, name: nameMap.get(peerId)?.name || 'Unknown', skills: nameMap.get(peerId)?.skills || [] }
@@ -723,7 +749,12 @@ window.CommandDashboard = (() => {
       _renderCompactStatus(_currentTier);
       _renderResources(_currentTier);
     } catch (err) {
+      if (!isCurrentLoad()) return;
       console.warn('[CommandDashboard] enriched data load failed:', err.message);
+      if (_peopleDataStatus.explore === 'loading') _peopleDataStatus.explore = 'error';
+      if (_peopleDataStatus.network === 'loading') _peopleDataStatus.network = 'error';
+      _renderCompactStatus(_currentTier);
+      _renderResources(_currentTier);
     }
   }
 
@@ -829,13 +860,18 @@ window.CommandDashboard = (() => {
     const setResourceCount = (resource, value, label) => {
       const el = document.querySelector(`[data-count-for="${resource}"]`);
       if (!el) return;
-      const count = Number.isFinite(Number(value)) ? Number(value) : 0;
+      const count = value == null ? '—' : (Number.isFinite(Number(value)) ? Number(value) : '—');
       el.textContent = String(count);
-      el.setAttribute('aria-label', `${count} ${label}`);
+      el.setAttribute('aria-label', value == null ? `${label} count unavailable` : `${count} ${label}`);
     };
 
-    if (_peopleView() === 'explore' && _enrichedData.directory) setResourceCount('people', _enrichedData.directory.length, 'members');
-    else setResourceCount('people', connections, 'connected people');
+    const peopleView = _peopleView();
+    if (_peopleDataStatus[peopleView] === 'ready') {
+      if (peopleView === 'explore') setResourceCount('people', _enrichedData.directory?.length ?? 0, 'members');
+      else setResourceCount('people', (_enrichedData.acceptedConnections || []).length, 'connected people');
+    } else {
+      setResourceCount('people', null, peopleView === 'explore' ? 'members' : 'connected people');
+    }
     setResourceCount('projects', projects, 'projects');
     setResourceCount('organizations', organizations, 'organizations');
     setResourceCount('opportunities', opps, 'opportunities');
@@ -1354,6 +1390,18 @@ window.CommandDashboard = (() => {
     // Explore's People is the directory, not "your" people.
     const directory = _activeResourceTab === 'people' && _peopleView() === 'explore' && _enrichedData.directory;
     const tabLabel = directory ? 'People in the community' : (meta.resourcesLabel[_activeResourceTab] || _activeResourceTab);
+    if (_activeResourceTab === 'people') {
+      const status = _peopleDataStatus[_peopleView()];
+      if (status === 'loading' || status === 'idle') {
+        list.innerHTML = `<div class="udc-resource-section-label">${_escapeHtml(tabLabel)}</div><div class="udc-resource-empty" role="status">Loading people…</div>`;
+        return;
+      }
+      if (status === 'error') {
+        list.innerHTML = `<div class="udc-resource-section-label">${_escapeHtml(tabLabel)}</div><div class="udc-resource-empty" role="alert">Couldn’t load people. Check your connection and try again.<br><button type="button" class="udc-resource-retry">Retry</button></div>`;
+        list.querySelector('.udc-resource-retry')?.addEventListener('click', () => _loadEnrichedData());
+        return;
+      }
+    }
     const items = _getResourceItems(tier, _activeResourceTab);
 
     if (_activeResourceTab === 'projects') {
