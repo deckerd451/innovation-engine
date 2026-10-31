@@ -15,6 +15,7 @@
   if (!parentOrigin || window.parent === window) return;
 
   let start = null;
+  let suppressClickUntil = 0;
   const ignored = (target) => !!target?.closest?.(
     "input, textarea, select, button, a, [contenteditable='true'], [data-no-deck-swipe]"
   );
@@ -44,6 +45,7 @@
     const accepted = start.horizontal && horizontal;
     start = null;
     if (!accepted) return;
+    suppressClickUntil = Date.now() + 450;
     if (event.cancelable) event.preventDefault();
     window.parent.postMessage({
       channel,
@@ -85,4 +87,9 @@
     else start = null;
   }, { capture: true, passive: false });
   document.addEventListener("touchcancel", () => { start = null; }, true);
+  document.addEventListener("click", (event) => {
+    if (Date.now() > suppressClickUntil) return;
+    event.preventDefault();
+    event.stopPropagation();
+  }, true);
 })();
