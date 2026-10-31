@@ -56,11 +56,23 @@
     people.textContent = "Open your network";
     people.style.cssText = "border:0;border-radius:10px;padding:10px 14px;background:#00dff5;color:#07111d;font:700 14px system-ui,sans-serif;cursor:pointer;";
     people.addEventListener("click", () => {
-      if (typeof window.AppNav?.go === "function" && window.currentUserProfile?.id) {
-        window.AppNav.go("network");
-      } else {
-        document.getElementById("login-section")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      // AppNav owns the signed-in app's routes. Do not gate this on
+      // currentUserProfile: the navigation can be ready before that legacy
+      // global is populated, and then the button incorrectly jumps to login.
+      if (typeof window.AppNav?.openNetwork === "function") {
+        window.AppNav.openNetwork();
+        return;
       }
+      if (typeof window.AppNav?.go === "function") {
+        window.AppNav.go("network");
+        return;
+      }
+      const networkTab = document.querySelector('#app-nav [data-destination="network"]');
+      if (networkTab instanceof HTMLElement) {
+        networkTab.click();
+        return;
+      }
+      meta.textContent = "Your network is still loading. Tap again in a moment.";
     });
     actions.append(people);
 
