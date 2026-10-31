@@ -42,15 +42,26 @@
     const title = document.createElement("span");
     title.textContent = eventInfo.title;
     title.style.cssText = "display:block;color:#fff;margin-bottom:10px;";
+    const meta = document.createElement("small");
+    const eventDate = eventInfo.startDate ? new Date(eventInfo.startDate) : null;
+    const dateLabel = eventDate && Number.isFinite(eventDate.getTime())
+      ? eventDate.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+      : "";
+    meta.textContent = [eventInfo.source, dateLabel].filter(Boolean).join(" · ");
+    meta.style.cssText = "display:block;color:#a9b9c5;margin-bottom:10px;";
     const actions = document.createElement("div");
     actions.style.cssText = "display:flex;flex-wrap:wrap;align-items:center;gap:12px;";
     const people = document.createElement("button");
     people.type = "button";
-    people.textContent = "See people you met";
+    people.textContent = "Open your network";
     people.style.cssText = "border:0;border-radius:10px;padding:10px 14px;background:#00dff5;color:#07111d;font:700 14px system-ui,sans-serif;cursor:pointer;";
     people.addEventListener("click", () => {
-      window.AppNav?.go?.("network");
-      panel.remove();
+      if (typeof window.AppNav?.go === "function" && window.currentUserProfile?.id) {
+        window.AppNav.go("network");
+        panel.remove();
+      } else {
+        document.getElementById("login-section")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
     });
     actions.append(people);
 
@@ -71,7 +82,7 @@
     dismiss.textContent = "×";
     dismiss.style.cssText = "margin-left:auto;border:0;background:transparent;color:#b8c4ce;font-size:24px;cursor:pointer;";
     dismiss.addEventListener("click", () => panel.remove());
-    panel.append(heading, title, actions, dismiss);
+    panel.append(heading, title, meta, actions, dismiss);
     document.body.append(panel);
   }
 
