@@ -67,11 +67,6 @@
         window.AppNav.go("network");
         return;
       }
-      const networkTab = document.querySelector('#app-nav [data-destination="network"]');
-      if (networkTab instanceof HTMLElement) {
-        networkTab.click();
-        return;
-      }
       meta.textContent = "Your network is still loading. Tap again in a moment.";
     });
     actions.append(people);
