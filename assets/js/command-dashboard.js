@@ -633,18 +633,11 @@ window.CommandDashboard = (() => {
       ]);
       if (!isCurrentLoad()) return;
 
-      if (connResult.error) {
-        _peopleDataStatus.network = 'error';
-      } else {
-        _peopleDataStatus.network = 'ready';
-      }
-      if (directoryResult?.error) {
-        _peopleDataStatus.explore = 'error';
-      } else {
-        _peopleDataStatus.explore = 'ready';
-      }
+      if (connResult.error) _peopleDataStatus.network = 'error';
+      if (pendingResult.error) _peopleDataStatus.network = 'error';
+      if (directoryResult?.error) _peopleDataStatus.explore = 'error';
 
-      if (connResult.data) {
+      if (connResult.data && !connResult.error) {
         // Multiple connection rows can reference the same peer (e.g. an
         // accepted row exists in both directions), so dedupe peer ids by
         // canonical community id before they enter enriched state.
@@ -671,6 +664,9 @@ window.CommandDashboard = (() => {
         } else {
           _enrichedData.acceptedConnections = [];
         }
+      } else if (!connResult.error) {
+        _enrichedData.acceptedPeerIds = new Set();
+        _enrichedData.acceptedConnections = [];
       }
 
       if (directoryResult?.data && !directoryResult.error) {
@@ -679,10 +675,11 @@ window.CommandDashboard = (() => {
         _enrichedData.directory = directoryResult.data
           .filter(p => p?.id && String(p.id) !== String(_userId) && !(selfAuth && String(p.user_id) === selfAuth))
           .map(p => ({ id: p.id, name: p.name || 'Member', skills: p.skills || [], interests: p.interests || [] }));
+      } else if (!directoryResult?.error) {
+        _enrichedData.directory = [];
       }
 
-      if (pendingResult.error) _peopleDataStatus.network = 'error';
-      if (pendingResult.data && pendingResult.data.length > 0) {
+      if (pendingResult.data && pendingResult.data.length > 0 && !pendingResult.error) {
         const peerIds = [...new Set(pendingResult.data.map(c =>
           c.from_user_id === _userId ? c.to_user_id : c.from_user_id
         ))];
@@ -696,8 +693,15 @@ window.CommandDashboard = (() => {
         _enrichedData.pendingConnections = peerIds.map(peerId => (
           { id: peerId, name: nameMap.get(peerId)?.name || 'Unknown', skills: nameMap.get(peerId)?.skills || [] }
         ));
-      } else {
+      } else if (!pendingResult.error) {
         _enrichedData.pendingConnections = [];
+      }
+
+      // Mark each People source ready only after its own queries, including
+      // the follow-up member-name lookups, have completed.
+      if (!directoryResult?.error) _peopleDataStatus.explore = 'ready';
+      if (!connResult.error && !pendingResult.error && _peopleDataStatus.network !== 'error') {
+        _peopleDataStatus.network = 'ready';
       }
 
       if (projResult.data) {
