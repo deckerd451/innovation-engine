@@ -61,10 +61,12 @@
       // global is populated, and then the button incorrectly jumps to login.
       if (typeof window.AppNav?.openNetwork === "function") {
         window.AppNav.openNetwork();
+        panel.remove();
         return;
       }
       if (typeof window.AppNav?.go === "function") {
         window.AppNav.go("network");
+        panel.remove();
         return;
       }
       meta.textContent = "Your network is still loading. Tap again in a moment.";
