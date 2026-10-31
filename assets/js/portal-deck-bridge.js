@@ -8,7 +8,7 @@
   let parentOrigin = "";
   try {
     const referrer = new URL(document.referrer);
-    if (allowedHosts.has(referrer.hostname) && referrer.pathname === "/hub.html") {
+    if (allowedHosts.has(referrer.hostname)) {
       parentOrigin = referrer.origin;
     }
   } catch (_) {}
