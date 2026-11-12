@@ -107,11 +107,11 @@ export function renderPrivacyPanel(targetEl) {
     <div class="admin-privacy-panel">
       <div class="admin-privacy-intro">
         <h3><i class="fas fa-user-shield"></i> Privacy &amp; Visibility</h3>
-        <p>
+        <details class="admin-about"><summary>About visibility and photo sharing</summary><p>
           Controls whether a member is listed/searchable across Synapse (graph, Explore, Search,
           People Worth Knowing) and shows whether they have chosen to share their photo with other members.
           Photos are private by default. Admins and the member can see them; only the member can enable sharing.
-        </p>
+        </p></details>
       </div>
       <div class="admin-privacy-toolbar">
         <input type="text" id="admin-privacy-search" class="admin-privacy-search" placeholder="Search by name or email...">

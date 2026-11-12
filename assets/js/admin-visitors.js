@@ -4,9 +4,11 @@ export async function renderVisitors(container, openAnalytics) {
     <p>Visits to the main Innovation Engine app, including guests and signed-in members.</p>
     <div class="visitor-controls"><label>Period <select id="visitor-period"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option></select></label>
     <label><input type="checkbox" id="visitor-self"> Include my visits</label><button id="visitor-refresh">Refresh</button></div>
-    <p>Your account and this browser are excluded by default. Other browsers you use while signed out cannot be recognized as you.</p>
+    <p class="visitor-self-note">Your visits are excluded unless you choose to include them.</p>
     <div id="visitor-result" aria-live="polite"></div>
+    <details class="admin-about"><summary>About these counts</summary>
     <p>Browsers are estimates, not people. Privacy preferences, blockers and automated traffic can affect totals. Collection begins after database setup; there is no historical backfill.</p>
+    <p>Your account and this browser are excluded by default. Other browsers you use while signed out cannot be recognized as you.</p></details>
     <button id="visitor-analytics">Detailed member analytics →</button></section>`;
   container.querySelector('#visitor-analytics').onclick = openAnalytics;
   let request = 0;
@@ -46,7 +48,7 @@ export async function renderVisitors(container, openAnalytics) {
         row.textContent = `${new Date(visit.last_seen_at).toLocaleString()} — ${visit.signed_in ? 'Signed-in member' : 'Guest'}`;
         list.append(row);
       }
-      if (!list.children.length) list.textContent = 'No recorded visits in this period.';
+      if (!list.children.length) list.textContent = 'No visits recorded in this period. To verify logging, visit the app in a separate signed-out browser, then refresh here.';
       result.append(list);
     } catch { if (generation === request && result.isConnected) result.textContent = 'Visits could not be loaded. Refresh to retry.'; }
   };

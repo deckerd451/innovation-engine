@@ -1182,9 +1182,9 @@ function openAdminPanel() {
   panel.innerHTML = `
     <div class="admin-shell-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 2px solid rgba(255,215,0,0.3); padding-bottom: 1rem;">
       <h2 style="color: #ffd700; margin: 0; font-size: 1.75rem;">
-        <i class="fas fa-crown"></i> Admin Panel
+        Admin Panel
       </h2>
-      <button onclick="document.getElementById('admin-panel').remove()"
+      <button aria-label="Close admin panel" onclick="document.getElementById('admin-panel').remove()"
         class="admin-close-btn"
         style="background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3);
         color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1.25rem;">
@@ -1274,9 +1274,10 @@ function loadAdminTabContent(tabName) {
   if (!content) return;
 
   content.dataset.activeTab = tabName;
+  content.scrollTop = 0;
   if (tabName === 'visitors') {
     content.textContent = 'Loading visitor overview…';
-    import('./admin-visitors.js?v=20261112').then(({ renderVisitors }) => {
+    import('./admin-visitors.js?v=layout-20261112').then(({ renderVisitors }) => {
       if (content.isConnected && content.dataset.activeTab === 'visitors') {
         renderVisitors(content, () => loadAdminTabContent('analytics'));
       }

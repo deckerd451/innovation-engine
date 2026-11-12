@@ -685,3 +685,61 @@
 .visitor-metrics > div { padding: 1.2rem; border: 1px solid #347389; border-radius: 10px; }
 .visitor-metrics strong { display: block; color: #00e0ff; font-size: 2rem; }
 .admin-visitors li { padding: .5rem 0; }
+
+
+/* One scroll owner: header and navigation stay above the readable content. */
+#admin-panel {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  padding: 1rem !important;
+  overflow: hidden !important;
+}
+#admin-panel .admin-shell-header {
+  position: static;
+  margin-bottom: .5rem !important;
+  padding-bottom: .5rem !important;
+  flex-shrink: 0;
+}
+#admin-panel .admin-shell-header h2 { font-size: 1.25rem !important; }
+#admin-panel .admin-main-tabs {
+  position: static;
+  margin: 0 0 .5rem !important;
+  padding: 0;
+  gap: .5rem !important;
+  flex-wrap: wrap;
+  overflow: visible;
+}
+#admin-panel .admin-resource-menu-btn {
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  color: var(--admin-text-muted) !important;
+}
+#admin-panel .admin-resource-menu:has(.active-admin-tab) > .admin-resource-menu-btn {
+  color: var(--admin-cyan) !important;
+  border-bottom-color: var(--admin-cyan) !important;
+}
+#admin-tab-content {
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: .5rem .25rem .75rem 0 !important;
+}
+#admin-tab-content > * { min-width: 0; }
+#admin-panel .admin-people-panel { max-height: none; overflow: visible; }
+#admin-panel .admin-people-stats { margin-bottom: .75rem; }
+#admin-panel .admin-people-stat { padding: .75rem; }
+#admin-panel .admin-privacy-table-wrap { max-height: none; overflow: visible; }
+#admin-panel h2, #admin-panel h3 { margin-top: 0; }
+.admin-about { margin: .75rem 0; color: var(--admin-text-muted); line-height: 1.5; }
+.admin-about summary { cursor: pointer; color: var(--admin-cyan); padding: .35rem 0; }
+.admin-about p { margin: .5rem 0; max-width: 75ch; }
+.admin-visitors .visitor-self-note { font-size: .9rem; }
+.admin-visitors .visitor-metrics { margin: 1rem 0; }
+.admin-visitors .visitor-metrics > div { padding: .85rem; }
+@media (max-width: 720px) {
+  #admin-panel { padding: .75rem !important; }
+  #admin-panel .admin-resource-menu-list { top: 7rem !important; }
+}
+#admin-panel *, #admin-panel *::before, #admin-panel *::after { box-sizing: border-box; }
+#admin-panel td, #admin-panel .admin-privacy-name-secondary { overflow-wrap: anywhere; }

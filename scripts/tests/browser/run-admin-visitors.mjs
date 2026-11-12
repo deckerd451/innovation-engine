@@ -26,8 +26,8 @@ const origin = `http://127.0.0.1:${server.address().port}`;
 let browser;
 try {
   browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || undefined, args: ['--no-sandbox'] });
-  for (const width of [1280, 390]) {
-    const page = await browser.newPage({ viewport: { width, height: 900 } });
+  for (const [width, height] of [[1280,720], [1024,600], [390,844]]) {
+    const page = await browser.newPage({ viewport: { width, height } });
     const errors = []; page.on('pageerror', error => errors.push(error.message));
     await page.goto(origin + '/visitor-harness');
     await page.evaluate(() => {
@@ -65,8 +65,8 @@ try {
     await page.getByRole('button', {name: 'Detailed member analytics'}).click();
     await page.getByText('Ecosystem Analytics', {exact: true}).waitFor();
     await page.route('**/adminPeopleService.js?*', route => route.fulfill({contentType:'text/javascript', body: `
-      export async function listPeople(){return {data:[],count:0,error:null};}
-      export async function getClaimStats(){return {total:0,claimed:0,unclaimed:0};}
+      export async function listPeople({page=0,pageSize=50}={}){return {data:Array.from({length:Math.min(pageSize,85-page*pageSize)},(_,i)=>({id:'person-'+(page*pageSize+i),name:'Example Member '+(page*pageSize+i+1),email:'member'+i+'@example.com',user_role:'Member',created_at:'2026-11-01T12:00:00Z'})),count:85,error:null};}
+      export async function getClaimStats(){return {total:85,claimed:23,unclaimed:62};}
       export const getPerson = async()=>({});
       export const updatePerson=getPerson,setRole=getPerson,setHidden=getPerson,setDisabled=getPerson,
       bulkUpdate=getPerson,deletePerson=getPerson,createPerson=getPerson,getEmailsForPeople=getPerson;
@@ -81,6 +81,26 @@ try {
     await page.getByText('Clear all', {exact:false}).click();
     if (await page.locator('#filter-role').inputValue() !== '') throw Error('Clear filters failed');
     await page.screenshot({path:path.join(output, `people-${width}.png`)});
+    await page.getByText('More filters', {exact:false}).click();
+    const row = page.locator(width > 768 ? '.person-row' : '.person-card').first();
+    await row.scrollIntoViewIfNeeded();
+    const readable = await row.evaluate(element => {
+      const bounds=element.getBoundingClientRect();
+      const content=document.querySelector('#admin-tab-content').getBoundingClientRect();
+      const panel=document.querySelector('#admin-panel');
+      return bounds.top>=content.top-1 && bounds.bottom<=content.bottom+1 && panel.scrollTop===0;
+    });
+    if (!readable) throw Error('Person row hidden by panel chrome at '+width);
+    await page.screenshot({path:path.join(output, `readable-people-${width}.png`)});
+    const next = page.getByRole('button', {name:'Next',exact:true});
+    await next.scrollIntoViewIfNeeded(); await next.click();
+    await page.getByText('Showing 51-85 of 85 people', {exact:true}).waitFor();
+    await page.evaluate(url=>import(url),origin+'/assets/js/adminPrivacyPanel.js');
+    await page.getByRole('button',{name:'Privacy',exact:true}).click();
+    await page.locator('#admin-privacy-tbody tr').first().waitFor();
+    await page.locator('#admin-privacy-tbody tr').last().scrollIntoViewIfNeeded();
+    if (await page.locator('.admin-about').getAttribute('open')!==null) throw Error('Privacy help expanded by default');
+    if (await page.evaluate(()=>document.querySelector('#admin-tab-content').scrollWidth>document.querySelector('#admin-tab-content').clientWidth+1)) throw Error('Content clips horizontally');
     if (errors.length) throw Error(errors.join('\n'));
     console.log('PASS admin reporting, self filter, period, errors, analytics and layout:', width);
     await page.close();
