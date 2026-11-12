@@ -69,6 +69,7 @@
 .ie-login-brand,
 .ie-login-title,
 .ie-login-supporting,
+.ie-login-preview,
 .ie-login-module,
 .ie-login-footer {
   position: relative;
@@ -132,28 +133,25 @@
   letter-spacing: -0.02em;
 }
 
-.ie-login-benefits {
-  display: grid;
-  gap: .55rem;
-  margin: 0 0 1.15rem;
-  padding: 0;
-  list-style: none;
+.ie-login-preview {
+  margin: 0 0 1rem;
+  padding: .85rem;
+  border: 1px solid rgba(0,224,255,.25);
+  border-radius: 12px;
+  background: rgba(0,224,255,.04);
   color: #d7e1ef;
-  font-size: .9rem;
-  line-height: 1.35;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
-
-.ie-login-benefits li {
-  display: flex;
-  align-items: center;
-  gap: .65rem;
+.ie-login-preview .ie-login-preview-label {
+  margin: 0 0 .3rem;
+  color: #a6bdd1;
+  font-size: .75rem;
+  font-weight: 600;
 }
-
-.ie-login-benefits i {
-  width: 1rem;
-  color: #7eeaff;
-  text-align: center;
-}
+.ie-login-preview h2 { margin: 0 0 .3rem; color: #fff; font-size: 1.05rem; line-height: 1.3; }
+.ie-login-preview p { margin: 0; font-size: .875rem; }
+.ie-login-preview .ie-login-preview-match { margin-top: .4rem; color: #8ef0db; }
 
 /* =========================
    ACCESS MODULE
