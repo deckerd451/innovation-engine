@@ -316,7 +316,7 @@
     const root = document.createElement('div');
     root.id = 'mobile-task-assistance';
     root.className = 'mta-overlay';
-    root.innerHTML = '<div class="mta-panel" role="dialog" aria-modal="true" aria-labelledby="mta-title"><div class="mta-loading" role="status">Opening…</div></div>';
+    root.innerHTML = '<div class="mta-panel" role="region" aria-label="Task assistance"><div class="mta-loading" role="status">Opening…</div></div>';
     document.body.appendChild(root);
     document.body.classList.add('mta-open');
     wire(root);

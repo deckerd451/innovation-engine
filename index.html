@@ -39,7 +39,7 @@
 <link rel="stylesheet" href="dashboard.css?v=shared-nav-20261016" />
 <link rel="stylesheet" href="assets/css/quiet-mode.css" />
 <link rel="stylesheet" href="assets/css/mobile-safe-area.css?v=email-lock-20261029" />
-  <link rel="stylesheet" href="assets/css/command-dashboard.css?v=compact-explore-20261112" />
+  <link rel="stylesheet" href="assets/css/command-dashboard.css?v=a11y-20261112" />
 <link rel="stylesheet" href="assets/css/ui-enhancements.css" />
 <link rel="stylesheet" href="assets/css/synapse-filter.css" />
 <link rel="stylesheet" href="assets/css/admin-panel.css?v=admin-layout-20261112" />
@@ -150,7 +150,7 @@
             aria-label="View your profile"
           >
             <img id="cd-avatar-img" src="" alt="" style="display:none;" />
-            <span id="cd-avatar-initials">?</span>
+            <span id="cd-avatar-initials" aria-hidden="true">?</span>
             <div class="cd-avatar-edit-hint" aria-hidden="true">
               <i class="fas fa-pencil-alt"></i>
             </div>
@@ -178,7 +178,7 @@
                   style="display:none;"
                 >
                   <i class="fas fa-bolt"></i>
-                  <span class="cd-notif-badge" id="cd-actions-badge" style="display:none;">0</span>
+                  <span class="cd-notif-badge" id="cd-actions-badge" aria-hidden="true" style="display:none;">0</span>
                 </button>
 
                 <!-- Settings and Log out are in You (the profile). -->
@@ -239,17 +239,17 @@
           <div class="cd-section-body" id="cd-explore-body">
             <div class="cd-mobile-browse" role="group" aria-label="Browse the community">
               <div class="cd-mobile-browse-body">
-            <div class="udc-resource-tabs" id="udc-resource-tabs" role="tablist">
-              <button class="udc-resource-tab active" data-resource="people" role="tab" aria-selected="true">People <span class="udc-resource-count" data-count-for="people" aria-label="0 connected">0</span></button>
-              <button class="udc-resource-tab" data-resource="projects" role="tab" aria-selected="false">Projects <span class="udc-resource-count" data-count-for="projects" aria-label="0 projects">0</span></button>
-              <button class="udc-resource-tab" data-resource="themes" role="tab" aria-selected="false">Skills</button>
-              <button class="udc-resource-tab" data-resource="organizations" role="tab" aria-selected="false">Orgs <span class="udc-resource-count" data-count-for="organizations" aria-label="0 organizations">0</span></button>
-              <button class="udc-resource-tab" data-resource="opportunities" role="tab" aria-selected="false"><span class="udc-resource-label udc-resource-label-mobile">Opportunities</span><span class="udc-resource-label udc-resource-label-web">Opportunities</span> <span class="udc-resource-count" data-count-for="opportunities" aria-label="0 opportunities">0</span></button>
+            <div class="udc-resource-tabs" id="udc-resource-tabs" role="tablist" aria-label="Explore categories">
+              <button class="udc-resource-tab active" id="explore-tab-people" data-resource="people" role="tab" aria-controls="udc-resource-list" tabindex="0" aria-selected="true">People <span class="udc-resource-count" data-count-for="people" aria-label="0 connected">0</span></button>
+              <button class="udc-resource-tab" id="explore-tab-projects" data-resource="projects" role="tab" aria-controls="udc-resource-list" tabindex="-1" aria-selected="false">Projects <span class="udc-resource-count" data-count-for="projects" aria-label="0 projects">0</span></button>
+              <button class="udc-resource-tab" id="explore-tab-themes" data-resource="themes" role="tab" aria-controls="udc-resource-list" tabindex="-1" aria-selected="false">Skills</button>
+              <button class="udc-resource-tab" id="explore-tab-organizations" data-resource="organizations" role="tab" aria-controls="udc-resource-list" tabindex="-1" aria-selected="false">Orgs <span class="udc-resource-count" data-count-for="organizations" aria-label="0 organizations">0</span></button>
+              <button class="udc-resource-tab" id="explore-tab-opportunities" data-resource="opportunities" role="tab" aria-controls="udc-resource-list" tabindex="-1" aria-selected="false"><span class="udc-resource-label udc-resource-label-mobile">Opportunities</span><span class="udc-resource-label udc-resource-label-web">Opportunities</span> <span class="udc-resource-count" data-count-for="opportunities" aria-label="0 opportunities">0</span></button>
             </div>
 
             <div id="udc-add-form" class="udc-add-form hidden"></div>
 
-            <div id="udc-resource-list" role="tabpanel">
+            <div id="udc-resource-list" role="tabpanel" aria-labelledby="explore-tab-people">
               <div class="udc-resource-empty">Loading...</div>
             </div>
               </div>
@@ -714,6 +714,7 @@
   <script src="assets/js/visibility-guard.js?v=1" defer></script>
   <script src="assets/js/boot-gate.js?v=1" defer></script>
 
+  <script src="assets/js/dialog-focus.js?v=a11y-20261112"></script>
   <script src="assets/js/photo-privacy.js?v=photo-consent-20261010a"></script>
   <script type="module" src="assets/js/supabaseClient.js?v=fc09b39b-1770146154f916933b2da"></script>
   <script type="module" src="assets/js/site-visits.js?v=20261112"></script>
@@ -749,7 +750,7 @@
   <script src="assets/js/mobile-nav.js?v=project-resource-discovery-20261030" defer></script>
   <script src="assets/js/app-nav.js?v=email-lock-20261029" defer></script>
   <script src="assets/js/swipe-dismiss.js?v=1" defer></script>
-  <script src="assets/js/cd-panel-collapse.js?v=2" defer></script>
+  <script src="assets/js/cd-panel-collapse.js?v=a11y-20261112" defer></script>
 
   <script src="assets/js/avatar-upload.js?v=fc09b39b-17701461543" defer></script>
   <script src="assets/js/project-relationship.js?v=1" defer></script>
@@ -767,10 +768,10 @@
   <link rel="stylesheet" href="assets/css/mobile-task-assistance.css?v=project-resource-discovery-20261030">
   <link rel="stylesheet" href="assets/css/assistance-interventions.css?v=project-resource-discovery-20261030">
   <script src="assets/js/mobile-you.js?v=project-resource-discovery-20261030" defer></script>
-  <script type="module" src="assets/js/node-panel.js?v=email-lock-20261029"></script>
-  <script src="assets/js/mobile-task-assistance.js?v=project-resource-discovery-20261030" defer></script>
+  <script type="module" src="assets/js/node-panel.js?v=a11y-20261112"></script>
+  <script src="assets/js/mobile-task-assistance.js?v=a11y-20261112" defer></script>
   <script src="assets/js/node-panel-fixes.js?v=email-lock-20261029" defer></script>
-  <script src="assets/js/dashboard-actions.js?v=admin-layout-20261112" defer></script>
+  <script src="assets/js/dashboard-actions.js?v=a11y-20261112" defer></script>
 
   <!-- Admin People (DEFERRED UNTIL AUTH) -->
 
@@ -821,7 +822,7 @@
           return window.OrganizationManager.init(window.supabase);
         } },
       // Admin People
-      { src: 'assets/js/adminPeoplePanel.js?v=admin-layout-20261112', module: true },
+      { src: 'assets/js/adminPeoplePanel.js?v=a11y-20261112', module: true },
       { src: 'assets/js/adminPrivacyPanel.js?v=admin-layout-20261112', module: true },
       // Opportunity Engine
       { src: 'assets/js/opportunities/opportunityEngine.js?v=no-deadline-final-20260304', module: false },
@@ -903,7 +904,7 @@
   </script>
 
   <!-- Dashboard controller -->
-  <script type="module" src="assets/js/dashboardPane.js?v=email-lock-20261029"></script>
+  <script type="module" src="assets/js/dashboardPane.js?v=a11y-20261112"></script>
 
   <!-- Enhanced project creation modal (DEFERRED UNTIL AUTH) -->
 
@@ -922,12 +923,12 @@
   <script src="assets/js/start-ui-enhanced.js?v=email-lock-20261029" defer></script>
 
   <!-- Unified Notification System (realtime-collaboration DEFERRED UNTIL AUTH) -->
-  <script src="assets/js/unified-notification-system.js?v=today-message-preview-20261011" defer></script>
+  <script src="assets/js/unified-notification-system.js?v=a11y-20261112" defer></script>
 
   <!-- Daily Suggestions Engine (DEFERRED UNTIL AUTH) -->
 
   <script src="assets/js/graph-controller.js" defer></script>
-  <script src="assets/js/command-dashboard.js?v=project-resource-discovery-20261030" defer></script>
+  <script src="assets/js/command-dashboard.js?v=a11y-20261112" defer></script>
 
   <script>
     window.closeStartModal = function () {
@@ -999,7 +1000,7 @@
     >
       <i class="fas fa-bolt" style="color:#00ff88; font-size:1.1rem;"></i>
       <span
-        id="mobile-actions-badge"
+        id="mobile-actions-badge" aria-hidden="true"
         class="mobile-notif-badge"
         style="display:none; position:absolute; top:0; right:0; transform:translate(35%,-35%); background:#ff3b30; color:#fff; font-size:11px; font-weight:700; min-width:18px; height:18px; padding:0 5px; border-radius:999px; align-items:center; justify-content:center; line-height:1; box-sizing:border-box; white-space:nowrap;"
       >0</span>

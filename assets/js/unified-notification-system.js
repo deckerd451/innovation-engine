@@ -228,6 +228,8 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     const actionsBtn = document.getElementById('cd-actions-btn');
     if (actionsBtn) {
       actionsBtn.style.display = actionsCount > 0 ? '' : 'none';
+      const count = document.getElementById('cd-actions-badge')?.textContent || String(actionsCount);
+      actionsBtn.setAttribute('aria-label', actionsCount > 0 ? `Open actions, ${count} pending` : 'Open actions');
     }
 
     // ── Mobile header badges ──
@@ -238,6 +240,8 @@ console.log("%c🔔 Unified Notification System Loading...", "color:#0f8; font-w
     const mobileActionsBtn = document.getElementById('btn-actions-mobile');
     if (mobileActionsBtn) {
       mobileActionsBtn.setAttribute('data-empty', actionsCount > 0 ? 'false' : 'true');
+      const count = document.getElementById('mobile-actions-badge')?.textContent || String(actionsCount);
+      mobileActionsBtn.setAttribute('aria-label', actionsCount > 0 ? `Open actions, ${count} pending` : 'Open actions');
     }
     window.dispatchEvent(new CustomEvent('total-unread-messages-updated', {
       detail: { count: msgUnread }

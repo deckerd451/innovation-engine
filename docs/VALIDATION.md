@@ -12,7 +12,7 @@ secrets:
 
 | Check | Runs |
 |---|---|
-| `unit` | `npm test`, `npm run lint` and `npm run test:xss` |
+| `unit` | `npm test`, `npm run lint`, `npm run test:xss` and `npm run test:a11y` |
 | `db-authz` | `npm run test:db` against a throwaway PostgreSQL cluster on the runner |
 | `migration-hygiene` | `npm run check:migrations`: each new migration is named `YYYYMMDD[letter]_snake_case.sql` and has `supabase/sql/rollback/<name>_rollback.sql` |
 
@@ -142,3 +142,20 @@ assertions also run against the real app; CI checks the excerpt only.
   `test-connection-identity-integrity.js`, `test-retention-analytics-sql.js`)
   say so explicitly in their headers and verify migration SQL text/structure
   instead of executing it against a real database.
+
+## Accessibility smoke (needs Chrome)
+
+Run `npm ci --ignore-scripts`, then `npm run test:a11y` (use `CHROME_PATH`
+to select Chromium). The pinned axe-core dependency is development-only.
+The local harness uses synthetic accounts and blocks external requests.
+`A11Y_TEST_ROOT` can point at an older checkout for a negative control.
+
+The smoke scans member Home, Explore, project details, inline completion,
+Admin People/Privacy and narrow layouts. It also exercises category arrow
+keys, modal Tab/Escape/focus restoration, nested dialogs, Inbox handoff and
+keyboard resize announcements. CI runs this after the XSS regression.
+
+These checks do not certify WCAG conformance. Real VoiceOver/Safari,
+actual browser zoom, production authentication, database setup and delivery
+still need separate verification. A zero visitor total alone does not prove
+that production collection is configured or receiving visits.

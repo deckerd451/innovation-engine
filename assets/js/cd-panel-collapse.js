@@ -52,6 +52,13 @@
   function applyWidth(px) {
     const clamped = Math.max(MIN_W, Math.min(getMaxW(), Math.round(px)));
     document.documentElement.style.setProperty('--cd-width', `${clamped}px`);
+    const handle = document.getElementById('cd-resize-handle');
+    if (handle) {
+      handle.setAttribute('aria-valuemin', String(MIN_W));
+      handle.setAttribute('aria-valuemax', String(getMaxW()));
+      handle.setAttribute('aria-valuenow', String(clamped));
+      handle.setAttribute('aria-valuetext', `${clamped} pixels wide`);
+    }
     return clamped;
   }
 
@@ -81,7 +88,7 @@
     if (!handle) return;
 
     const saved = parseInt(localStorage.getItem(STORAGE_KEY_W), 10);
-    if (saved >= MIN_W) applyWidth(saved);
+    applyWidth(saved >= MIN_W ? saved : DEFAULT_W);
 
     let dragging = false;
     let startX   = 0;

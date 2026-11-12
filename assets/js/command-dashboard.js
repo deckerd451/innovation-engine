@@ -253,7 +253,18 @@ window.CommandDashboard = (() => {
     });
   }
 
+  function _syncResourceTabs() {
+    $all('.udc-resource-tab').forEach(tab => {
+      const selected = tab.dataset.resource === _activeResourceTab;
+      tab.classList.toggle('active', selected);
+      tab.setAttribute('aria-selected', String(selected));
+      tab.tabIndex = selected ? 0 : -1;
+    });
+    $id('udc-resource-list')?.setAttribute('aria-labelledby', `explore-tab-${_activeResourceTab}`);
+  }
+
   function _wireResourceTabs() {
+    _syncResourceTabs();
     $all('.udc-resource-tab').forEach(tab => {
       tab.addEventListener('click', () => {
         const resource = tab.dataset.resource;
@@ -262,14 +273,21 @@ window.CommandDashboard = (() => {
 
         _activeResourceTab = resource;
         window.ExplorerCoordinator?.setActiveMode?.(resource);
-        $all('.udc-resource-tab').forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
+        _syncResourceTabs();
 
         // Close add form when switching tabs
         _closeAddForm();
         _updateAddButtonVisibility(resource);
 
         _renderResources(_currentTier);
+      });
+      tab.addEventListener('keydown', event => {
+        if (!['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
+        const tabs = [...$all('.udc-resource-tab')].filter(el => el.getClientRects().length);
+        const index = tabs.indexOf(tab);
+        const next = event.key === 'Home' ? tabs[0] : event.key === 'End' ? tabs.at(-1)
+          : tabs[(index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length];
+        event.preventDefault(); next?.focus(); next?.click();
       });
     });
   }
@@ -297,7 +315,7 @@ window.CommandDashboard = (() => {
     const initials = $id('cd-avatar-initials');
     if (img && profile.image_url) {
       img.src = profile.image_url;
-      img.alt = profile.full_name || '';
+      img.alt = '';
       img.style.display = '';
       if (initials) initials.style.display = 'none';
     } else if (initials) {
@@ -307,8 +325,13 @@ window.CommandDashboard = (() => {
         ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
         : name.slice(0, 2).toUpperCase();
       initials.textContent = abbr || '?';
+      initials.style.display = '';
       if (img) img.style.display = 'none';
     }
+
+    const profileButton = $id('cd-avatar');
+    const monogram = initials && initials.style.display !== 'none' ? ` — ${initials.textContent}` : '';
+    profileButton?.setAttribute('aria-label', `View your profile: ${_displayName(profile)}${monogram}`);
 
     // Home's heading greets the member by name (You is the profile tab).
     const nameEl = $id('cd-user-name');
@@ -1151,11 +1174,9 @@ window.CommandDashboard = (() => {
    */
   function _switchResourceTab(resourceType) {
     window.ExplorerCoordinator?.setActiveMode?.(resourceType);
-    if (resourceType === _activeResourceTab) return;
+    if (resourceType === _activeResourceTab) { _syncResourceTabs(); return; }
     _activeResourceTab = resourceType;
-    $all('.udc-resource-tab').forEach(tab => {
-      tab.classList.toggle('active', tab.dataset.resource === resourceType);
-    });
+    _syncResourceTabs();
     _closeAddForm();
     _updateAddButtonVisibility(resourceType);
     _renderResources(_currentTier);
@@ -1608,7 +1629,11 @@ window.CommandDashboard = (() => {
       }
 
       row.classList.toggle('is-selected', selected);
-      row.setAttribute('aria-selected', selected ? 'true' : 'false');
+      const control = row.querySelector('.udc-resource-show-btn');
+      if (control) {
+        const base = control.getAttribute('aria-label').replace(/ — selected$/, '');
+        control.setAttribute('aria-label', base + (selected ? ' — selected' : ''));
+      }
       if (selected && _activeResourceTab === 'people') {
         row.scrollIntoView({ block: 'nearest' });
       }
@@ -1944,12 +1969,31 @@ window.CommandDashboard = (() => {
     if (!panel || !toggle || !resizer || panel.dataset.controlsWired === 'true') return;
     panel.dataset.controlsWired = 'true';
 
+    function syncResizer() {
+      const desktop = window.innerWidth >= 1024;
+      const collapsed = document.body.classList.contains('reflection-collapsed');
+      const min = collapsed ? 0 : desktop ? 280 : 150;
+      const max = desktop ? 560 : Math.max(150, Math.round(window.innerHeight * .75));
+      const rect = panel.getBoundingClientRect();
+      const now = Math.max(min, Math.min(max, Math.round(desktop ? rect.width : rect.height)));
+      resizer.setAttribute('aria-orientation', desktop ? 'vertical' : 'horizontal');
+      resizer.setAttribute('aria-valuemin', String(min));
+      resizer.setAttribute('aria-valuemax', String(max));
+      resizer.setAttribute('aria-valuenow', String(now));
+      resizer.setAttribute('aria-valuetext', `${now} pixels ${desktop ? 'wide' : 'high'}`);
+      resizer.setAttribute('aria-disabled', String(collapsed));
+      resizer.tabIndex = collapsed ? -1 : 0;
+    }
+    window.addEventListener('resize', syncResizer, {passive:true});
+    if (typeof ResizeObserver !== 'undefined') new ResizeObserver(syncResizer).observe(panel);
+
     const setCollapsed = (collapsed) => {
       document.body.classList.toggle('reflection-collapsed', collapsed);
       toggle.setAttribute('aria-expanded', String(!collapsed));
       toggle.setAttribute('aria-label', `${collapsed ? 'Expand' : 'Collapse'} Network Reflection`);
       toggle.querySelector('i')?.classList.toggle('fa-chevron-up', collapsed);
       toggle.querySelector('i')?.classList.toggle('fa-chevron-down', !collapsed);
+      syncResizer();
       try { localStorage.setItem('networkReflectionCollapsed', String(collapsed)); } catch (_) { /* storage optional */ }
     };
 
@@ -1984,6 +2028,7 @@ window.CommandDashboard = (() => {
         document.documentElement.style.setProperty('--reflection-mobile-height', `${height}px`);
         try { localStorage.setItem('networkReflectionMobileHeight', String(height)); } catch (_) { /* storage optional */ }
       }
+      syncResizer();
     };
 
     try {

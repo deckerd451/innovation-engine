@@ -56,7 +56,9 @@ const jsFiles = [];
     else if (entry.name.endsWith('.js')) jsFiles.push(full);
   }
 })('assets/js');
-const routers = jsFiles.filter(file => /data-destination|\[data-destination\]/.test(read(file)));
+// Dialog focus reads the current destination solely to restore focus; it never routes.
+assert.doesNotMatch(read('assets/js/dialog-focus.js'), /AppNav\s*\.\s*go\s*\(/);
+const routers = jsFiles.filter(file => path.basename(file) !== 'dialog-focus.js' && /data-destination|\[data-destination\]/.test(read(file)));
 assert.deepEqual(routers.map(f => path.basename(f)), ['app-nav.js']);
 
 // Destinations reuse the existing screens.
