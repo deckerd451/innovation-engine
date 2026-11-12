@@ -2197,3 +2197,9 @@ body.mobile-surface-map .synapse-workspace-title { display: none; }
 @media (max-width: 359px) {
   #command-dashboard.cd-mobile-panel .udc-resource-tab[data-resource="opportunities"] { grid-column: 1 / -1; }
 }
+
+/* Readable directory headings on both the desktop and phone backgrounds. */
+.udc-resource-section-label { color: #bac4d6; opacity: 1; font-size: .8rem; }
+
+/* Keep secondary Explore metadata readable at phone sizes. */
+.udc-resource-meta { color: #bac4d6; opacity: 1; }

@@ -75,17 +75,17 @@ export function renderPeoplePanel(container) {
       </div>
       <!-- Claim Stats Banner -->
       <div id="claim-stats-banner" class="admin-people-stats">
-        <button type="button" class="admin-people-stat admin-people-stat-total" data-claimed-filter="" aria-label="Show all people">
+        <button type="button" class="admin-people-stat admin-people-stat-total" data-claimed-filter="">
           <div id="stat-total" style="font-size: 1.75rem; font-weight: 700; color: #00e0ff;">—</div>
           <div class="admin-people-stat-label">All people</div>
           <div class="admin-people-stat-hint">View complete directory</div>
         </button>
-        <button type="button" class="admin-people-stat admin-people-stat-claimed" data-claimed-filter="true" aria-label="Show claimed accounts">
+        <button type="button" class="admin-people-stat admin-people-stat-claimed" data-claimed-filter="true">
           <div id="stat-claimed" style="font-size: 1.75rem; font-weight: 700; color: #a855f7;">—</div>
           <div class="admin-people-stat-label">Claimed accounts</div>
           <div id="stat-claimed-rate" class="admin-people-stat-hint">Account adoption</div>
         </button>
-        <button type="button" class="admin-people-stat admin-people-stat-unclaimed" data-claimed-filter="false" aria-label="Show unclaimed accounts">
+        <button type="button" class="admin-people-stat admin-people-stat-unclaimed" data-claimed-filter="false">
           <div id="stat-unclaimed" style="font-size: 1.75rem; font-weight: 700; color: #ffaa00;">—</div>
           <div class="admin-people-stat-label">Unclaimed accounts</div>
           <div class="admin-people-stat-hint">Review unclaimed accounts →</div>
@@ -116,25 +116,25 @@ export function renderPeoplePanel(container) {
         <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
           <label style="color: rgba(255,255,255,0.7); font-size: 0.9rem; font-weight: 600;">Filters:</label>
           
-          <select id="filter-role" style="padding: 0.5rem 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3); border-radius: 6px; color: white; font-size: 0.9rem; cursor: pointer;">
+          <select aria-label="Role" id="filter-role" style="padding: 0.5rem 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3); border-radius: 6px; color: white; font-size: 0.9rem; cursor: pointer;">
             <option value="">All Roles</option>
             <option value="Member">Member</option>
             <option value="Admin">Admin</option>
           </select>
           
-          <select id="filter-hidden" style="padding: 0.5rem 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3); border-radius: 6px; color: white; font-size: 0.9rem; cursor: pointer;">
+          <select aria-label="Visibility" id="filter-hidden" style="padding: 0.5rem 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3); border-radius: 6px; color: white; font-size: 0.9rem; cursor: pointer;">
             <option value="">All Visibility</option>
             <option value="false">Visible</option>
             <option value="true">Hidden</option>
           </select>
           
-          <select id="filter-disabled" style="padding: 0.5rem 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3); border-radius: 6px; color: white; font-size: 0.9rem; cursor: pointer;">
+          <select aria-label="Account status" id="filter-disabled" style="padding: 0.5rem 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3); border-radius: 6px; color: white; font-size: 0.9rem; cursor: pointer;">
             <option value="">All Status</option>
             <option value="false">Active</option>
             <option value="true">Disabled</option>
           </select>
           
-          <select id="filter-claimed" style="padding: 0.5rem 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3); border-radius: 6px; color: white; font-size: 0.9rem; cursor: pointer;">
+          <select aria-label="Claimed account status" id="filter-claimed" style="padding: 0.5rem 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,224,255,0.3); border-radius: 6px; color: white; font-size: 0.9rem; cursor: pointer;">
             <option value="">All Accounts</option>
             <option value="true">Claimed</option>
             <option value="false">Unclaimed</option>
@@ -158,7 +158,7 @@ export function renderPeoplePanel(container) {
           <thead style="position: sticky; top: 0; background: rgba(10,14,39,0.95); z-index: 1;">
             <tr style="border-bottom: 2px solid rgba(0,224,255,0.3);">
               <th style="padding: 0.75rem; text-align: left; color: #00e0ff; font-weight: 600; font-size: 0.85rem;">
-                <input type="checkbox" id="select-all-checkbox" style="cursor: pointer; width: 16px; height: 16px;">
+                <input type="checkbox" id="select-all-checkbox" aria-label="Select all people on this page" style="cursor: pointer; width: 16px; height: 16px;">
               </th>
               <th style="padding: 0.75rem; text-align: left; color: #00e0ff; font-weight: 600; font-size: 0.85rem; cursor: pointer;" data-sort="name">
                 Name <i class="fas fa-sort"></i>
@@ -813,6 +813,7 @@ function showInviteModal() {
   `;
   
   document.body.appendChild(modal);
+  window.A11yDialog?.open(modal);
   
   // Focus email input
   const emailInput = document.getElementById('invite-email-input');

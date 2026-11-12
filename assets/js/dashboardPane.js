@@ -48,7 +48,13 @@ import { supabase as importedSupabase } from "./supabaseClient.js";
   const $$ = (selector) => document.querySelector(selector);
   const show = (el) => el && el.classList.remove("hidden");
   const hide = (el) => el && el.classList.add("hidden");
-  const openModal = (id) => $(id)?.classList.add("active");
+  const openModal = (id) => {
+    const modal = $(id);
+    modal?.classList.add("active");
+    if (modal && !['messages-modal','profile-modal'].includes(id)) {
+      window.A11yDialog?.open(modal, {onClose:() => modal.classList.remove('active')});
+    }
+  };
   const closeModal = (id) => $(id)?.classList.remove("active");
 
   // -----------------------------

@@ -10,6 +10,10 @@
     "check:migrations": "node scripts/check-migrations.js",
     "test:xss": "node scripts/tests/browser/run-member-content-xss.mjs",
     "test:logout": "node scripts/tests/browser/run-logout-confirm.mjs",
-    "test:responsive": "node scripts/tests/browser/run-responsive-parity.mjs"
+    "test:responsive": "node scripts/tests/browser/run-responsive-parity.mjs",
+    "test:a11y": "node scripts/tests/browser/run-accessibility.mjs"
+  },
+  "devDependencies": {
+    "axe-core": "4.14.0"
   }
 }

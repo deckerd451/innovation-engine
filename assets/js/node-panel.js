@@ -4,6 +4,7 @@
 // Actionable side panel that appears when clicking network nodes
 // Shows profile details, mutual connections, and clear CTAs
 
+import './dialog-focus.js?v=a11y-20261112';
 import { makeProfileImageClickable } from './profile-image-modal.js';
 import { getRelationshipEvidence } from './relationship-evidence.js';
 import { summarizeFollowups } from './followup-contact.js';
@@ -1196,6 +1197,7 @@ window.editOpportunityFromPanel = async function(oppId) {
   `;
 
   document.body.appendChild(modal);
+    window.A11yDialog?.open(modal);
 
   document.getElementById('edit-opp-form').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -2894,6 +2896,7 @@ window.endorseSkill = async function(userId) {
     });
 
     document.body.appendChild(modal);
+    window.A11yDialog?.open(modal);
 
   } catch (error) {
     console.error('Error showing endorsement modal:', error);
@@ -3135,6 +3138,7 @@ window.inviteToProject = async function(userId) {
     });
 
     document.body.appendChild(modal);
+    window.A11yDialog?.open(modal);
 
   } catch (error) {
     console.error('Error showing project invitation modal:', error);
@@ -3254,6 +3258,7 @@ window.joinProjectFromPanel = async function(projectId) {
 };
 
 window.viewProjectDetails = async function(projectId, initialTab = null, focusTaskId = null) {
+  const dialogOpener = document.activeElement;
   console.log(`[Project Detail] opened: ${projectId}`);
 
   if (!supabase) supabase = window.supabase;
@@ -3398,7 +3403,7 @@ window.viewProjectDetails = async function(projectId, initialTab = null, focusTa
   const involvedHTML = involved.length ? `
     <section class="pd-involved" aria-labelledby="pd-involved-title">
       <h4 id="pd-involved-title" class="pd-label">Who’s involved</h4>
-      <button type="button" class="pd-involved-row" data-tab-focus="people" aria-label="${esc(involvedSummary)}: see everyone">
+      <button type="button" class="pd-involved-row" data-tab-focus="people">
         <span class="pd-avatars" aria-hidden="true">${involved.slice(0, 4).map(person => `<span class="pd-avatar">${esc(initialsOf(person.name))}</span>`).join('')}</span>
         <span class="pd-involved-text">${esc(involvedSummary)}</span>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
@@ -3498,7 +3503,7 @@ window.viewProjectDetails = async function(projectId, initialTab = null, focusTa
       <div id="pd-tabs" role="tablist" aria-label="Project sections" style="display:flex; gap:0.4rem; margin-bottom:1.25rem; border-bottom:1px solid rgba(255,255,255,0.08); flex-wrap:wrap;">
         <button type="button" class="pd-tab-btn" data-tab="overview" role="tab" aria-selected="true" style="background:none; border:none; border-bottom:2px solid #ff6b6b; color:#ff6b6b; font-weight:700; font-size:0.85rem; padding:0.6rem 0.9rem; cursor:pointer;">Overview</button>
         <button type="button" class="pd-tab-btn pd-mobile-work-tab" data-tab="work" role="tab" aria-selected="false" style="display:none; background:none; border:none; border-bottom:2px solid transparent; color:#999; font-weight:700; font-size:0.85rem; padding:0.6rem 0.9rem; cursor:pointer;">Work</button>
-        ${canViewTasks ? '<button type="button" class="pd-tab-btn pd-legacy-tab" data-tab="tasks" role="tab" aria-selected="false" aria-label="Tasks" style="background:none; border:none; border-bottom:2px solid transparent; color:#999; font-weight:700; font-size:0.85rem; padding:0.6rem 0.9rem; cursor:pointer;">Tasks</button>' : ''}
+        ${canViewTasks ? '<button type="button" class="pd-tab-btn pd-legacy-tab" data-tab="tasks" role="tab" aria-selected="false" style="background:none; border:none; border-bottom:2px solid transparent; color:#999; font-weight:700; font-size:0.85rem; padding:0.6rem 0.9rem; cursor:pointer;">Tasks</button>' : ''}
         <button type="button" class="pd-tab-btn pd-legacy-tab" data-tab="capabilities" role="tab" aria-selected="false" aria-label="Capabilities" style="background:none; border:none; border-bottom:2px solid transparent; color:#999; font-weight:700; font-size:0.85rem; padding:0.6rem 0.9rem; cursor:pointer;">Capabilities</button>
         <button type="button" class="pd-tab-btn" data-tab="people" role="tab" aria-selected="false" style="background:none; border:none; border-bottom:2px solid transparent; color:#999; font-weight:700; font-size:0.85rem; padding:0.6rem 0.9rem; cursor:pointer;">People</button>
         <button type="button" class="pd-tab-btn pd-legacy-tab" data-tab="activity" role="tab" aria-selected="false" style="background:none; border:none; border-bottom:2px solid transparent; color:#999; font-weight:700; font-size:0.85rem; padding:0.6rem 0.9rem; cursor:pointer;">Activity</button>
@@ -3590,6 +3595,7 @@ window.viewProjectDetails = async function(projectId, initialTab = null, focusTa
   `;
 
   document.body.appendChild(overlay);
+  window.A11yDialog?.open(overlay, {opener:dialogOpener,initialFocus:'#pd-close-btn',onClose:closeOverlay});
 
   // The fixed bottom navigation includes its own safe-area padding. Measure
   // its rendered height instead of adding a second hardcoded safe-area
@@ -3831,12 +3837,6 @@ window.viewProjectDetails = async function(projectId, initialTab = null, focusTa
   }
   overlay.querySelector('#pd-close-btn').addEventListener('click', closeOverlay);
   overlay.addEventListener('click', (e) => { if (e.target === overlay) closeOverlay(); });
-  document.addEventListener('keydown', function _escHandler(e) {
-    if (e.key === 'Escape' && document.getElementById('project-detail-overlay')) {
-      closeOverlay();
-      document.removeEventListener('keydown', _escHandler);
-    }
-  });
   activateTab(focusTaskId ? workTab() : (initialTab || 'overview'));
   // Members see their next step on Overview straight away; the task list
   // keeps it current once it is open.
@@ -4114,6 +4114,7 @@ window.editProjectFromPanel = async function(projectId) {
     `;
 
     document.body.appendChild(modal);
+    window.A11yDialog?.open(modal);
 
     // Add form submit handler
     document.getElementById('edit-project-form').addEventListener('submit', async (e) => {
@@ -4257,6 +4258,7 @@ window.deleteProjectSoft = async function(projectId, projectTitle) {
     </div>
   `;
   document.body.appendChild(overlay);
+  window.A11yDialog?.open(overlay);
 
   // Cancel
   overlay.querySelector('#cancel-delete-project-btn').addEventListener('click', () => overlay.remove());
@@ -4451,6 +4453,7 @@ window.manageProjectRequests = async function(projectId) {
     `;
 
     document.body.appendChild(modal);
+    window.A11yDialog?.open(modal);
 
     modal.querySelectorAll('.message-request-btn').forEach(btn => {
       btn.addEventListener('click', async event => {
@@ -5256,6 +5259,7 @@ window._openOrgEditPanel = async function(orgId) {
   `;
 
   document.body.appendChild(overlay);
+  window.A11yDialog?.open(overlay);
 
   // Close handlers
   const close = () => overlay.remove();

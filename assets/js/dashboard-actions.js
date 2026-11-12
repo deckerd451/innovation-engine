@@ -1223,6 +1223,7 @@ function openAdminPanel() {
   `;
 
   document.body.appendChild(panel);
+  window.A11yDialog?.open(panel, {initialFocus:'.admin-close-btn'});
 
   // Wire up tabs
   panel.querySelectorAll('.admin-tab').forEach(tab => {
@@ -3066,6 +3067,7 @@ _toast('Could not load organization data');
   `;
 
   document.body.appendChild(modal);
+  window.A11yDialog?.open(modal);
 
   // Handle form submission
   document.getElementById('edit-org-form').addEventListener('submit', async (e) => {
@@ -3202,6 +3204,7 @@ function showOrganizationsPanel() {
   `;
 
   document.body.appendChild(panel);
+  window.A11yDialog?.open(panel);
 
   // Wire up tabs
   panel.querySelectorAll('.orgs-tab').forEach(tab => {

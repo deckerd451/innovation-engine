@@ -184,7 +184,7 @@ const shellTag = (sw.match(/const VERSION = "v\d+-([^"]+)"/) || [])[1];
 assert.ok(shellTag, 'service worker declares a versioned shell');
 const versions = `(${escapeRegExp(tag)}|${escapeRegExp(shellTag)})`;
 for (const asset of ['dashboard.css', 'assets/css/command-dashboard.css', 'assets/js/command-dashboard.js', 'assets/js/mobile-nav.js', 'assets/js/mobile-you.js', 'assets/js/unified-network-integration.js']) {
-  const assetVersions = asset === 'assets/css/command-dashboard.css' ? 'compact-explore-20261112' : versions;
+  const assetVersions = ['assets/css/command-dashboard.css','assets/js/command-dashboard.js'].includes(asset) ? 'a11y-20261112' : versions;
   assert.match(index, new RegExp(`${escapeRegExp(asset)}\\?v=${assetVersions}`), `${asset} is cache-busted`);
 }
 assert.match(integration, new RegExp(`import './explorer-coordinator\\.js\\?v=${tag}';`));
