@@ -60,10 +60,10 @@ const server = http.createServer((req, res) => {
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 // Served as buildspace.test (mapped to this server), as the parity run does.
-const base = `http://buildspace.test:${server.address().port}`;
+const base = `http://127.0.0.1:${server.address().port}`;
 
 const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bs-project-chrome-'));
-const chrome = spawn(CHROME, ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profileDir}`, '--no-first-run', '--host-resolver-rules=MAP buildspace.test 127.0.0.1', '--no-default-browser-check', '--disable-gpu', '--no-sandbox', 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
+const chrome = spawn(CHROME, ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profileDir}`, '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--no-sandbox', 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
 const wsUrl = await new Promise((resolve, reject) => {
   let buffer = '';
   chrome.stderr.on('data', chunk => { buffer += chunk; const m = buffer.match(/DevTools listening on (ws:\/\/\S+)/); if (m) resolve(m[1]); });
@@ -397,7 +397,49 @@ try {
     await evaluate(`(() => { const li = [...document.querySelectorAll('.pt-task')].find(li => /Book the venue/.test(li.textContent)); li.querySelector('.pt-row').click(); return true; })()`);
     await sleep(300);
     await evaluate(`[...document.querySelectorAll('.pt-task')].find(li => /Book the venue/.test(li.textContent)).querySelector('[data-action="status"][data-status="done"]').click(); true`);
+    await waitFor(`document.querySelector('.pt-complete-form')`, 'inline completion summary');
+    check(await evaluate(`document.activeElement === document.querySelector('.pt-complete-form textarea')`), `${name}: Done opens a focused inline summary`);
+    await evaluate(`(() => {
+      window.__completionAttempts = 0; window.__failCompletion = true;
+      const client = window.supabase, original = client.from.bind(client);
+      client.from = table => {
+        const query = original(table), update = query.update.bind(query);
+        query.update = payload => {
+          const result = update(payload);
+          if (table === 'project_tasks' && payload.status === 'done') {
+            const then = result.then.bind(result);
+            result.then = (resolve, reject) => {
+              window.__completionAttempts++;
+              return new Promise(r => setTimeout(r, 150)).then(() => window.__failCompletion
+                ? {data:null,error:{message:'simulated completion failure'}} : new Promise(then)).then(resolve,reject);
+            };
+          }
+          return result;
+        };
+        return query;
+      };
+      const form=document.querySelector('.pt-complete-form'); form.querySelector('textarea').value='   '; form.requestSubmit(); return true;
+    })()`);
+    check(await evaluate(`document.querySelector('.pt-complete-error').textContent.includes('Add a brief') && window.__completionAttempts===0`), `${name}: blank summary gives an inline error without writing`);
+    await evaluate(`(() => { const f=document.querySelector('.pt-complete-form'); f.querySelector('textarea').value='x'.repeat(501); f.requestSubmit(); return true; })()`);
+    check(await evaluate(`document.querySelector('.pt-complete-error').textContent.includes('500') && window.__completionAttempts===0`), `${name}: overlong summary gives an inline error without writing`);
+    await evaluate(`document.querySelector('[data-action="cancel-completion"]').click(); true`);
+    check(await evaluate(`!document.querySelector('.pt-complete-form') && document.activeElement.dataset.status==='done' && window.__completionAttempts===0`), `${name}: Cancel restores focus and makes no write`);
+    const doneSelector = `[...document.querySelectorAll('.pt-task')].find(li=>/Book the venue/.test(li.textContent)).querySelector('[data-action="status"][data-status="done"]')`;
+    await evaluate(`${doneSelector}.click(); document.querySelector('.pt-complete-form textarea').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})); true`);
+    check(await evaluate(`!document.querySelector('.pt-complete-form') && !!document.querySelector('#project-detail-overlay')?.getClientRects().length && window.__completionAttempts===0`), `${name}: Escape cancels the summary without closing the project`);
+    await evaluate(`${doneSelector}.click(); true`);
+    await evaluate(`(() => { const field=document.querySelector('.pt-complete-form textarea'); window.__draftText='Venue confirmed <img src=x onerror=window.__draftExecuted=true>'; field.value=window.__draftText; field.dispatchEvent(new Event('input',{bubbles:true})); const filter=document.getElementById('pt-filter-status'); filter.value='open'; filter.dispatchEvent(new Event('change')); return true; })()`);
+    check(await evaluate(`document.querySelector('.pt-complete-form textarea').value===window.__draftText && !window.__draftExecuted && !document.querySelector('.pt-complete-form img')`), `${name}: a list rerender keeps the summary draft as text`);
+    await evaluate(`(() => { const filter=document.getElementById('pt-filter-status'); filter.value=''; filter.dispatchEvent(new Event('change')); return true; })()`);
+    await evaluate(`document.querySelector('.pt-complete-form textarea').scrollIntoView({block:'center'}); true`);
+    await sleep(300); await snap(`inline-completion-${name}`);
+    await evaluate(`(() => { const f=document.querySelector('.pt-complete-form'); f.querySelector('textarea').value='Venue booked. '.padEnd(500,'x'); f.requestSubmit(); f.requestSubmit(); return true; })()`);
+    await sleep(500);
+    check(await evaluate(`window.__completionAttempts===1 && document.querySelector('.pt-complete-error').textContent.includes('Your summary is kept') && document.querySelector('.pt-complete-form textarea').value.length===500 && window.supabase.__db.project_tasks.find(t=>t.id===window.AssistanceFixtures.ID.venueTask).status==='open'`), `${name}: failed save preserves draft and task status; duplicate submits make one attempt`);
+    await evaluate(`window.__failCompletion=false; document.querySelector('.pt-complete-form').requestSubmit(); true`);
     await sleep(900);
+    check(await evaluate(`window.__completionAttempts===2 && !document.querySelector('.pt-complete-form') && window.supabase.__db.project_tasks.find(t=>t.id===window.AssistanceFixtures.ID.venueTask).completion_note.length===500 && document.querySelector('.pt-done').open && document.activeElement.classList.contains('pt-row')`), `${name}: retry saves a 500-character summary and focuses the completed task`);
     list = await taskList();
     const venue = await evaluate(`window.supabase.__db.project_tasks.find(t => t.id === window.AssistanceFixtures.ID.venueTask).status`);
     const said = await evaluate(`document.querySelector('.pt-sr-status')?.textContent`);
@@ -409,7 +451,7 @@ try {
 
     // Done opens on one tap; filters still work.
     await tab(workTab);
-    await evaluate(`document.querySelector('.pt-done > summary').click(); true`);
+    await evaluate(`document.querySelector('.pt-done').open = true; true`);
     await sleep(400);
     list = await taskList();
     check(list.doneOpen && ['Book the venue', 'Set the date', 'Create the sign-up form', 'Draft the budget'].every(t => list.rows.some(r => r.title === t)) && list.rows.filter(r => /^Done /.test(r.meta)).length === 4,
