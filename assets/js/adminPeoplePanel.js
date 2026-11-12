@@ -66,7 +66,7 @@ export function renderPeoplePanel(container) {
   state.selectedIds.clear();
 
   container.innerHTML = `
-    <div id="people-panel" class="admin-people-panel" style="max-height: 70vh; overflow: hidden; display: flex; flex-direction: column;">
+    <div id="people-panel" class="admin-people-panel" style="display: block;">
       <div class="admin-people-heading">
         <div>
           <h2>People</h2>
@@ -87,7 +87,7 @@ export function renderPeoplePanel(container) {
         </button>
         <button type="button" class="admin-people-stat admin-people-stat-unclaimed" data-claimed-filter="false" aria-label="Show unclaimed accounts">
           <div id="stat-unclaimed" style="font-size: 1.75rem; font-weight: 700; color: #ffaa00;">—</div>
-          <div class="admin-people-stat-label">Need follow-up</div>
+          <div class="admin-people-stat-label">Unclaimed accounts</div>
           <div class="admin-people-stat-hint">Review unclaimed accounts →</div>
         </button>
       </div>
@@ -153,7 +153,7 @@ export function renderPeoplePanel(container) {
       </div>
       
       <!-- Table Container (Desktop) -->
-      <div id="people-table-container" style="flex: 1; overflow-y: auto; background: rgba(0,0,0,0.2); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; display: none;">
+      <div id="people-table-container" style="background: rgba(0,0,0,0.2); border: 1px solid rgba(0,224,255,0.2); border-radius: 8px; display: none;">
         <table id="people-table" style="width: 100%; border-collapse: collapse;">
           <thead style="position: sticky; top: 0; background: rgba(10,14,39,0.95); z-index: 1;">
             <tr style="border-bottom: 2px solid rgba(0,224,255,0.3);">
@@ -187,7 +187,7 @@ export function renderPeoplePanel(container) {
       </div>
       
       <!-- Mobile Cards Container -->
-      <div id="people-cards-container" style="flex: 1; overflow-y: auto; display: none;">
+      <div id="people-cards-container" style="display: none;">
         <!-- Cards will be inserted here -->
       </div>
       

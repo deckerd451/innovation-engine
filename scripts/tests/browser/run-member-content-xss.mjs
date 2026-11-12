@@ -14,6 +14,7 @@
 //
 // CHROME_PATH overrides the browser; XSS_TEST_ROOT serves another checkout
 // (used to confirm the test fails against unfixed code).
+import { waitForChromeEndpoint } from './helpers/chrome-startup.mjs';
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -123,13 +124,18 @@ await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const base = `http://127.0.0.1:${server.address().port}`;
 
 const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bs-xss-chrome-'));
-const chrome = spawn(CHROME, ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profileDir}`, '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--no-sandbox', 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
-const wsUrl = await new Promise((resolve, reject) => {
-  let buffer = '';
-  chrome.stderr.on('data', chunk => { buffer += chunk; const m = buffer.match(/DevTools listening on (ws:\/\/\S+)/); if (m) resolve(m[1]); });
-  chrome.on('error', reject);
-  setTimeout(() => reject(new Error(`Chrome did not start (${CHROME})`)), 15000);
-});
+const chrome = spawn(CHROME, ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profileDir}`, '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--disable-dev-shm-usage', '--no-sandbox', 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
+let wsUrl;
+try {
+  wsUrl = await waitForChromeEndpoint(chrome, CHROME);
+} catch (error) {
+  const exited = new Promise(resolve => chrome.once('exit', resolve));
+  chrome.kill();
+  await Promise.race([exited, new Promise(resolve => setTimeout(resolve, 1000))]);
+  server.close();
+  fs.rmSync(profileDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  throw error;
+}
 const targets = await (await fetch(wsUrl.replace('ws://', 'http://').replace(/\/devtools\/browser\/.*/, '/json/list'))).json();
 const socket = new WebSocket(targets.find(t => t.type === 'page').webSocketDebuggerUrl);
 await new Promise(resolve => socket.addEventListener('open', resolve));
