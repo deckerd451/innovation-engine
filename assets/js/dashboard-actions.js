@@ -1194,6 +1194,8 @@ function openAdminPanel() {
 
     <!-- Tabs -->
     <div class="admin-main-tabs" style="display: flex; gap: 1rem; margin-bottom: 2rem; border-bottom: 1px solid rgba(255,255,255,0.1); align-items: center;">
+      <button class="admin-tab active-admin-tab" data-tab="visitors">Visitors</button>
+      <button class="admin-tab" data-tab="manage">People</button>
       <!-- Resource Management Dropdown -->
       <div class="admin-resource-menu" style="position: relative;">
         <button id="resource-mgmt-dropdown-btn" class="admin-resource-menu-btn" style="padding: 0.75rem 1.5rem; background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px 8px 0 0; color: #00e0ff; cursor: pointer; font-weight: 600; transition: all 0.2s; display: flex; align-items: center; gap: 0.5rem;">
@@ -1201,9 +1203,6 @@ function openAdminPanel() {
           <i class="fas fa-chevron-down" style="font-size: 0.8rem;"></i>
         </button>
         <div id="resource-mgmt-dropdown" class="admin-resource-menu-list" style="display: none; position: absolute; top: 100%; left: 0; min-width: 220px; background: linear-gradient(135deg, rgba(10,14,39,0.98), rgba(16,20,39,0.98)); border: 2px solid rgba(0,224,255,0.4); border-radius: 0 8px 8px 8px; padding: 0.5rem; z-index: 1000; box-shadow: 0 8px 32px rgba(0,0,0,0.6);">
-          <button class="admin-tab active-admin-tab" data-tab="manage" style="width: 100%; padding: 0.75rem 1rem; background: rgba(0,224,255,0.1); border: none; border-radius: 6px; color: #00e0ff; cursor: pointer; font-weight: 600; transition: all 0.2s; text-align: left; margin-bottom: 0.25rem;">
-            <i class="fas fa-users-cog"></i> People
-          </button>
           <button class="admin-tab" data-tab="projects" style="width: 100%; padding: 0.75rem 1rem; background: transparent; border: none; border-radius: 6px; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s; text-align: left; margin-bottom: 0.25rem;">
             <i class="fas fa-rocket"></i> Projects
           </button>
@@ -1212,10 +1211,6 @@ function openAdminPanel() {
           </button>
         </div>
       </div>
-      <button class="admin-tab" data-tab="analytics" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s;">
-        <i class="fas fa-chart-line"></i> Analytics
-      </button>
-
       <button class="admin-tab" data-tab="privacy" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s;">
         <i class="fas fa-user-shield"></i> Privacy
       </button>
@@ -1271,12 +1266,25 @@ function openAdminPanel() {
   }
 
   // Load initial tab
-  loadAdminTabContent('manage');
+  loadAdminTabContent('visitors');
 }
 
 function loadAdminTabContent(tabName) {
   const content = document.getElementById('admin-tab-content');
   if (!content) return;
+
+  content.dataset.activeTab = tabName;
+  if (tabName === 'visitors') {
+    content.textContent = 'Loading visitor overview…';
+    import('./admin-visitors.js?v=20261112').then(({ renderVisitors }) => {
+      if (content.isConnected && content.dataset.activeTab === 'visitors') {
+        renderVisitors(content, () => loadAdminTabContent('analytics'));
+      }
+    }).catch(() => {
+      if (content.dataset.activeTab === 'visitors') content.textContent = 'Visitor overview could not load. Close and reopen the panel to retry.';
+    });
+    return;
+  }
 
   if (tabName === 'manage') {
     // Load the new People Management panel
@@ -1286,14 +1294,14 @@ function loadAdminTabContent(tabName) {
     const checkModule = setInterval(() => {
       if (typeof window.AdminPeoplePanel !== 'undefined' && typeof window.AdminPeoplePanel.renderPeoplePanel === 'function') {
         clearInterval(checkModule);
-        window.AdminPeoplePanel.renderPeoplePanel(content);
+        if (content.isConnected && content.dataset.activeTab === 'manage') window.AdminPeoplePanel.renderPeoplePanel(content);
       }
     }, 100);
     
     // Timeout after 5 seconds
     setTimeout(() => {
       clearInterval(checkModule);
-      if (!window.AdminPeoplePanel) {
+      if (!window.AdminPeoplePanel && content.isConnected && content.dataset.activeTab === 'manage') {
         content.innerHTML = '<div style="padding: 2rem; text-align: center; color: #ff6b6b;"><i class="fas fa-exclamation-circle"></i> Failed to load People Management panel. Please refresh the page.</div>';
       }
     }, 5000);

@@ -75,7 +75,7 @@ assert.doesNotMatch(handler, /try the button again in a moment|still loading/,
 // Later releases of dashboard-actions.js keep the repaired lifecycle and
 // carry their own cache-buster (membership-authz-xss-20261014: join requests
 // and safe rendering; skills-replace-themes-20261027: no admin Themes tab; later shell tags carry it).
-assert.match(html, /dashboard-actions\.js\?v=email-lock-20261029/,
+assert.match(html, /dashboard-actions\.js\?v=admin-visitors-20261112/,
   'the production entry script must carry a cache-buster for the repaired lifecycle');
 
 console.log('✅ test-post-auth-module-load-recovery passed');

@@ -112,6 +112,7 @@ export function renderPeoplePanel(container) {
         </div>
         
         <!-- Filters Row -->
+        <details class="admin-people-filters"><summary>More filters · <span id="active-filter-count" class="admin-active-filter-count" aria-live="polite">No filters applied</span></summary>
         <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
           <label style="color: rgba(255,255,255,0.7); font-size: 0.9rem; font-weight: 600;">Filters:</label>
           
@@ -139,11 +140,11 @@ export function renderPeoplePanel(container) {
             <option value="false">Unclaimed</option>
           </select>
           
-          <span id="active-filter-count" class="admin-active-filter-count" aria-live="polite">No filters applied</span>
           <button id="filter-clear-btn" style="padding: 0.5rem 1rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); border-radius: 6px; color: rgba(255,255,255,0.7); font-size: 0.9rem; cursor: pointer;">
             <i class="fas fa-times"></i> Clear all
           </button>
         </div>
+        </details>
       </div>
       
       <!-- Results Count -->

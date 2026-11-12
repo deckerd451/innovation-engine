@@ -42,7 +42,7 @@
   <link rel="stylesheet" href="assets/css/command-dashboard.css?v=project-resource-discovery-20261030" />
 <link rel="stylesheet" href="assets/css/ui-enhancements.css" />
 <link rel="stylesheet" href="assets/css/synapse-filter.css" />
-<link rel="stylesheet" href="assets/css/admin-panel.css?v=admin-mobile-20261010a" />
+<link rel="stylesheet" href="assets/css/admin-panel.css?v=admin-visitors-20261112" />
 
 <!-- Login styles (must be last to override others) -->
 <link rel="stylesheet" href="assets/css/login/login.css?v=2" />
@@ -716,6 +716,7 @@
 
   <script src="assets/js/photo-privacy.js?v=photo-consent-20261010a"></script>
   <script type="module" src="assets/js/supabaseClient.js?v=fc09b39b-1770146154f916933b2da"></script>
+  <script type="module" src="assets/js/site-visits.js?v=20261112"></script>
   <script src="assets/js/bootstrapSession.js?v=email-lock-20261029" defer></script>
   <script src="assets/js/identity.js?v=1" defer></script>
   <script src="assets/js/realtimeManager.js?v=6e6a1b33" defer></script>
@@ -769,7 +770,7 @@
   <script type="module" src="assets/js/node-panel.js?v=email-lock-20261029"></script>
   <script src="assets/js/mobile-task-assistance.js?v=project-resource-discovery-20261030" defer></script>
   <script src="assets/js/node-panel-fixes.js?v=email-lock-20261029" defer></script>
-  <script src="assets/js/dashboard-actions.js?v=email-lock-20261029" defer></script>
+  <script src="assets/js/dashboard-actions.js?v=admin-visitors-20261112" defer></script>
 
   <!-- Admin People (DEFERRED UNTIL AUTH) -->
 
@@ -820,7 +821,7 @@
           return window.OrganizationManager.init(window.supabase);
         } },
       // Admin People
-      { src: 'assets/js/adminPeoplePanel.js?v=email-lock-20261029', module: true },
+      { src: 'assets/js/adminPeoplePanel.js?v=admin-visitors-20261112', module: true },
       { src: 'assets/js/adminPrivacyPanel.js?v=email-lock-20261029', module: true },
       // Opportunity Engine
       { src: 'assets/js/opportunities/opportunityEngine.js?v=no-deadline-final-20260304', module: false },
