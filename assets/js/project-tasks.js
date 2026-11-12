@@ -333,6 +333,15 @@
       .pt-filter-box[open] > summary { color:#00e0ff; border-color:rgba(0,224,255,0.4); }
       .pt-filter-box > .pt-filters { margin-top:0.5rem; }
       .pt-edit-form { width:100%; padding:0.75rem; }
+      .pt-complete-form { margin-top:.75rem; padding:.75rem; border:1px solid rgba(0,224,255,.35); border-radius:8px; min-width:0; }
+      .pt-complete-form label { display:block; color:#fff; font-size:.9rem; font-weight:600; }
+      .pt-complete-form p { margin:.4rem 0; font-size:.85rem; line-height:1.4; color:#c3cad8; }
+      .pt-complete-form textarea { width:100%; box-sizing:border-box; font-size:16px; resize:vertical; min-height:80px; }
+      .pt-complete-form .pt-complete-error { color:#ffb3b3; }
+      .pt-complete-error:empty { display:none; }
+      .pt-complete-form button { min-height:44px; }
+      .pt-complete-form [aria-invalid="true"] { border-color:#ffb3b3; }
+      .pt-complete-form :focus-visible { outline:2px solid #00e0ff; outline-offset:2px; }
       .pt-count-badge { display:inline-flex; align-items:center; gap:0.3rem; background:rgba(255,165,0,0.15); color:#ffa500; font-size:0.72rem; font-weight:700; padding:0.1rem 0.5rem; border-radius:8px; margin-left:0.4rem; }
       .pt-sr-status { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
       @media (max-width: 560px) {      @media (max-width: 560px) {
@@ -384,10 +393,26 @@
     done: '<circle cx="12" cy="12" r="8"/><path d="M8 12.5l2.6 2.6L16 9.6"/>',
   };
 
+  function completionFormHTML(task, draft) {
+    if (!draft || task.status === 'done') return '';
+    const id = `pt-complete-${escapeHtml(task.id)}`;
+    return `<form class="pt-complete-form" novalidate aria-busy="${Boolean(draft.saving)}">
+      <label for="${id}">Completion summary (required)</label>
+      <p id="${id}-help">What was accomplished? Keep it to 500 characters.</p>
+      <textarea id="${id}" class="pt-field" name="completion_note" rows="3" required maxlength="500"
+        aria-describedby="${id}-help ${id}-error" aria-invalid="${Boolean(draft.error)}" ${draft.saving ? 'disabled' : ''}>${escapeHtml(draft.text)}</textarea>
+      <p id="${id}-error" class="pt-complete-error" role="alert">${escapeHtml(draft.error || '')}</p>
+      <div class="pt-add-actions">
+        <button type="submit" class="pt-submit-btn" ${draft.saving ? 'disabled' : ''}>${draft.saving ? 'Saving…' : 'Save and mark Done'}</button>
+        <button type="button" class="pt-cancel-btn" data-action="cancel-completion" ${draft.saving ? 'disabled' : ''}>Cancel</button>
+      </div>
+    </form>`;
+  }
+
   // One compact row per task: its status, title and one line of what
   // matters (priority when high, owner, due date). Tapping the row opens its
   // details and the actions; nothing else competes on the list.
-  function taskRowHTML(task, canEdit, canDelete, expanded, canWorkOn, actorId) {
+  function taskRowHTML(task, canEdit, canDelete, expanded, canWorkOn, actorId, completion) {
     const overdue = isOverdue(task);
     const safeUrl = task.related_url; // already sanitized at write time
     const description = visibleDescription(task.description);
@@ -437,6 +462,7 @@
           ${completionSummary}
           <div class="pt-task-meta">${metaChips}</div>
           ${actionsHTML}
+          ${canEdit ? completionFormHTML(task, completion) : ''}
         </div>
       </li>
     `;
@@ -468,6 +494,7 @@
       doneOpen: false,
       expanded: new Set(),
       pendingFocus: null,
+      completionDrafts: new Map(),
       filters: { status: '', priority: '', owner: '', q: '' },
     };
 
@@ -570,7 +597,7 @@
         return;
       }
 
-      const rows = list => `<ul class="pt-list">${list.map(t => taskRowHTML(t, canEdit, canDelete, state.expanded.has(String(t.id)), canWorkOn, actorId)).join('')}</ul>`;
+      const rows = list => `<ul class="pt-list">${list.map(t => taskRowHTML(t, canEdit, canDelete, state.expanded.has(String(t.id)), canWorkOn, actorId, state.completionDrafts.get(String(t.id)))).join('')}</ul>`;
       const group = (title, list) => (list.length ? `
           <section class="pt-group" aria-label="${title}">
             <h4 class="pt-group-title">${title} <span class="pt-group-count">${list.length}</span></h4>
@@ -729,6 +756,73 @@
       });
     }
 
+    function cancelCompletion(row, task) {
+      state.completionDrafts.delete(String(task.id));
+      row.querySelector('.pt-complete-form')?.remove();
+      row.querySelector('[data-action="status"][data-status="done"]')?.focus();
+    }
+
+    groupsEl.addEventListener('input', e => {
+      if (!e.target.matches('.pt-complete-form textarea')) return;
+      const id = e.target.closest('.pt-task').dataset.taskId;
+      const draft = state.completionDrafts.get(id);
+      if (draft) draft.text = e.target.value;
+    });
+    groupsEl.addEventListener('keydown', e => {
+      const form = e.target.closest('.pt-complete-form');
+      if (!form || e.key !== 'Escape') return;
+      e.preventDefault(); e.stopPropagation();
+      const row = form.closest('.pt-task');
+      const task = findTask(row.dataset.taskId);
+      if (task && !state.completionDrafts.get(String(task.id))?.saving) cancelCompletion(row, task);
+    });
+    groupsEl.addEventListener('submit', async e => {
+      const form = e.target.closest('.pt-complete-form');
+      if (!form) return;
+      e.preventDefault();
+      if (!canEdit) return;
+      const row = form.closest('.pt-task');
+      const task = findTask(row.dataset.taskId);
+      const draft = task && state.completionDrafts.get(String(task.id));
+      if (!draft || draft.saving) return;
+      const field = form.querySelector('textarea');
+      draft.text = field.value;
+      const text = draft.text.trim();
+      const showError = message => {
+        draft.error = message;
+        const current = groupsEl.querySelector(`.pt-task[data-task-id="${CSS.escape(String(task.id))}"] .pt-complete-form`);
+        if (!current) return;
+        current.querySelector('.pt-complete-error').textContent = message;
+        const input = current.querySelector('textarea');
+        input.setAttribute('aria-invalid', 'true'); input.focus();
+        input.scrollIntoView({ block: 'nearest' });
+      };
+      if (!text || text.length > 500) {
+        showError(!text ? 'Add a brief completion summary before marking this task done.' : 'Keep the completion summary to 500 characters or fewer.');
+        return;
+      }
+      draft.error = ''; draft.saving = true;
+      field.setAttribute('aria-invalid', 'false');
+      form.setAttribute('aria-busy', 'true');
+      form.querySelector('.pt-complete-error').textContent = '';
+      form.querySelector('[type="submit"]').textContent = 'Saving…';
+      row.querySelectorAll('button, textarea').forEach(el => { el.disabled = true; });
+      try {
+        const updated = await updateTask(task, { status: 'done', completion_note: text }, actorId);
+        Object.assign(task, updated);
+        state.completionDrafts.delete(String(task.id));
+        const cleared = !applyFilters([task]).length;
+        focusTask(task.id);
+        announce(`“${task.title}” moved to Done.${cleared ? ' Filters cleared to show the completed task.' : ''}`);
+        notifyChange();
+      } catch (err) {
+        console.error('[ProjectTasks] completion failed:', err);
+        draft.saving = false;
+        renderGroups();
+        showError('Could not complete this task. Your summary is kept. Please try again.');
+      }
+    });
+
     // ---- Row actions (event delegation) ----
     groupsEl.addEventListener('click', async e => {
       const showMoreBtn = e.target.closest('#pt-done-more');
@@ -742,6 +836,10 @@
       if (!row) return;
       const task = findTask(row.dataset.taskId);
       if (!task) return;
+      if (state.completionDrafts.get(String(task.id))?.saving) return;
+      if (e.target.closest('[data-action="cancel-completion"]')) {
+        cancelCompletion(row, task); return;
+      }
 
       if (e.target.closest('[data-action="toggle"]')) {
         const id = String(task.id);
@@ -762,23 +860,18 @@
       if (statusBtn && canEdit) {
         const newStatus = statusBtn.dataset.status;
         if (newStatus === task.status) return;
-        let completionNote;
         if (newStatus === 'done') {
-          const entered = window.prompt('What was accomplished? Add a brief summary to complete this task.', task.completion_note || '');
-          if (entered === null) return;
-          completionNote = entered.trim();
-          if (!completionNote) {
-            alert('Add a brief completion summary before marking this task done.');
-            return;
-          }
-          if (completionNote.length > 500) {
-            alert('Keep the completion summary to 500 characters or fewer.');
-            return;
-          }
+          const id = String(task.id);
+          if (!state.completionDrafts.has(id)) state.completionDrafts.set(id, { text: task.completion_note || '', error: '', saving: false });
+          state.expanded.add(id);
+          if (!row.querySelector('.pt-complete-form')) row.querySelector('.pt-detail').insertAdjacentHTML('beforeend', completionFormHTML(task, state.completionDrafts.get(id)));
+          const field = row.querySelector('.pt-complete-form textarea');
+          field.focus(); field.scrollIntoView({ block: 'nearest' });
+          return;
         }
         statusBtn.closest('.pt-status-toggle').querySelectorAll('button').forEach(b => b.disabled = true);
         try {
-          const fields = newStatus === 'done' ? { status: newStatus, completion_note: completionNote } : { status: newStatus };
+          const fields = { status: newStatus };
           const updated = await updateTask(task, fields, actorId);
           Object.assign(task, updated);
           renderGroups();
