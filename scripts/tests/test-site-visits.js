@@ -1,0 +1,30 @@
+#!/usr/bin/env node
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+(async () => {
+  const { visitIdentity } = await import('../../assets/js/site-visits-core.mjs');
+  const values = new Map();
+  const storage = { getItem: k => values.get(k) || null, setItem: (k,v) => values.set(k,v) };
+  let i = 0;
+  const uuid = () => `00000000-0000-4000-8000-${String(++i).padStart(12,'0')}`;
+  const first = visitIdentity(storage, uuid, 1000);
+  assert.deepEqual(visitIdentity(storage, uuid, 2000), first, 'Reload shares visit');
+  assert.deepEqual(visitIdentity(storage, uuid, 3000, 'member'), first, 'Sign-in upgrades guest visit');
+  const logout = visitIdentity(storage, uuid, 4000);
+  assert.notEqual(logout.p_session_id, first.p_session_id, 'Logout starts fresh anonymous visit');
+  const expired = visitIdentity(storage, uuid, 4000 + 1800000);
+  assert.notEqual(expired.p_session_id, logout.p_session_id, '30-minute inactivity renews session');
+  assert.equal(expired.p_browser_id, first.p_browser_id, 'Browser remains stable');
+  values.set('ie_visit_session_v1', '{broken');
+  assert.ok(visitIdentity(storage, uuid, 9000000).p_session_id);
+  const index = fs.readFileSync('index.html','utf8');
+  assert.ok(index.includes('assets/js/site-visits.js?v=20261112'), 'Collector loads before authentication');
+  const sql = fs.readFileSync('supabase/sql/migrations/20261112_site_visits.sql','utf8');
+  assert.match(sql, /ENABLE ROW LEVEL SECURITY/);
+  assert.match(sql, /REVOKE ALL ON public.site_visit_sessions FROM anon, authenticated/);
+  assert.match(sql, /user_id = auth.uid\(\) AND user_role = 'Admin'/);
+  assert.match(sql, /auth_user_id IS DISTINCT FROM auth.uid\(\)/);
+  const shell = fs.readFileSync('assets/js/dashboard-actions.js','utf8');
+  assert.match(shell, /loadAdminTabContent\('visitors'\)/);
+  console.log('Visitor session and integration checks passed');
+})().catch(error => { console.error(error); process.exit(1); });

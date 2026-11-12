@@ -71,4 +71,16 @@ else
   echo "4. Authorization suite: scripts/tests/run-authz-db.sh not in this tree"
 fi
 
+
+echo "Visitor recording and admin reporting permissions"
+"${PSQL[@]}" -d postgres -c "CREATE DATABASE ie_site_visits" >/dev/null
+for f in \
+  scripts/tests/fixtures/site-visits-bootstrap.sql \
+  supabase/sql/migrations/20261112_site_visits.sql \
+  scripts/tests/site-visits-db.sql \
+  supabase/sql/rollback/20261112_site_visits_rollback.sql; do
+  "${PSQL[@]}" -d ie_site_visits -f "$ROOT/$f" >/dev/null
+done
+echo "   ok (including rollback)"
+
 echo "database checks passed"

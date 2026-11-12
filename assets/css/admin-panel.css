@@ -25,6 +25,7 @@
    --------------------------------------------------------------- */
 
 #admin-panel {
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -195,7 +196,7 @@
 
 .admin-metric-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(170px, 100%), 1fr));
   gap: 1rem;
   margin-bottom: 1.75rem;
 }
@@ -670,3 +671,17 @@
   .admin-privacy-search { min-width: 0; width: 100%; }
   .admin-privacy-status { white-space: normal; }
 }
+
+/* Visitor overview and progressive disclosure for secondary People filters. */
+.admin-main-tabs > .admin-tab { padding: .75rem 1rem; color: #00e0ff; background: transparent; border: 0; cursor: pointer; font: inherit; }
+.admin-main-tabs > .active-admin-tab { border-bottom: 3px solid #00e0ff; }
+.admin-people-filters summary { cursor: pointer; color: #00e0ff; padding: .5rem 0; }
+.admin-people-filters[open] summary { margin-bottom: .5rem; }
+.admin-visitors { max-width: 1100px; }
+.admin-visitors p { color: #c4c8d4; line-height: 1.5; }
+.visitor-controls { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; }
+.admin-visitors button, .admin-visitors select { padding: .65rem; border: 1px solid #347389; border-radius: 6px; background: #10182a; color: white; font: inherit; cursor: pointer; }
+.visitor-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(170px, 100%), 1fr)); gap: 1rem; margin: 1.5rem 0; }
+.visitor-metrics > div { padding: 1.2rem; border: 1px solid #347389; border-radius: 10px; }
+.visitor-metrics strong { display: block; color: #00e0ff; font-size: 2rem; }
+.admin-visitors li { padding: .5rem 0; }
