@@ -39,7 +39,7 @@
 <link rel="stylesheet" href="dashboard.css?v=shared-nav-20261016" />
 <link rel="stylesheet" href="assets/css/quiet-mode.css" />
 <link rel="stylesheet" href="assets/css/mobile-safe-area.css?v=email-lock-20261029" />
-  <link rel="stylesheet" href="assets/css/command-dashboard.css?v=project-resource-discovery-20261030" />
+  <link rel="stylesheet" href="assets/css/command-dashboard.css?v=compact-explore-20261112" />
 <link rel="stylesheet" href="assets/css/ui-enhancements.css" />
 <link rel="stylesheet" href="assets/css/synapse-filter.css" />
 <link rel="stylesheet" href="assets/css/admin-panel.css?v=admin-layout-20261112" />
@@ -236,15 +236,14 @@
           </div>
 
           <div class="cd-section-body" id="cd-explore-body">
-            <details class="cd-mobile-browse" open>
-              <summary>Browse the community</summary>
+            <div class="cd-mobile-browse" role="group" aria-label="Browse the community">
               <div class="cd-mobile-browse-body">
             <div class="udc-resource-tabs" id="udc-resource-tabs" role="tablist">
               <button class="udc-resource-tab active" data-resource="people" role="tab" aria-selected="true">People <span class="udc-resource-count" data-count-for="people" aria-label="0 connected">0</span></button>
               <button class="udc-resource-tab" data-resource="projects" role="tab" aria-selected="false">Projects <span class="udc-resource-count" data-count-for="projects" aria-label="0 projects">0</span></button>
               <button class="udc-resource-tab" data-resource="themes" role="tab" aria-selected="false">Skills</button>
               <button class="udc-resource-tab" data-resource="organizations" role="tab" aria-selected="false">Orgs <span class="udc-resource-count" data-count-for="organizations" aria-label="0 organizations">0</span></button>
-              <button class="udc-resource-tab" data-resource="opportunities" role="tab" aria-selected="false"><span class="udc-resource-label udc-resource-label-mobile">Opps</span><span class="udc-resource-label udc-resource-label-web">Opportunities</span> <span class="udc-resource-count" data-count-for="opportunities" aria-label="0 opportunities">0</span></button>
+              <button class="udc-resource-tab" data-resource="opportunities" role="tab" aria-selected="false"><span class="udc-resource-label udc-resource-label-mobile">Opportunities</span><span class="udc-resource-label udc-resource-label-web">Opportunities</span> <span class="udc-resource-count" data-count-for="opportunities" aria-label="0 opportunities">0</span></button>
             </div>
 
             <div id="udc-add-form" class="udc-add-form hidden"></div>
@@ -253,7 +252,7 @@
               <div class="udc-resource-empty">Loading...</div>
             </div>
               </div>
-            </details>
+            </div>
           </div>
         </div>
       </div>
@@ -754,7 +753,7 @@
   <script src="assets/js/avatar-upload.js?v=fc09b39b-17701461543" defer></script>
   <script src="assets/js/project-relationship.js?v=1" defer></script>
   <link rel="stylesheet" href="assets/css/capability-memory.css?v=project-resource-discovery-20261030">
-  <link rel="stylesheet" href="assets/css/mobile-goal-discovery.css?v=goal-first-discover-1">
+  <link rel="stylesheet" href="assets/css/mobile-goal-discovery.css?v=compact-explore-20261112">
   <link rel="stylesheet" href="assets/css/mobile-project-scroll.css?v=email-lock-20261029">
   <script src="assets/js/project-tasks.js?v=task-summary-20261030" defer></script>
   <script src="assets/js/capability-journey.js?v=1" defer></script>

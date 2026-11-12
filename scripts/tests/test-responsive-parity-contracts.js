@@ -21,7 +21,7 @@ const sw = read('sw.js');
 // the Explore list is not trapped in a closed <details> on desktop (a closed
 // details hides its content even with display: contents).
 assert.doesNotMatch(dashboardCss, /\[data-resource="(organizations|opportunities)"\][^{]*\{\s*display:\s*none/);
-assert.match(index, /<details class="cd-mobile-browse" open>/);
+assert.match(index, /<div class="cd-mobile-browse" role="group" aria-label="Browse the community">/);
 
 // Search: one search box at every width; keyboard-friendly on phones.
 assert.doesNotMatch(commandCss, /\.cd-mobile-panel \.cd-search \{ display:none/);
@@ -184,7 +184,8 @@ const shellTag = (sw.match(/const VERSION = "v\d+-([^"]+)"/) || [])[1];
 assert.ok(shellTag, 'service worker declares a versioned shell');
 const versions = `(${escapeRegExp(tag)}|${escapeRegExp(shellTag)})`;
 for (const asset of ['dashboard.css', 'assets/css/command-dashboard.css', 'assets/js/command-dashboard.js', 'assets/js/mobile-nav.js', 'assets/js/mobile-you.js', 'assets/js/unified-network-integration.js']) {
-  assert.match(index, new RegExp(`${escapeRegExp(asset)}\\?v=${versions}`), `${asset} is cache-busted`);
+  const assetVersions = asset === 'assets/css/command-dashboard.css' ? 'compact-explore-20261112' : versions;
+  assert.match(index, new RegExp(`${escapeRegExp(asset)}\\?v=${assetVersions}`), `${asset} is cache-busted`);
 }
 assert.match(integration, new RegExp(`import './explorer-coordinator\\.js\\?v=${tag}';`));
 

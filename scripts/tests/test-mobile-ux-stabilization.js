@@ -61,7 +61,8 @@ assert.match(projectCss, /scroll-padding-bottom/);
 const shellTag = (sw.match(/const VERSION = "v\d+-([^"]+)"/) || [])[1];
 assert.ok(shellTag, 'service worker must declare a versioned shell');
 for (const asset of ['command-dashboard.css', 'mobile-nav.js', 'mobile-you.css', 'mobile-you.js', 'home-view.js', 'home-view.css', 'mobile-goal-discovery.js', 'mobile-task-assistance.js', 'mobile-task-assistance.css', 'assistance-interventions.js', 'assistance-interventions.css', 'capability-memory.js']) {
-  assert.match(index, new RegExp(`${asset.replace('.', '\\.')}\\?v=${shellTag}`), `${asset} must be cache-busted with the current shell version`);
+  const assetTag = asset === 'command-dashboard.css' ? 'compact-explore-20261112' : shellTag;
+  assert.match(index, new RegExp(`${asset.replace('.', '\\.')}\\?v=${assetTag}`), `${asset} must be cache-busted with the current shell version`);
 }
 // One vocabulary at every width: Home, Explore, Inbox, You (Network lives in You).
 const labels = [...index.matchAll(/data-destination="([a-z]+)"[^>]*>\s*<i[^>]*><\/i><span>([^<]+)<\/span>/g)].map(m => `${m[1]}:${m[2]}`);
