@@ -2156,3 +2156,44 @@ body[data-destination="network"] .cd-network-back { display: inline-flex; }
 .network-map-back[hidden] { display: none; }
 /* The back button takes the map title's corner. */
 body.mobile-surface-map .synapse-workspace-title { display: none; }
+
+
+/* Compact Explore: every category remains visible before the results. */
+@media (max-width: 1023px) {
+  #command-dashboard.cd-mobile-panel .cd-section-toggle-row { padding: .35rem .75rem; }
+  #command-dashboard.cd-mobile-panel .udc-resource-tabs {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: .35rem;
+    padding: .35rem .75rem .5rem;
+    margin-bottom: .25rem;
+    overflow: visible;
+  }
+  #command-dashboard.cd-mobile-panel .udc-resource-tab {
+    grid-column: span 2;
+    min-width: 0;
+    min-height: 44px;
+    padding: .45rem .35rem;
+    gap: .2rem;
+    border-radius: 8px;
+    font-size: .875rem;
+    letter-spacing: 0;
+  }
+  #command-dashboard.cd-mobile-panel .udc-resource-tab[data-resource="organizations"],
+  #command-dashboard.cd-mobile-panel .udc-resource-tab[data-resource="opportunities"] { grid-column: span 3; }
+  #command-dashboard.cd-mobile-panel .udc-resource-count { font-size: .7rem; margin-left: 0; }
+  #command-dashboard.cd-mobile-panel .udc-resource-tab:focus-visible { outline: 2px solid #00e0ff; outline-offset: 2px; }
+  body.mobile-network-list #command-dashboard.cd-mobile-panel .udc-resource-tabs { display: block; }
+}
+@media (max-width: 359px) {
+  #command-dashboard.cd-mobile-panel .udc-resource-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #command-dashboard.cd-mobile-panel .udc-resource-tab,
+  #command-dashboard.cd-mobile-panel .udc-resource-tab[data-resource="organizations"],
+  #command-dashboard.cd-mobile-panel .udc-resource-tab[data-resource="opportunities"] { grid-column: auto; }
+}
+@media (max-width: 1023px) {
+  #command-dashboard.cd-mobile-panel .udc-resource-show-btn { min-width: 44px; min-height: 44px; }
+}
+@media (max-width: 359px) {
+  #command-dashboard.cd-mobile-panel .udc-resource-tab[data-resource="opportunities"] { grid-column: 1 / -1; }
+}

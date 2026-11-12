@@ -2,7 +2,6 @@
 #mgd-goal-discovery { display: none; }
 @media (min-width: 1024px) {
   .cd-mobile-browse { display: contents; }
-  .cd-mobile-browse > summary { display: none; }
   .cd-mobile-browse-body { display: contents; }
 }
 @media (max-width: 1023px) {
@@ -22,11 +21,7 @@
   .mgd-cancel-choice { border: 0; background: transparent; color: rgba(255,255,255,.7); padding: .4rem 0; }
   .mgd-choice-success { padding: .85rem; border-radius: 10px; background: rgba(67,214,142,.12); color: #fff; }
   .mgd-choice-success button { margin-top: .4rem; background: #43d68e; }
-  .cd-mobile-browse { margin: .4rem 1rem 0; border-top: 1px solid rgba(255,255,255,.1); }
-  .cd-mobile-browse summary { cursor: pointer; list-style: none; padding: .8rem 0; color: rgba(255,255,255,.8); font-weight: 800; }
-  .cd-mobile-browse summary::-webkit-details-marker { display: none; }
-  .cd-mobile-browse summary::after { content: '＋'; float: right; color: #00e0ff; }
-  .cd-mobile-browse[open] summary::after { content: '−'; }
+  .cd-mobile-browse { margin: 0; }
   .cd-mobile-browse-body { padding-bottom: .7rem; }
 }
 @media (max-width: 390px) { .mgd-goal-form { flex-direction: column; } .mgd-goal-form button { width: 100%; } }

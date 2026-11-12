@@ -56,11 +56,11 @@ const server = http.createServer((req, res) => {
   fs.createReadStream(file).pipe(res);
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-// Served as buildspace.test (mapped to this server), as the parity run does.
-const base = `http://buildspace.test:${server.address().port}`;
+// Loopback keeps these fixtures independent of external DNS and proxy policy.
+const base = `http://127.0.0.1:${server.address().port}`;
 
 const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bs-people-chrome-'));
-const chrome = spawn(CHROME, ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profileDir}`, '--no-first-run', '--host-resolver-rules=MAP buildspace.test 127.0.0.1', '--no-default-browser-check', '--disable-gpu', '--no-sandbox', 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
+const chrome = spawn(CHROME, ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profileDir}`, '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--no-sandbox', 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
 const wsUrl = await new Promise((resolve, reject) => {
   let buffer = '';
   chrome.stderr.on('data', chunk => { buffer += chunk; const m = buffer.match(/DevTools listening on (ws:\/\/\S+)/); if (m) resolve(m[1]); });
@@ -271,6 +271,34 @@ async function openPage(page) {
   await evaluate(`document.querySelector('#udc-resource-tabs [data-resource="people"]').click(); true`);
   await sleep(1200);
 }
+async function compactLayout(name) {
+  await evaluate(`document.fonts.ready.then(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true)))))`);
+  const layout = await callInPage(function () {
+    const tabs = [...document.querySelectorAll('#udc-resource-tabs .udc-resource-tab')];
+    const row = document.querySelector('#udc-resource-list .udc-resource-item');
+    const r = row?.getBoundingClientRect();
+    const action = row?.querySelector('button');
+    const a = action?.getBoundingClientRect();
+    const nav = document.querySelector('#app-nav') || document.querySelector('.app-nav');
+    return {top:r?.top,bottom:r?.bottom,action:!!a && a.width>=44 && a.height>=44,
+      tabs:tabs.map(el=>({label:el.innerText.trim(),height:el.getBoundingClientRect().height,width:el.getBoundingClientRect().width, fits:el.scrollWidth<=el.clientWidth+1})),
+      overflow:document.documentElement.scrollWidth>innerWidth,
+      height:innerHeight, navTop:nav?.getBoundingClientRect().top};
+  });
+  console.log(`  geometry ${name}: first result starts ${Math.round(layout.top)}px, ends ${Math.round(layout.bottom)}px`);
+  check(layout.tabs.length===5 && layout.tabs.every(t=>t.height>=44 && t.width>=44 && t.fits), `${name}: all five category labels fit with 44px touch targets`, JSON.stringify(layout));
+  check(layout.tabs.some(t=>t.label.startsWith('Opportunities')) && !layout.tabs.some(t=>/^Opps/.test(t.label)), `${name}: Opportunities has its full readable label`);
+  check(!layout.overflow && layout.top <= (view.width<360?460:400) && layout.bottom < view.height-view.bottom-70 && layout.action, `${name}: a complete person and action fit on first load without resizing`, JSON.stringify(layout));
+  await phoneShot(`compact-categories-${name}`);
+  for (const category of ['projects','themes','organizations','opportunities','people']) {
+    const point = await evaluate(`(() => { const el=document.querySelector('[data-resource="${category}"]'); const r=el.getBoundingClientRect(); return {x:r.x+r.width/2,y:r.y+r.height/2,visible:document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('[data-resource]')===el}; })()`);
+    check(point.visible, `${name}: ${category} category is unobstructed`);
+    await send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:point.x,y:point.y}]});
+    await send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+    await sleep(200);
+    check(await evaluate(`document.querySelector('[data-resource="${category}"]').classList.contains('active')`), `${name}: tapping ${category} selects it`);
+  }
+}
 const NETWORK_BEFORE = [
   ['Dana (fixture)', 'Direct connection'], ['Sam (fixture)', 'Direct connection'],
   ['Eli (fixture)', 'Connection request'], ['Jordan (fixture)', 'Connection request'],
@@ -282,11 +310,12 @@ try {
   await send('Fetch.enable', { patterns: [{ urlPattern: '*' }] });
   await send('Page.addScriptToEvaluateOnNewDocument', { source: boot });
 
-  for (const name of ['phone', 'desktop']) {
+  for (const name of process.env.EXPLORE_LAYOUT_ONLY ? [] : ['phone', 'desktop']) {
     console.log(`\nExplore and Network people, ${name} (${VIEWPORTS[name].width}×${VIEWPORTS[name].height})`);
     await loadHome('established', VIEWPORTS[name]);
     await openPage('explore');
     await waitFor(`[...document.querySelectorAll('#udc-resource-list .udc-resource-name')].some(n => /^Ana /.test(n.textContent))`, 'directory', 10000).catch(() => {});
+    if (name === 'phone') await compactLayout(name);
     const explore = await peopleList();
     const byName = new Map(explore.rows.map(row => [row.name, row.meta]));
     const names = explore.rows.map(row => row.name);
@@ -466,6 +495,12 @@ try {
       `${name}: search never offers themes`, searchText.slice(0, 300));
     await evaluate(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); true`);
     await sleep(400);
+  }
+  VIEWPORTS['narrow-phone'] = {width:320,height:667,mobile:true,top:20,bottom:0};
+  for (const name of (process.env.EXPLORE_LAYOUT_ONLY ? ['phone','small-phone','large-phone','tablet','narrow-phone'] : ['small-phone','large-phone','tablet','narrow-phone'])) {
+    await loadHome('established', VIEWPORTS[name]);
+    await openPage('explore');
+    await compactLayout(name);
   }
 } catch (error) {
   check(false, 'Run aborted', error.message);
