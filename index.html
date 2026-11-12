@@ -45,7 +45,7 @@
 <link rel="stylesheet" href="assets/css/admin-panel.css?v=admin-layout-20261112" />
 
 <!-- Login styles (must be last to override others) -->
-<link rel="stylesheet" href="assets/css/login/login.css?v=2" />
+<link rel="stylesheet" href="assets/css/login/login.css?v=value-preview-20261112" />
 
 <link
   rel="stylesheet"
@@ -76,14 +76,15 @@
       <h1 class="ie-login-title">BUILDSPACE</h1>
       <p class="ie-login-supporting">Connect with people, projects, and opportunities in Charleston’s innovation community.</p>
 
-      <ul class="ie-login-benefits" aria-label="What you can do in Buildspace">
-        <li><i class="fas fa-users" aria-hidden="true"></i><span>Find people with complementary skills</span></li>
-        <li><i class="fas fa-project-diagram" aria-hidden="true"></i><span>Discover projects and opportunities</span></li>
-        <li><i class="fas fa-compass" aria-hidden="true"></i><span>See where you can contribute next</span></li>
-      </ul>
+      <section class="ie-login-preview" aria-labelledby="login-preview-title">
+        <p class="ie-login-preview-label">Illustrative example</p>
+        <h2 id="login-preview-title">Help map local flood risks</h2>
+        <p>A community project needs Python and mapping skills.</p>
+        <p class="ie-login-preview-match">If you list Python, you could help.</p>
+      </section>
 
       <div class="ie-login-module">
-        <div class="ie-login-module-label">Choose how to continue</div>
+        <div class="ie-login-module-label">Sign in to explore your community</div>
 
         <div class="ie-oauth-buttons">
           <button id="github-login" class="ie-oauth-btn ie-oauth-btn--github" type="button">
