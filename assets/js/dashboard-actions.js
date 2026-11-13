@@ -2630,7 +2630,7 @@ async function loadProjectsList() {
             </div>
             
             <div class="admin-project-theme-controls" style="display: flex; gap: 0.75rem; align-items: center;">
-              <select aria-label="Theme for ${window.escapeHtml?.(project.name) || 'project'}" id="theme-select-${project.id}" style="flex: 1; padding: 0.5rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; color: #fff; font-size: 0.9rem;">
+              <select id="theme-select-${project.id}" style="flex: 1; padding: 0.5rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; color: #fff; font-size: 0.9rem;">
                 <option value="">Select a theme...</option>
                 ${themes.map(theme => `
                   <option value="${theme.id}" ${theme.id === project.theme_id ? 'selected' : ''}>
@@ -2657,6 +2657,12 @@ async function loadProjectsList() {
     });
     html += '</div>';
     listEl.innerHTML = html;
+    // Project names are text, not attribute markup: preserve quotes literally.
+    for (const project of projects) {
+      document.getElementById(`theme-select-${project.id}`)?.setAttribute(
+        'aria-label', `Theme for ${project.name || 'project'}`
+      );
+    }
   } catch (error) {
     console.error('Error loading projects:', error);
     listEl.innerHTML = '<p style="color: #ff6b6b;">Error loading projects</p>';

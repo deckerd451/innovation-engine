@@ -26,7 +26,7 @@ async function tap(selector) {
 }
 try {
   await app.load(390,600);
-  await run(`window.currentAuthUser={id:'auth-me',email:'dmhamilton1@live.com'};window.__originalRpc=window.supabase.rpc.bind(window.supabase);window.supabase.rpc=(name,args)=>name==='get_admin_site_visits'?(window.__visitorArgs=args,Promise.resolve({data:{visits:args.p_days,browsers:0,guests:0,members:0,recent:[]},error:null})):window.__originalRpc(name,args);window.supabase.__db.theme_circles=[{id:'theme-long',title:'A very long theme name for a community project and collaboration workshop',status:'active'}];window.supabase.__db.projects.forEach((p,i)=>{p.name='LongProjectNameWithoutAnySpaces'.repeat(4);p.description='A long project description for layout verification. '.repeat(8);p.theme_id=i===0?'theme-long':null;});window.openAdminPanel();true`);
+  await run(`window.currentAuthUser={id:'auth-me',email:'dmhamilton1@live.com'};window.__originalRpc=window.supabase.rpc.bind(window.supabase);window.supabase.rpc=(name,args)=>name==='get_admin_site_visits'?(window.__visitorArgs=args,Promise.resolve({data:{visits:args.p_days,browsers:0,guests:0,members:0,recent:[]},error:null})):window.__originalRpc(name,args);window.supabase.__db.theme_circles=[{id:'theme-long',title:'A very long theme name for a community project and collaboration workshop',status:'active'}];window.supabase.__db.projects.forEach((p,i)=>{p.name='LongProjectNameWithoutAnySpaces'.repeat(4)+(i===0?' \" onpointerenter=\"window.__projectLabelInjected=true':'');p.description='A long project description for layout verification. '.repeat(8);p.theme_id=i===0?'theme-long':null;});window.openAdminPanel();true`);
   await wait('document.querySelector("#admin-panel")','Admin');
   for(const [width,height] of [[320,568],[390,600],[430,844]]) {
     await app.send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:true});await sleep(200);
@@ -36,6 +36,7 @@ try {
     await tap('#resource-mgmt-dropdown [data-tab="projects"]');
     check(await run(`document.querySelector('[data-tab="projects"]').classList.contains('active-admin-tab')`),'Projects opens through Manage');
     await wait('document.querySelector(".admin-project-card")','Project cards');
+    check(await run(`(() => {const project=window.supabase.__db.projects[0],el=document.getElementById('theme-select-'+project.id);el.dispatchEvent(new Event('pointerenter'));return el.getAttribute('aria-label')==='Theme for '+project.name&&!el.hasAttribute('onpointerenter')&&!window.__projectLabelInjected;})()`),'Quoted project name remains label text and cannot inject an event handler');
     check(await run(`(() => {const content=document.querySelector('#admin-tab-content'),bounds=content.getBoundingClientRect();return [...document.querySelectorAll('.admin-project-card,.admin-project-theme-controls select,.admin-project-theme-controls button')].every(el=>{const r=el.getBoundingClientRect();return r.left>=bounds.left-1&&r.right<=bounds.right+1;})&&content.scrollWidth<=content.clientWidth;})()`),'Long project text, selects, Assign and Remove fit without clipping');
     check(await run(`getComputedStyle(document.querySelector('.admin-project-theme-controls')).flexDirection==='column'`),'Theme actions stack vertically on phones');
     await tap('.admin-main-tabs > [data-tab="privacy"]');
