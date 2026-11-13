@@ -94,4 +94,15 @@ for f in \
   "${PSQL[@]}" -d ie_unconnected -f "$ROOT/$f" >/dev/null
 done
 echo "   ok (including rollback)"
+echo "Claim-email authorization, eligibility, throttling and rollback"
+"${PSQL[@]}" -d postgres -c "CREATE DATABASE ie_claim_email" >/dev/null
+for f in \
+  scripts/tests/fixtures/site-visits-bootstrap.sql \
+  scripts/tests/fixtures/admin-claim-email-bootstrap.sql \
+  supabase/sql/migrations/20261113b_admin_claim_email.sql \
+  scripts/tests/admin-claim-email-db.sql \
+  supabase/sql/rollback/20261113b_admin_claim_email_rollback.sql; do
+  "${PSQL[@]}" -d ie_claim_email -f "$ROOT/$f" >/dev/null
+done
+echo "   ok (including rollback)"
 echo "database checks passed"

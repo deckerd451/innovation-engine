@@ -481,3 +481,21 @@ export async function getEmailsForPeople(ids) {
 }
 
 console.log('✅ Admin People Service Loaded');
+
+/** Submit profile IDs only. Eligibility, addresses and limits live on the server. */
+export async function sendClaimEmails(ids) {
+  const unique=[...new Set(ids)];
+  const results=[];
+  for(let offset=0;offset<unique.length;offset+=20) {
+    const batch=unique.slice(offset,offset+20);
+    try {
+      const {data,error}=await window.supabase.functions.invoke('send-claim-emails',{body:{person_ids:batch}});
+      if(error||!Array.isArray(data?.results))throw Error('Claim email service is unavailable. Check function deployment and admin access.');
+      results.push(...data.results);
+    } catch {
+      results.push(...unique.slice(offset).map(person_id=>({person_id,status:'failed',code:'service_unavailable'})));
+      break; // Never silently retry a request that might already have sent mail.
+    }
+  }
+  return results;
+}

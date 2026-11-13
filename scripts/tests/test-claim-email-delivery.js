@@ -1,0 +1,30 @@
+#!/usr/bin/env node
+const assert=require('node:assert/strict');
+(async()=>{
+ const {createClaimEmailHandler}=await import('../../supabase/functions/send-claim-emails/handler.mjs');
+ const {completeEmailClaim}=await import('../../assets/js/claim-email-completion.mjs');
+ const ids=['20000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000002'];
+ let auth=true,denied=false,provider='ok',reserved=[],sent=[],finished=[];
+ const handler=createClaimEmailHandler({origin:'https://deckerd451.github.io',authenticate:async()=>auth?{id:'admin'}:null,reserve:async()=>{if(denied)throw {code:'42501'};return reserved;},send:async email=>{sent.push(email);if(provider==='throw')throw Error('offline');return {error:provider==='ok'?null:{code:'over_email_send_rate_limit'}};},finish:async(...args)=>finished.push(args)});
+ const request=(body={person_ids:ids},headers={})=>new Request('https://functions.example.test/send',{method:'POST',headers:{Authorization:'Bearer test','Origin':'https://deckerd451.github.io',...headers},body:JSON.stringify(body)});
+ auth=false;assert.equal((await handler(request())).status,401);assert.equal(sent.length,0);
+ auth=true;denied=true;assert.equal((await handler(request())).status,403);assert.equal(sent.length,0);denied=false;
+ assert.equal((await handler(request({}, {Origin:'https://evil.example.test'}))).status,403);
+ assert.equal((await handler(request({person_ids:ids,email:'attacker@example.test'}))).status,400);
+ assert.equal((await handler(request({person_ids:Array(21).fill(ids[0])}))).status,400);
+ reserved=[{person_id:ids[0],request_id:'receipt',email:'verified@example.test',status:'reserved'},{person_id:ids[1],status:'already_claimed'}];
+ let result=await(await handler(request())).json();assert.equal(result.results[0].status,'accepted');assert.equal(result.results[1].status,'already_claimed');assert.deepEqual(sent,['verified@example.test']);assert.equal(finished[0][1],true);assert.ok(!JSON.stringify(result).includes('verified@example.test'));
+ provider='error';result=await(await handler(request())).json();assert.equal(result.results[0].status,'failed');assert.equal(result.results[0].code,'provider_rate_limited');assert.equal(finished.at(-1)[1],false);
+ provider='throw';result=await(await handler(request())).json();assert.equal(result.results[0].status,'failed');
+ let cleared=false,sessionCalled=0,claimed=0;
+ const client={auth:{setSession:async tokens=>{assert.ok(cleared);assert.deepEqual(tokens,{access_token:'access',refresh_token:'refresh'});sessionCalled++;return {error:null};}},rpc:async name=>{assert.equal(name,'claim_community_profile_by_email');claimed++;return {data:'profile-id',error:null};}};
+ assert.equal(await completeEmailClaim({url:new URL('https://deckerd451.github.io/innovation-engine/claim.html#access_token=access&refresh_token=refresh'),client,clearUrl:()=>{cleared=true;}}),'profile-id');assert.equal(claimed,1);
+ await assert.rejects(completeEmailClaim({url:new URL('https://deckerd451.github.io/innovation-engine/claim.html'),client,clearUrl:()=>{}}),/missing or expired/);assert.equal(sessionCalled,1);
+ await assert.rejects(completeEmailClaim({url:new URL('https://deckerd451.github.io/innovation-engine/claim.html#access_token=access&refresh_token=refresh'),client:{auth:{setSession:async()=>({error:{message:'bad'}})},rpc:async()=>{throw Error('must not claim');}},clearUrl:()=>{}}),/could not be verified/);
+ global.window={supabase:{functions:{invoke:async(name,{body})=>{assert.equal(name,'send-claim-emails');return {data:{results:body.person_ids.map(person_id=>({person_id,status:'accepted'}))},error:null};}}}};
+ const {sendClaimEmails}=await import('../../assets/js/adminPeopleService.js');
+ assert.equal((await sendClaimEmails(Array.from({length:45},(_,i)=>String(i)))).length,45);
+ let calls=0;window.supabase.functions.invoke=async(name,{body})=>{calls++;return calls===1?{data:{results:body.person_ids.map(person_id=>({person_id,status:'accepted'}))}}:{error:{message:'offline'}};};
+ result=await sendClaimEmails(Array.from({length:45},(_,i)=>String(i)));assert.equal(calls,2);assert.equal(result.filter(r=>r.status==='accepted').length,20);assert.equal(result.filter(r=>r.status==='failed').length,25);
+ console.log('Claim email authorization, delivery outcomes, callback and partial bulk regressions passed');
+})().catch(error=>{console.error(error);process.exitCode=1;});

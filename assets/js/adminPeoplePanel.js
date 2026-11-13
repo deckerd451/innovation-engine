@@ -15,8 +15,8 @@ import {
   deletePerson,
   createPerson,
   getClaimStats,
-  getEmailsForPeople
-} from './adminPeopleService.js?v=email-lock-20261029';
+  sendClaimEmails
+} from './adminPeopleService.js?v=claim-email-20261113';
 import { getCardAvatarUrl } from './avatar-utils.js';
 
 // Escape user-supplied content before injecting into innerHTML
@@ -606,7 +606,7 @@ function renderTableRow(person) {
               <i class="fas fa-user-edit" style="width: 20px; color: #00e0ff;"></i> Edit Profile
             </button>
             ${!person.user_id ? `
-            <button onclick="handleSendClaimEmailSingle('${person.id}')" style="display: block; width: 100%; padding: 0.6rem 1rem; background: none; border: none; color: white; text-align: left; cursor: pointer; font-size: 0.85rem; white-space: nowrap;" onmouseover="this.style.background='rgba(168,85,247,0.1)'" onmouseout="this.style.background='none'">
+            <button onclick="handleSendClaimEmailSingle('${person.id}', this)" style="display: block; width: 100%; padding: 0.6rem 1rem; background: none; border: none; color: white; text-align: left; cursor: pointer; font-size: 0.85rem; white-space: nowrap;" onmouseover="this.style.background='rgba(168,85,247,0.1)'" onmouseout="this.style.background='none'">
               <i class="fas fa-envelope" style="width: 20px; color: #a855f7;"></i> Send Claim Email
             </button>
             <button onclick="handleCopyClaimLink('${person.id}')" style="display: block; width: 100%; padding: 0.6rem 1rem; background: none; border: none; color: white; text-align: left; cursor: pointer; font-size: 0.85rem; white-space: nowrap;" onmouseover="this.style.background='rgba(168,85,247,0.1)'" onmouseout="this.style.background='none'">
@@ -1021,7 +1021,7 @@ function renderPersonDrawer(person) {
         ${!person.user_id ? `
         <!-- Claim Actions (unclaimed users only) -->
         <div style="display: flex; gap: 0.75rem; padding-top: 0.75rem;">
-          <button type="button" onclick="handleSendClaimEmailSingle('${person.id}')" style="flex: 1; padding: 0.6rem; background: rgba(168,85,247,0.15); border: 1px solid rgba(168,85,247,0.4); border-radius: 8px; color: #a855f7; font-weight: 600; cursor: pointer; font-size: 0.85rem;">
+          <button type="button" onclick="handleSendClaimEmailSingle('${person.id}', this)" style="flex: 1; padding: 0.6rem; background: rgba(168,85,247,0.15); border: 1px solid rgba(168,85,247,0.4); border-radius: 8px; color: #a855f7; font-weight: 600; cursor: pointer; font-size: 0.85rem;">
             <i class="fas fa-envelope"></i> Send Claim Email
           </button>
           <button type="button" onclick="handleCopyClaimLink('${person.id}')" style="flex: 1; padding: 0.6rem; background: rgba(168,85,247,0.15); border: 1px solid rgba(168,85,247,0.4); border-radius: 8px; color: #a855f7; font-weight: 600; cursor: pointer; font-size: 0.85rem;">
@@ -1212,67 +1212,64 @@ async function loadClaimStats() {
 /**
  * Handle bulk send claim email
  */
-async function handleBulkSendClaimEmail() {
-  const ids = Array.from(state.selectedIds);
-  if (ids.length === 0) return;
-
-  const { data: people, error } = await getEmailsForPeople(ids);
-  if (error) {
-    window.showToast?.('Failed to fetch selected users', 'error');
-    return;
+let claimEmailBusy = false;
+const claimEmailReasons = {
+  already_claimed: 'already claimed', disabled: 'disabled account', missing_email: 'missing or invalid email',
+  ambiguous_email: 'multiple profiles share this email; resolve duplicates first',
+  not_found: 'profile no longer exists', rate_limited: 'resend limit reached; try later',
+  failed: 'email service did not confirm acceptance; check deployment, SMTP and rate limits'
+};
+async function submitClaimEmails(ids) {
+  const results=await sendClaimEmails(ids);
+  const accepted=results.filter(row=>row.status==='accepted');
+  const summary=[`${accepted.length} of ${ids.length} email requests confirmed accepted. Inbox delivery is not guaranteed.`];
+  const skipped = new Map();
+  for(const row of results) {
+    if(row.status==='accepted') { state.selectedIds.delete(row.person_id); continue; }
+    skipped.set(row.status, (skipped.get(row.status) || 0) + 1);
   }
-
-  // Filter to unclaimed only (user_id would be null — we only have email/name from this query)
-  const emails = people.filter(p => p.email).map(p => p.email);
-
-  if (emails.length === 0) {
-    window.showToast?.('No valid emails found in selection', 'warning');
-    return;
-  }
-
-  const confirmed = confirm(
-    `Send claim email to ${emails.length} user(s)?\n\nEmails:\n${emails.slice(0, 10).join('\n')}${emails.length > 10 ? `\n...and ${emails.length - 10} more` : ''}`
-  );
-  if (!confirmed) return;
-
-  // STUB: In production, this would call a backend email service or edge function.
-  // For now, log the emails and show a success message.
-  console.log('📧 [CLAIM-EMAIL] Sending claim emails to:', emails);
-  console.log('📧 [CLAIM-EMAIL] Payload:', people.map(p => ({ id: p.id, email: p.email, name: p.name })));
-
-  window.showToast?.(`Claim email queued for ${emails.length} user(s)`, 'success');
-
-  // Clear selection
-  state.selectedIds.clear();
+  for (const [reason, count] of skipped) summary.push(`${count}: ${claimEmailReasons[reason] || 'not sent'}.`);
+  // Plain text, never HTML; keep failures selected so the admin can review them.
+  let output=document.getElementById('claim-email-status');
+  if(!output) { output=document.createElement('p');output.id='claim-email-status';output.setAttribute('role','status'); }
+  const drawer=document.getElementById('person-drawer');
+  const host=drawer&&drawer.style.display!=='none'?drawer:document.querySelector('.admin-people-panel');
+  if (host && output.parentElement!==host) host.prepend(output);
+  output.textContent=summary.join(' ');
+  output.scrollIntoView({block:'nearest'});
+  window.showToast?.(summary[0], accepted.length===ids.length?'success':'warning');
+  document.querySelectorAll('.person-checkbox').forEach(box=>{box.checked=state.selectedIds.has(box.dataset.personId);});
   updateBulkActionBar();
 }
+async function handleBulkSendClaimEmail() {
+  if(claimEmailBusy)return;
+  const ids=Array.from(state.selectedIds);
+  if(!ids.length)return;
+  if(!confirm(`Request claim emails for ${ids.length} selected profiles? Claimed, disabled and ineligible profiles will be skipped.`))return;
+  claimEmailBusy=true;
+  const button=document.getElementById('bulk-claim-email-btn');
+  if(button)button.disabled=true;
+  try { await submitClaimEmails(ids); }
+  finally { claimEmailBusy=false;if(button?.isConnected)button.disabled=false; }
+}
 
-/**
- * Send claim email for a single person (per-row action)
- */
-async function handleSendClaimEmailSingle(personId) {
-  const { data: person, error } = await getPerson(personId);
-  if (error || !person) {
-    window.showToast?.('Failed to load person', 'error');
-    return;
+/** Request a real Auth email for one eligible profile. */
+async function handleSendClaimEmailSingle(personId, button = null) {
+  if(claimEmailBusy)return;
+  claimEmailBusy=true;
+  const original = button ? [...button.childNodes].map(node=>node.cloneNode(true)) : [];
+  if (button) { button.disabled=true; button.textContent='Sending…'; }
+  try {
+    const {data:person,error}=await getPerson(personId);
+    if(error||!person) {window.showToast?.('Could not load this profile','error');return;}
+    if(person.user_id) {window.showToast?.('This account is already claimed','info');return;}
+    if(!person.email) {window.showToast?.('No email address for this profile','warning');return;}
+    if(!confirm(`Send a claim email to ${person.email}?`))return;
+    await submitClaimEmails([personId]);
+  } finally {
+    claimEmailBusy=false;
+    if (button?.isConnected) {button.disabled=false;button.replaceChildren(...original);}
   }
-
-  if (!person.email) {
-    window.showToast?.('No email address for this user', 'warning');
-    return;
-  }
-
-  if (person.user_id) {
-    window.showToast?.('This account is already claimed', 'info');
-    return;
-  }
-
-  const confirmed = confirm(`Send claim email to ${person.email}?`);
-  if (!confirmed) return;
-
-  // STUB: Would call backend email service
-  console.log('📧 [CLAIM-EMAIL] Sending claim email to:', person.email);
-  window.showToast?.(`Claim email queued for ${person.email}`, 'success');
 }
 
 /**

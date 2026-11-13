@@ -1,0 +1,6 @@
+project_id = "innovation-engine"
+
+# Authentication is verified by auth.getUser and an admin-only database RPC.
+# This supports both legacy and newer Supabase JWT signing configurations.
+[functions.send-claim-emails]
+verify_jwt = false
