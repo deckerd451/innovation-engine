@@ -167,3 +167,8 @@ admin-only entry from You, real taps at 390×844 and 390×600, focus restoration
 and rechecking permission on a stale button. It uses synthetic identities and
 the existing desktop admin predicate; production database authorization is
 unchanged. This focused browser check is runnable locally, not a separate CI job.
+
+`CHROME_PATH=... node scripts/tests/browser/run-mobile-admin-layout.mjs`
+checks the one-row Admin destinations at 320/390/430px, 44px tap heights,
+Manage dropdown placement, real touch activation, content scrolling and the
+unchanged desktop layout. It runs locally with synthetic visitor counts.
