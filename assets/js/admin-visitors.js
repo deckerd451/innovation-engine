@@ -2,7 +2,7 @@ import { BROWSER_KEY } from './site-visits-core.mjs';
 export async function renderVisitors(container, openAnalytics) {
   container.innerHTML = `<section class="admin-visitors"><h2>Visitors</h2>
     <p>Visits to the main Innovation Engine app, including guests and signed-in members.</p>
-    <div class="visitor-controls"><label>Period <select id="visitor-period"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option></select></label>
+    <div class="visitor-controls"><label>Period <select id="visitor-period"><option value="1">Last 24 hours</option><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option></select></label>
     <label><input type="checkbox" id="visitor-self"> Include my visits</label><button id="visitor-refresh">Refresh</button></div>
     <p class="visitor-self-note">Your visits are excluded unless you choose to include them.</p>
     <div id="visitor-result" aria-live="polite"></div>
