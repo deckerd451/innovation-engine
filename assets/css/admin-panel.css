@@ -739,7 +739,47 @@
 .admin-visitors .visitor-metrics > div { padding: .85rem; }
 @media (max-width: 720px) {
   #admin-panel { padding: .75rem !important; }
-  #admin-panel .admin-resource-menu-list { top: 7rem !important; }
+  /* Keep all four destinations in one row without shrinking tap targets. */
+  #admin-panel .admin-main-tabs {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: .25rem !important;
+    align-items: stretch !important;
+  }
+  #admin-panel .admin-main-tabs > .admin-tab,
+  #admin-panel .admin-resource-menu-btn {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    padding: .5rem .2rem !important;
+    font-size: .82rem !important;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .2rem !important;
+  }
+  #admin-panel .admin-resource-menu { min-width: 0; }
+  #admin-panel .admin-main-tabs > .admin-tab > i,
+  #admin-panel .admin-resource-menu-btn > .fa-tasks { display: none; }
+  #admin-panel .admin-resource-menu-list {
+    position: absolute !important;
+    top: 100% !important;
+    left: auto !important;
+    right: 0 !important;
+    width: min(220px, calc(100vw - 2rem)) !important;
+    max-height: min(55vh, 320px);
+    overflow-y: auto;
+  }
+  #admin-panel .visitor-controls { gap: .5rem .75rem; }
+  #admin-panel .visitor-controls > label {
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+    min-height: 44px;
+  }
+  #admin-panel .visitor-metrics { gap: .6rem; }
+  #admin-panel .visitor-metrics > div { padding: .7rem; }
 }
 #admin-panel *, #admin-panel *::before, #admin-panel *::after { box-sizing: border-box; }
 #admin-panel td, #admin-panel .admin-privacy-name-secondary { overflow-wrap: anywhere; }
