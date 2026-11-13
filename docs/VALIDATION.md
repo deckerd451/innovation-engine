@@ -159,3 +159,11 @@ These checks do not certify WCAG conformance. Real VoiceOver/Safari,
 actual browser zoom, production authentication, database setup and delivery
 still need separate verification. A zero visitor total alone does not prove
 that production collection is configured or receiving visits.
+
+## Mobile Admin entry
+
+`CHROME_PATH=... node scripts/tests/browser/run-mobile-admin.mjs` verifies
+admin-only entry from You, real taps at 390×844 and 390×600, focus restoration,
+and rechecking permission on a stale button. It uses synthetic identities and
+the existing desktop admin predicate; production database authorization is
+unchanged. This focused browser check is runnable locally, not a separate CI job.
