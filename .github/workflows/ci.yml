@@ -43,6 +43,10 @@ jobs:
         env:
           CHROME_PATH: google-chrome
         run: npm run test:a11y
+      - name: Admin member review journey (synthetic accounts)
+        env:
+          CHROME_PATH: google-chrome
+        run: npm run test:admin-review
 
   db-authz:
     name: db-authz

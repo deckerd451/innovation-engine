@@ -1226,8 +1226,7 @@ function openAdminPanel() {
   window.A11yDialog?.open(panel, {initialFocus:'.admin-close-btn'});
 
   // Wire up tabs
-  panel.querySelectorAll('.admin-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
+  function activateAdminTab(tab, personId = null) {
       panel.querySelectorAll('.admin-tab').forEach(t => {
         t.style.background = 'transparent';
         t.style.borderBottomColor = 'transparent';
@@ -1240,13 +1239,18 @@ function openAdminPanel() {
       tab.classList.add('active-admin-tab');
 
       const tabName = tab.dataset.tab;
-      loadAdminTabContent(tabName);
+      loadAdminTabContent(tabName, personId);
       
       // Close dropdown after selection
       const dropdown = document.getElementById('resource-mgmt-dropdown');
       if (dropdown) dropdown.style.display = 'none';
-    });
-  });
+  }
+  panel.querySelectorAll('.admin-tab').forEach(tab => tab.addEventListener('click', () => activateAdminTab(tab)));
+  window.openAdminPersonFromAnalytics = personId => {
+    if (!panel.isConnected || window.isAdminUser?.() !== true || !window.AdminPeoplePanel?.renderPeoplePanel) return false;
+    activateAdminTab(panel.querySelector('[data-tab="manage"]'), personId);
+    return true;
+  };
   
   // Wire up Resource Management dropdown
   const dropdownBtn = document.getElementById('resource-mgmt-dropdown-btn');
@@ -1270,7 +1274,7 @@ function openAdminPanel() {
   loadAdminTabContent('visitors');
 }
 
-function loadAdminTabContent(tabName) {
+function loadAdminTabContent(tabName, personId = null) {
   const content = document.getElementById('admin-tab-content');
   if (!content) return;
 
@@ -1296,7 +1300,7 @@ function loadAdminTabContent(tabName) {
     const checkModule = setInterval(() => {
       if (typeof window.AdminPeoplePanel !== 'undefined' && typeof window.AdminPeoplePanel.renderPeoplePanel === 'function') {
         clearInterval(checkModule);
-        if (content.isConnected && content.dataset.activeTab === 'manage') window.AdminPeoplePanel.renderPeoplePanel(content);
+        if (content.isConnected && content.dataset.activeTab === 'manage') window.AdminPeoplePanel.renderPeoplePanel(content, {personId});
       }
     }, 100);
     
@@ -1560,7 +1564,7 @@ _toast('ℹ️ Unified network is not currently active. Enable it and reload to 
         analyticsBtn.disabled = true;
         try {
           if (typeof window.openAnalyticsModal !== 'function') {
-            await import('./admin-analytics.js?v=analytics-overlay-20261113');
+            await import('./admin-analytics.js?v=review-members-20261113');
           }
           if (typeof window.openAnalyticsModal !== 'function') {
             throw new Error('Canonical analytics module did not initialize');

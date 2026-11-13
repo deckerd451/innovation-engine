@@ -187,3 +187,8 @@ synthetic aggregate RPC results. It checks loading and rendered Analytics above
 Admin, reachable Close controls, scrolling and focus return at 320/390/1280px,
 plus RPC failure and retry. No production analytics data is requested and no
 backend authorization rule changes.
+
+Admin follow-up now runs `npm run test:admin-review` in the unit CI job and
+includes database permission/pagination coverage in `npm run test:db`.
+See [Admin member review](ADMIN_MEMBER_REVIEW.md) for the required production
+migration, count eligibility and rollback order.

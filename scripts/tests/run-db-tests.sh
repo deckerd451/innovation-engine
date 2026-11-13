@@ -83,4 +83,15 @@ for f in \
 done
 echo "   ok (including rollback)"
 
+echo "Admin unconnected-member review permissions and pagination"
+"${PSQL[@]}" -d postgres -c "CREATE DATABASE ie_unconnected" >/dev/null
+for f in \
+  scripts/tests/fixtures/site-visits-bootstrap.sql \
+  scripts/tests/fixtures/admin-unconnected-bootstrap.sql \
+  supabase/sql/migrations/20261113_admin_unconnected_review.sql \
+  scripts/tests/admin-unconnected-db.sql \
+  supabase/sql/rollback/20261113_admin_unconnected_review_rollback.sql; do
+  "${PSQL[@]}" -d ie_unconnected -f "$ROOT/$f" >/dev/null
+done
+echo "   ok (including rollback)"
 echo "database checks passed"

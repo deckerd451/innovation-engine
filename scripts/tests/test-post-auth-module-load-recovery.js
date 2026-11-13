@@ -61,7 +61,7 @@ const clickHandlerMatch = afterBtn.match(/analyticsBtn\.addEventListener\('click
 assert.ok(clickHandlerMatch, 'the Open Analytics Dashboard click handler must be present');
 const handler = clickHandlerMatch[0];
 
-assert.match(handler, /await import\('\.\/admin-analytics\.js\?v=analytics-overlay-20261113'\)/,
+assert.match(handler, /await import\('\.\/admin-analytics\.js\?v=review-members-20261113'\)/,
   'the click must await the same canonical module URL registered by the post-auth loader');
 assert.match(handler, /typeof window\.openAnalyticsModal !== 'function'[\s\S]*throw new Error/,
   'the click must verify canonical Analytics initialized before changing panel lifecycle');
@@ -75,7 +75,7 @@ assert.doesNotMatch(handler, /try the button again in a moment|still loading/,
 // Later releases of dashboard-actions.js keep the repaired lifecycle and
 // carry their own cache-buster (membership-authz-xss-20261014: join requests
 // and safe rendering; skills-replace-themes-20261027: no admin Themes tab; later shell tags carry it).
-assert.match(html, /dashboard-actions\.js\?v=analytics-overlay-20261113/,
+assert.match(html, /dashboard-actions\.js\?v=review-members-20261113/,
   'the production entry script must carry a cache-buster for the repaired lifecycle');
 
 console.log('✅ test-post-auth-module-load-recovery passed');
