@@ -1560,15 +1560,14 @@ _toast('ℹ️ Unified network is not currently active. Enable it and reload to 
         analyticsBtn.disabled = true;
         try {
           if (typeof window.openAnalyticsModal !== 'function') {
-            await import('./admin-analytics.js?v=admin-analytics-rpc-await-20260822b');
+            await import('./admin-analytics.js?v=analytics-overlay-20261113');
           }
           if (typeof window.openAnalyticsModal !== 'function') {
             throw new Error('Canonical analytics module did not initialize');
           }
 
-          const adminPanel = document.getElementById('admin-panel');
-          if (adminPanel) adminPanel.remove();
           await window.openAnalyticsModal();
+          analyticsBtn.disabled = false;
         } catch (error) {
           console.error('❌ Analytics dashboard failed to open:', error);
           _toast('Analytics could not be opened. Please try again.');

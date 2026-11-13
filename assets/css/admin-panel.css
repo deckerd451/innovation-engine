@@ -800,3 +800,21 @@
   .admin-project-theme-controls button, .admin-project-header button,
   .admin-project-theme-controls select { min-height: 44px; }
 }
+
+/* Analytics is a nested dialog above Admin, with one scrollable content pane. */
+#admin-analytics-modal { height: 100dvh !important; padding: 1rem; }
+#admin-analytics-modal .admin-analytics-frame {
+  display: grid; grid-template-rows: auto minmax(0, 1fr);
+  width: min(1200px, 100%) !important; max-width: 100% !important;
+  max-height: 100% !important; min-height: 0;
+  padding: 1rem !important; overflow: hidden !important;
+}
+.admin-analytics-toolbar { display: flex; justify-content: flex-end; padding-bottom: .5rem; }
+.admin-analytics-toolbar .admin-analytics-close { width: 44px; height: 44px; flex-shrink: 0; }
+.admin-analytics-scroll { overflow-y: auto; overflow-x: hidden; min-width: 0; min-height: 0; overscroll-behavior: contain; }
+@media (max-width: 720px) {
+  #admin-analytics-modal {
+    padding: max(.5rem, env(safe-area-inset-top)) max(.5rem, env(safe-area-inset-right)) max(.5rem, env(safe-area-inset-bottom)) max(.5rem, env(safe-area-inset-left)) !important;
+  }
+  #admin-analytics-modal .admin-analytics-frame { padding: .75rem !important; }
+}
