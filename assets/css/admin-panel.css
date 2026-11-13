@@ -818,3 +818,11 @@
   }
   #admin-analytics-modal .admin-analytics-frame { padding: .75rem !important; }
 }
+
+.admin-review-members { list-style: none; padding: 0; }
+.admin-review-members li { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; padding: .75rem 0; border-bottom: 1px solid var(--admin-border); }
+.admin-review-members li > div { flex: 1 1 180px; min-width: 0; overflow-wrap: anywhere; }
+.admin-review-members p { margin: .35rem 0; color: var(--admin-text-muted); }
+.admin-review-controls { display: flex; flex-wrap: wrap; gap: .5rem; }
+#admin-review-unconnected, #admin-unconnected-review button { min-height: 44px; padding: .5rem .75rem; color: var(--admin-cyan); background: #10182a; border: 1px solid #347389; border-radius: 6px; font: inherit; cursor: pointer; }
+#admin-unconnected-review button:disabled { opacity: .55; cursor: default; }

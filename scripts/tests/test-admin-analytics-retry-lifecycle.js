@@ -30,8 +30,8 @@ assert.match(loadData, /const \{ data, error \} = await supabase\.rpc\('get_admi
 assert.match(loadData, /renderError\([\s\S]*retryable: !isAuthError/,
   'data failures must remain retryable while authorization failures stay fail-closed');
 
-assert.match(html, /admin-analytics\.js\?v=analytics-overlay-20261113/, 'post-auth loading must deploy the RPC await fix');
-assert.match(actions, /import\('\.\/admin-analytics\.js\?v=analytics-overlay-20261113'\)/,
+assert.match(html, /admin-analytics\.js\?v=review-members-20261113/, 'post-auth loading must deploy the RPC await fix');
+assert.match(actions, /import\('\.\/admin-analytics\.js\?v=review-members-20261113'\)/,
   'on-demand loading must use the identical canonical module URL');
 
 assert.match(analytics, /function closeAnalyticsModal\([\s\S]*analyticsModal\.style\.display = 'none'/,

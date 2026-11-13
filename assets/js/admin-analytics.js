@@ -1,3 +1,4 @@
+import { renderUnconnectedReview } from './admin-unconnected-review.js?v=20261113';
 // ================================================================
 // ADMIN ANALYTICS DASHBOARD
 // ================================================================
@@ -252,6 +253,7 @@ export function buildAdminPriorities(m) {
     priorities.push({
       tone: 'urgent',
       title: 'Connect isolated members',
+      actionKey: 'review-unconnected',
       evidence: `${isolatedMembers} member${isolatedMembers === 1 ? '' : 's'} have no connections${share == null ? '' : ` (${share}% of members)`}.`,
       action: 'Review the list below and introduce each person to a relevant connector or project.'
     });
@@ -483,6 +485,7 @@ function renderAnalyticsDashboard(metrics, retention) {
                   <div class="admin-priority-title">${esc(item.title)}</div>
                   <div class="admin-priority-evidence">${esc(item.evidence)}</div>
                   <div class="admin-priority-action"><b>Next:</b> ${esc(item.action)}</div>
+                  ${item.actionKey === 'review-unconnected' ? '<button type="button" id="admin-review-unconnected">Review members</button>' : ''}
                 </div>
               </li>
             `).join('')}
@@ -490,12 +493,13 @@ function renderAnalyticsDashboard(metrics, retention) {
         `}
       </div>
 
+      <section id="admin-unconnected-review" class="admin-panel-section" hidden></section>
       ${renderRetentionSection(retention)}
 
       <div class="admin-analytics-columns">
         <div class="admin-panel-section">
           <h3><i class="fas fa-exclamation-triangle" style="color:#ff6b6b"></i> Isolated Members (${metrics.isolated_members_count})</h3>
-          <p class="admin-panel-section-sub">Members with zero connections</p>
+          <p class="admin-panel-section-sub">Latest sample, up to 10 members. Use Review members above for the complete list.</p>
           ${isolated.length === 0 ? `
             <div class="admin-analytics-empty" style="padding:1.5rem;">
               <i class="fas fa-check-circle" style="color:#00ff88;"></i>
@@ -562,6 +566,9 @@ function renderAnalyticsDashboard(metrics, retention) {
       </div>
     </div>
   `);
+  analyticsModal.querySelector('#admin-review-unconnected')?.addEventListener('click', () => {
+    renderUnconnectedReview(analyticsModal.querySelector('#admin-unconnected-review'), Number(metrics.isolated_members_count) || 0);
+  });
 }
 
 // Close analytics modal

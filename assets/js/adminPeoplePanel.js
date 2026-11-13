@@ -54,7 +54,7 @@ let searchDebounceTimer = null;
  * Render the People Management panel
  * @param {HTMLElement} container - Container element
  */
-export function renderPeoplePanel(container) {
+export function renderPeoplePanel(container, {personId = null} = {}) {
   if (!container) return;
 
   // Opening the panel is a fresh management session. Keep the visible controls
@@ -248,6 +248,11 @@ export function renderPeoplePanel(container) {
   
   // Load claim stats
   loadClaimStats();
+  if (personId) {
+    openPersonDrawer(personId);
+    const drawer = document.getElementById('person-drawer');
+    if (drawer) { drawer.tabIndex = -1; drawer.focus(); }
+  }
 }
 
 /**
