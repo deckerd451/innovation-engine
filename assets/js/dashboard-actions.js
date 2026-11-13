@@ -1278,7 +1278,7 @@ function loadAdminTabContent(tabName) {
   content.scrollTop = 0;
   if (tabName === 'visitors') {
     content.textContent = 'Loading visitor overview…';
-    import('./admin-visitors.js?v=layout-20261112').then(({ renderVisitors }) => {
+    import('./admin-visitors.js?v=daily-20261113').then(({ renderVisitors }) => {
       if (content.isConnected && content.dataset.activeTab === 'visitors') {
         renderVisitors(content, () => loadAdminTabContent('analytics'));
       }
@@ -2598,14 +2598,14 @@ async function loadProjectsList() {
       return;
     }
 
-    let html = '<div style="display: grid; gap: 1rem;">';
+    let html = '<div class="admin-projects-grid" style="display: grid; gap: 1rem;">';
     projects.forEach(project => {
       const currentTheme = themes.find(t => t.id === project.theme_id);
       
       html += `
-        <div style="background: rgba(255,107,107,0.05); border: 1px solid rgba(255,107,107,0.2); border-radius: 8px; padding: 1rem;">
-          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
-            <div style="flex: 1;">
+        <div class="admin-project-card" style="background: rgba(255,107,107,0.05); border: 1px solid rgba(255,107,107,0.2); border-radius: 8px; padding: 1rem;">
+          <div class="admin-project-header" style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+            <div class="admin-project-summary" style="flex: 1;">
               <div style="color: #fff; font-weight: 600; font-size: 1rem; margin-bottom: 0.25rem;">${window.escapeHtml?.(project.name) || project.name || 'Untitled'}</div>
               <div style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-bottom: 0.5rem;">
                 Status: ${window.escapeHtml?.(project.status) || 'Unknown'}
@@ -2619,8 +2619,8 @@ async function loadProjectsList() {
           </div>
           
           <!-- Theme Assignment Section -->
-          <div style="background: rgba(0,0,0,0.2); border-radius: 6px; padding: 1rem; border-left: 3px solid #00e0ff;">
-            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.75rem;">
+          <div class="admin-project-theme" style="background: rgba(0,0,0,0.2); border-radius: 6px; padding: 1rem; border-left: 3px solid #00e0ff;">
+            <div class="admin-project-theme-heading" style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.75rem;">
               <div style="color: #00e0ff; font-weight: 600; font-size: 0.9rem;">
                 <i class="fas fa-bullseye"></i> Theme Assignment:
               </div>
@@ -2629,8 +2629,8 @@ async function loadProjectsList() {
               </div>
             </div>
             
-            <div style="display: flex; gap: 0.75rem; align-items: center;">
-              <select id="theme-select-${project.id}" style="flex: 1; padding: 0.5rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; color: #fff; font-size: 0.9rem;">
+            <div class="admin-project-theme-controls" style="display: flex; gap: 0.75rem; align-items: center;">
+              <select aria-label="Theme for ${window.escapeHtml?.(project.name) || 'project'}" id="theme-select-${project.id}" style="flex: 1; padding: 0.5rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; color: #fff; font-size: 0.9rem;">
                 <option value="">Select a theme...</option>
                 ${themes.map(theme => `
                   <option value="${theme.id}" ${theme.id === project.theme_id ? 'selected' : ''}>

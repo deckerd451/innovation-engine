@@ -783,3 +783,20 @@
 }
 #admin-panel *, #admin-panel *::before, #admin-panel *::after { box-sizing: border-box; }
 #admin-panel td, #admin-panel .admin-privacy-name-secondary { overflow-wrap: anywhere; }
+
+/* Grid/flex children must shrink before long project names or selects overflow. */
+#admin-projects-list, .admin-projects-grid, .admin-project-card,
+.admin-project-summary, .admin-project-theme { min-width: 0; }
+.admin-project-card { overflow-wrap: anywhere; }
+.admin-project-header { gap: .75rem; }
+.admin-project-theme-heading { flex-wrap: wrap; }
+.admin-project-theme-controls select { min-width: 0; width: 0; }
+@media (max-width: 720px) {
+  .admin-project-header { flex-wrap: wrap; }
+  .admin-project-summary { flex-basis: 100% !important; }
+  .admin-project-theme { padding: .75rem !important; }
+  .admin-project-theme-controls { flex-direction: column; align-items: stretch !important; }
+  .admin-project-theme-controls select { width: 100%; flex: none !important; }
+  .admin-project-theme-controls button, .admin-project-header button,
+  .admin-project-theme-controls select { min-height: 44px; }
+}

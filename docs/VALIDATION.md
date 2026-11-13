@@ -172,3 +172,9 @@ unchanged. This focused browser check is runnable locally, not a separate CI job
 checks the one-row Admin destinations at 320/390/430px, 44px tap heights,
 Manage dropdown placement, real touch activation, content scrolling and the
 unchanged desktop layout. It runs locally with synthetic visitor counts.
+
+The Admin layout regression also seeds long project names/descriptions and
+assigned/unassigned themes, checks that theme actions fit on phones, and verifies
+that Last 24 hours sends `p_days: 1` and survives Refresh. This is a rolling
+24-hour period supported by the existing RPC, not a calendar-day report; no
+production migration is needed. The default remains Last 30 days.
