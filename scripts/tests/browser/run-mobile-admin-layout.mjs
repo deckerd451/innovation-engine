@@ -7,7 +7,19 @@ const {evaluate:run,wait,sleep}=app;
 let passed=0;
 const check=(value,label)=>{assert.ok(value,label);passed++;console.log('PASS',label);};
 async function tap(selector) {
-  const point=await run(`(() => {const el=document.querySelector(${JSON.stringify(selector)}),r=el.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2;return {x,y,hit:el.contains(document.elementFromPoint(x,y))};})()`);
+  // Pass selector as a CDP argument, never as constructed JavaScript source.
+  const {result: receiver}=await app.send('Runtime.evaluate',{expression:'window'});
+  const result=await app.send('Runtime.callFunctionOn',{
+    objectId:receiver.objectId,
+    functionDeclaration:`function(selector) {
+      const el=document.querySelector(selector),r=el.getBoundingClientRect();
+      const x=r.x+r.width/2,y=r.y+r.height/2;
+      return {x,y,hit:el.contains(document.elementFromPoint(x,y))};
+    }`,
+    arguments:[{value:selector}],returnByValue:true
+  });
+  if(result.exceptionDetails) throw Error(result.exceptionDetails.text);
+  const point=result.result.value;
   check(point.hit,selector+' is unobstructed');
   await app.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:point.x,y:point.y}]});
   await app.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await sleep(150);
