@@ -178,3 +178,12 @@ assigned/unassigned themes, checks that theme actions fit on phones, and verifie
 that Last 24 hours sends `p_days: 1` and survives Refresh. This is a rolling
 24-hour period supported by the existing RPC, not a calendar-day report; no
 production migration is needed. The default remains Last 30 days.
+
+## Analytics overlay regression
+
+`CHROME_PATH=... node scripts/tests/browser/run-admin-analytics-overlay.mjs`
+opens You → Admin → Detailed member analytics → Open Analytics Dashboard with
+synthetic aggregate RPC results. It checks loading and rendered Analytics above
+Admin, reachable Close controls, scrolling and focus return at 320/390/1280px,
+plus RPC failure and retry. No production analytics data is requested and no
+backend authorization rule changes.

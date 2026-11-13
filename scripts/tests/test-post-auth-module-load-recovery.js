@@ -61,12 +61,12 @@ const clickHandlerMatch = afterBtn.match(/analyticsBtn\.addEventListener\('click
 assert.ok(clickHandlerMatch, 'the Open Analytics Dashboard click handler must be present');
 const handler = clickHandlerMatch[0];
 
-assert.match(handler, /await import\('\.\/admin-analytics\.js\?v=admin-analytics-rpc-await-20260822b'\)/,
+assert.match(handler, /await import\('\.\/admin-analytics\.js\?v=analytics-overlay-20261113'\)/,
   'the click must await the same canonical module URL registered by the post-auth loader');
 assert.match(handler, /typeof window\.openAnalyticsModal !== 'function'[\s\S]*throw new Error/,
   'the click must verify canonical Analytics initialized before changing panel lifecycle');
-assert.match(handler, /adminPanel\.remove\(\)[\s\S]*await window\.openAnalyticsModal\(\)/,
-  'the Admin Panel must yield to and then open the canonical Analytics modal in one click');
+assert.doesNotMatch(handler, /adminPanel\.remove\(\)/, 'Admin stays mounted beneath Analytics for return navigation');
+assert.match(handler, /await window\.openAnalyticsModal\(\)/, 'open the canonical Analytics modal in one click');
 assert.match(handler, /catch \(error\)[\s\S]*analyticsBtn\.disabled = false/,
   'a failed load must leave the Admin workflow retryable without refreshing');
 assert.doesNotMatch(handler, /try the button again in a moment|still loading/,
@@ -75,7 +75,7 @@ assert.doesNotMatch(handler, /try the button again in a moment|still loading/,
 // Later releases of dashboard-actions.js keep the repaired lifecycle and
 // carry their own cache-buster (membership-authz-xss-20261014: join requests
 // and safe rendering; skills-replace-themes-20261027: no admin Themes tab; later shell tags carry it).
-assert.match(html, /dashboard-actions\.js\?v=mobile-projects-20261113/,
+assert.match(html, /dashboard-actions\.js\?v=analytics-overlay-20261113/,
   'the production entry script must carry a cache-buster for the repaired lifecycle');
 
 console.log('✅ test-post-auth-module-load-recovery passed');

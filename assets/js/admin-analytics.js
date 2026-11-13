@@ -74,7 +74,7 @@ function createAnalyticsModal() {
     height: 100vh;
     background: rgba(0, 0, 0, 0.9);
     backdrop-filter: blur(10px);
-    z-index: 5000;
+    z-index: 10020;
     display: none;
     align-items: center;
     justify-content: center;
@@ -89,8 +89,9 @@ function createAnalyticsModal() {
 
 function frameHtml(innerHtml) {
   return `
-    <div style="background: linear-gradient(135deg, rgba(10, 14, 39, 0.98), rgba(26, 26, 46, 0.98)); border: 2px solid rgba(255, 107, 107, 0.5); border-radius: 16px; padding: 2rem; max-width: 95vw; width: 1200px; max-height: 90vh; overflow-y: auto; position: relative; box-sizing: border-box;">
-      ${innerHtml}
+    <div class="admin-analytics-frame" style="background: linear-gradient(135deg, rgba(10, 14, 39, 0.98), rgba(26, 26, 46, 0.98)); border: 2px solid rgba(255, 107, 107, 0.5); border-radius: 16px; padding: 2rem; max-width: 95vw; width: 1200px; max-height: 90vh; overflow-y: auto; position: relative; box-sizing: border-box;">
+      <div class="admin-analytics-toolbar"><button type="button" class="admin-analytics-close" aria-label="Close analytics" onclick="closeAnalyticsModal()">×</button></div>
+      <div class="admin-analytics-scroll">${innerHtml}</div>
     </div>
   `;
 }
@@ -100,9 +101,7 @@ async function openAnalyticsModal() {
   console.log('📊 Opening admin analytics');
 
   analyticsModal.style.display = 'flex';
-  setTimeout(() => {
-    analyticsModal.style.opacity = '1';
-  }, 10);
+  analyticsModal.style.opacity = '1';
 
   analyticsModal.innerHTML = frameHtml(`
     <div class="admin-analytics-empty">
@@ -111,7 +110,11 @@ async function openAnalyticsModal() {
     </div>
   `);
 
+  window.A11yDialog?.open(analyticsModal, {label:'Ecosystem Analytics',initialFocus:'.admin-analytics-close',onClose:closeAnalyticsModal});
   await loadAnalyticsData();
+  if (analyticsModal.getAttribute('aria-modal') === 'true' && analyticsModal.style.display !== 'none') {
+    analyticsModal.querySelector('.admin-analytics-close')?.focus({preventScroll:true});
+  }
 }
 
 function renderError(message, { retryable = true } = {}) {
@@ -428,7 +431,6 @@ function renderAnalyticsDashboard(metrics, retention) {
       <div class="admin-analytics-header">
         <h1><i class="fas fa-chart-line"></i> Ecosystem Analytics</h1>
         <span class="admin-analytics-window">Active window: last ${esc(metrics.active_window_days)} days</span>
-        <button class="admin-analytics-close" onclick="closeAnalyticsModal()"><i class="fas fa-times"></i></button>
       </div>
 
       <div class="admin-metric-grid">
@@ -567,9 +569,7 @@ function closeAnalyticsModal() {
   if (!analyticsModal) return;
 
   analyticsModal.style.opacity = '0';
-  setTimeout(() => {
-    analyticsModal.style.display = 'none';
-  }, 300);
+  analyticsModal.style.display = 'none';
 }
 
 // Auto-initialize. This module is loaded dynamically by the post-auth
