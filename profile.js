@@ -518,6 +518,9 @@
           <button type="button" id="btn-profile-settings" class="btn ch-btn-secondary">
             <i class="fas fa-cog" aria-hidden="true"></i> Settings
           </button>
+          ${window.isAdminUser?.() === true ? `<button type="button" id="btn-profile-admin" class="btn ch-btn-secondary">
+            <i class="fas fa-user-shield" aria-hidden="true"></i> Admin panel
+          </button>` : ''}
           <button type="button" id="btn-profile-logout" class="btn ch-btn-secondary">
             <i class="fas fa-sign-out-alt" aria-hidden="true"></i> Log out
           </button>
@@ -527,7 +530,7 @@
   }
 
   // The profile view: Your Network (Network has no tab of its own; app-nav.js
-  // opens it), then Edit Profile, Settings and Log out (account controls live
+  // opens it), then account controls, including Admin for authorized admins (live
   // here, in You).
   function showProfileView() {
     const content = profileModalContent();
@@ -539,6 +542,9 @@
     $("btn-open-your-network")?.addEventListener("click", () => window.AppNav?.openNetwork?.());
     $("btn-view-network-map")?.addEventListener("click", () => window.AppNav?.openNetwork?.({ map: true }));
     $("btn-profile-settings")?.addEventListener("click", () => window.SettingsModal?.open?.());
+    $("btn-profile-admin")?.addEventListener("click", () => {
+      if (window.isAdminUser?.() === true) window.openAdminPanel?.();
+    });
     $("btn-profile-logout")?.addEventListener("click", () => {
       if (window.doLogout) window.doLogout();
       else window.handleLogout?.();
