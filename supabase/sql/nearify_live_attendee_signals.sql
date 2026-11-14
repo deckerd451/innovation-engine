@@ -1,3 +1,4 @@
+-- Apply nearify_professional_context_score.sql before this definition.
 -- ================================================================
 -- NEARIFY → INNOVATION ENGINE: Live Attendee Signals
 -- (Best Connection enrichment while checked in)
@@ -181,10 +182,9 @@ BEGIN
       shared_skill_count, shared_project_count, shared_org_count, mutual_connection_count,
       -- Same weighting as get_nearify_event_recommendations, minus its
       -- +6 shared_event baseline (no equivalent concept here).
-      (shared_project_count > 0)::int * 5
-      + (mutual_connection_count > 0)::int * 4
-      + (shared_org_count > 0)::int * 4
-      + LEAST(shared_skill_count, 3) * 2
+      public.nearify_professional_context_score(
+          shared_project_count, mutual_connection_count, shared_org_count, shared_skill_count
+        )
       AS score
     FROM scored
   )

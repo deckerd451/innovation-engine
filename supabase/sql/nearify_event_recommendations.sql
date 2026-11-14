@@ -1,3 +1,4 @@
+-- Apply nearify_professional_context_score.sql before this definition.
 -- ================================================================
 -- NEARIFY → INNOVATION ENGINE: Event Recommendations
 -- ================================================================
@@ -189,10 +190,9 @@ BEGIN
       -- (shared_project:5, mutual_connections:4, shared_organization:4,
       -- shared_skill:2 per matching skill, capped).
       6
-      + (shared_project_count > 0)::int * 5
-      + (mutual_connection_count > 0)::int * 4
-      + (shared_org_count > 0)::int * 4
-      + LEAST(shared_skill_count, 3) * 2
+      + public.nearify_professional_context_score(
+          shared_project_count, mutual_connection_count, shared_org_count, shared_skill_count
+        )
       AS score
     FROM scored
   ),
