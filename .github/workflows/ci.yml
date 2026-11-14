@@ -52,6 +52,11 @@ jobs:
           CHROME_PATH: google-chrome
         run: npm run test:claim-email
 
+      - name: Visitor separation and period controls (synthetic traffic)
+        env:
+          CHROME_PATH: google-chrome
+        run: node scripts/tests/browser/run-visitor-separation.mjs
+
   db-authz:
     name: db-authz
     runs-on: ubuntu-24.04

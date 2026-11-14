@@ -35,7 +35,7 @@ try {
       window.supabase = { rpc: async (name, args) => {
         window.calls.push({name, args});
         return window.failure ? { error: { code: window.failure } } : { data: {
-          visits: 4, browsers: 3, guests: 3, members: 1,
+          separation_version: 2, internal_visits: 7, community_visits: 4, visits: 4, browsers: 3, guests: 3, members: 1,
           recent: [{ last_seen_at: '2026-11-12T12:00:00Z', signed_in: false }]
         }};
       }};
@@ -45,9 +45,12 @@ try {
     await page.getByText('Estimated browsers', {exact: true}).waitFor();
     if (await page.locator('.visitor-metrics strong').first().textContent() !== '4') throw Error('Wrong total');
     if (!await page.evaluate(() => window.calls[0].args.p_exclude_self)) throw Error('Self not excluded');
-    await page.getByLabel('Include my visits').check();
+    await page.getByLabel('Include admin/browser activity').check();
     await page.waitForFunction(() => window.calls.length === 2);
     if (await page.evaluate(() => window.calls[1].args.p_exclude_self)) throw Error('Self toggle ignored');
+    await page.getByLabel('Period').selectOption('0');
+    await page.waitForFunction(() => window.calls.some(call => call.args.p_days === 0));
+    await page.getByText('Separate admin/browser activity: 7 visits. Community traffic: 4 visits.', {exact:true}).waitFor();
     await page.getByLabel('Period').selectOption('7');
     await page.waitForFunction(() => window.calls.some(call => call.args.p_days === 7));
     const clipped = await page.evaluate(() => {
@@ -69,7 +72,7 @@ try {
       export async function getClaimStats(){return {total:85,claimed:23,unclaimed:62};}
       export const getPerson = async()=>({});
       export const updatePerson=getPerson,setRole=getPerson,setHidden=getPerson,setDisabled=getPerson,
-      bulkUpdate=getPerson,deletePerson=getPerson,createPerson=getPerson,getEmailsForPeople=getPerson;
+      sendClaimEmails=getPerson,bulkUpdate=getPerson,deletePerson=getPerson,createPerson=getPerson,getEmailsForPeople=getPerson;
     `}));
     await page.route('**/supabaseClient.js*', route => route.fulfill({contentType:'text/javascript',body:'export const supabase=window.supabase;'}));
     await page.evaluate(url => import(url), origin + '/assets/js/adminPeoplePanel.js');

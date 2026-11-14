@@ -78,6 +78,8 @@ for f in \
   scripts/tests/fixtures/site-visits-bootstrap.sql \
   supabase/sql/migrations/20261112_site_visits.sql \
   scripts/tests/site-visits-db.sql \
+  supabase/sql/migrations/20261114_admin_visit_separation.sql \
+  scripts/tests/admin-visit-separation-db.sql \
   supabase/sql/rollback/20261112_site_visits_rollback.sql; do
   "${PSQL[@]}" -d ie_site_visits -f "$ROOT/$f" >/dev/null
 done

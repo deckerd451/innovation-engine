@@ -16,8 +16,7 @@ are required. Without the migration, the app still works and Visitors reports
 that database setup is needed, rather than showing misleading zero totals.
 
 Verify using a signed-out browser and a signed-in non-admin account. Reopen
-Visitors as an admin; both should appear in totals. The viewer's account and
-current browser are excluded by default; Include my visits reveals them.
+Visitors as an admin; both should appear in totals. Admin accounts and recognized admin browsers are excluded by default; Include admin/browser activity reveals a clearly labelled combined view.
 Only authenticated profiles with `community.user_role = 'Admin'` may report.
 Guests and members can record visits but have no direct table access.
 
@@ -60,3 +59,31 @@ For rendered UI and collector checks, run
 `CHROME_PATH` and `PLAYWRIGHT_MODULE` can select existing local tools. This test
 serves only local files and mocks database/authentication responses; it is not
 proof that a production migration has been applied.
+
+## Admin/community separation update (20261114)
+
+Apply `supabase/sql/migrations/20261114_admin_visit_separation.sql` in the
+Supabase SQL Editor before merging the matching frontend. This replaces only
+the reporting function, preserves existing permissions and all visit records,
+and adds Last hour alongside the existing periods. The existing `p_days` RPC
+parameter accepts 0 for the last hour, or 1–90 for rolling days. The UI hides
+old totals with a setup message if this migration has not been applied.
+
+Admin/browser activity includes visits by any current admin account, the
+report viewer's current browser, and all visits from browsers with an admin
+visit anywhere in retained history. This separates signed-out visits and
+member testing on a recognized admin browser. A shared browser can therefore
+exclude real member activity too. It does not identify a separate test account
+in a private window, cleared storage or a previously unknown signed-out device.
+Counts are estimates, not proof of who visited; no IP fingerprinting is added.
+Historical admin-browser activity is reclassified at report time, not deleted.
+
+A separate admin/browser subtotal remains visible. The checkbox explicitly
+switches the main cards and recent list to combined traffic. Last hour is a
+rolling window based on the existing last-seen timestamp; refresh is manual.
+
+Rollback the UI and apply
+`supabase/sql/rollback/20261114_admin_visit_separation_rollback.sql` to restore
+the original report without deleting data. Regression coverage:
+`node scripts/tests/browser/run-visitor-separation.mjs` and the database suite
+`admin-visit-separation-db.sql` in `npm run test:db`.
