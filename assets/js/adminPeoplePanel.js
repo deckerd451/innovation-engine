@@ -54,7 +54,7 @@ let searchDebounceTimer = null;
  * Render the People Management panel
  * @param {HTMLElement} container - Container element
  */
-export function renderPeoplePanel(container, {personId = null} = {}) {
+export function renderPeoplePanel(container, {personId = null, initialClaimed = null} = {}) {
   if (!container) return;
 
   // Opening the panel is a fresh management session. Keep the visible controls
@@ -236,6 +236,9 @@ export function renderPeoplePanel(container, {personId = null} = {}) {
       <!-- Drawer content will be inserted here -->
     </div>
   `;
+
+  state.filters.claimed = typeof initialClaimed === 'boolean' ? initialClaimed : null;
+  container.querySelector('#filter-claimed').value = state.filters.claimed === null ? '' : String(state.filters.claimed);
 
   // Setup responsive layout
   setupResponsiveLayout();

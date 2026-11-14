@@ -55,7 +55,10 @@ jobs:
       - name: Visitor separation and period controls (synthetic traffic)
         env:
           CHROME_PATH: google-chrome
-        run: node scripts/tests/browser/run-visitor-separation.mjs
+        run: |
+          node scripts/tests/browser/run-visitor-separation.mjs
+          node scripts/tests/browser/run-admin-overview.mjs
+          node scripts/tests/browser/run-mobile-admin-layout.mjs
 
   db-authz:
     name: db-authz

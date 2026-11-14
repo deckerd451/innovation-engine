@@ -6,6 +6,7 @@ try {
  for (const width of [390,1280]) {
   await app.load(width,844);
   await app.evaluate(`window.__visitCalls=[];window.supabase.rpc=async(name,args)=>{window.__visitCalls.push({name,args});return window.__missing?{error:{code:'PGRST202'}}:{data:{separation_version:2,visits:args.p_view==='community'?3:args.p_view==='internal'?4:7,browsers:2,guests:2,members:1,internal_visits:4,community_visits:3,recent:[{last_seen_at:'2026-11-14T12:00:00Z',signed_in:true,internal:args.p_view!=='community'}]}}};window.openAdminPanel();true`);
+  await app.evaluate(`document.querySelector('#admin-panel [data-tab=visitors]').click();true`);
   await app.wait(`document.querySelector('.visitor-internal-summary')?.textContent.includes('4 visits excluded')`,'report');
   assert.equal(await app.evaluate(`document.querySelector('#visitor-view').value`),'community');
   assert.equal(await app.evaluate(`document.querySelector('#visitor-title').textContent`),'Community visits');

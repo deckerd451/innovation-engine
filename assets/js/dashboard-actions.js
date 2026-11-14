@@ -1188,33 +1188,17 @@ function openAdminPanel() {
         class="admin-close-btn"
         style="background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3);
         color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1.25rem;">
-        <i class="fas fa-times"></i>
+        <span aria-hidden="true">×</span>
       </button>
     </div>
 
-    <!-- Tabs -->
-    <div class="admin-main-tabs" style="display: flex; gap: 1rem; margin-bottom: 2rem; border-bottom: 1px solid rgba(255,255,255,0.1); align-items: center;">
-      <button class="admin-tab active-admin-tab" data-tab="visitors">Visitors</button>
-      <button class="admin-tab" data-tab="manage">People</button>
-      <!-- Resource Management Dropdown -->
-      <div class="admin-resource-menu" style="position: relative;">
-        <button id="resource-mgmt-dropdown-btn" class="admin-resource-menu-btn" style="padding: 0.75rem 1.5rem; background: rgba(0,224,255,0.1); border: 1px solid rgba(0,224,255,0.3); border-radius: 8px 8px 0 0; color: #00e0ff; cursor: pointer; font-weight: 600; transition: all 0.2s; display: flex; align-items: center; gap: 0.5rem;">
-          <i class="fas fa-tasks"></i> Manage
-          <i class="fas fa-chevron-down" style="font-size: 0.8rem;"></i>
-        </button>
-        <div id="resource-mgmt-dropdown" class="admin-resource-menu-list" style="display: none; position: absolute; top: 100%; left: 0; min-width: 220px; background: linear-gradient(135deg, rgba(10,14,39,0.98), rgba(16,20,39,0.98)); border: 2px solid rgba(0,224,255,0.4); border-radius: 0 8px 8px 8px; padding: 0.5rem; z-index: 1000; box-shadow: 0 8px 32px rgba(0,0,0,0.6);">
-          <button class="admin-tab" data-tab="projects" style="width: 100%; padding: 0.75rem 1rem; background: transparent; border: none; border-radius: 6px; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s; text-align: left; margin-bottom: 0.25rem;">
-            <i class="fas fa-rocket"></i> Projects
-          </button>
-          <button class="admin-tab" data-tab="organizations" style="width: 100%; padding: 0.75rem 1rem; background: transparent; border: none; border-radius: 6px; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s; text-align: left;">
-            <i class="fas fa-building"></i> Orgs
-          </button>
-        </div>
-      </div>
-      <button class="admin-tab" data-tab="privacy" style="padding: 0.75rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-weight: 600; transition: all 0.2s;">
-        <i class="fas fa-user-shield"></i> Privacy
-      </button>
-    </div>
+    <nav class="admin-main-tabs" aria-label="Admin sections">
+      <button class="admin-tab active-admin-tab" data-tab="overview" aria-pressed="true">Overview</button>
+      <button class="admin-tab" data-tab="visitors" aria-pressed="false">Traffic</button>
+      <button class="admin-tab" data-tab="manage" aria-pressed="false">People</button>
+      <button class="admin-tab" data-tab="community" aria-pressed="false">Community</button>
+      <button class="admin-tab" data-tab="privacy" aria-pressed="false">Settings &amp; Privacy</button>
+    </nav>
 
     <!-- Tab Content -->
     <div id="admin-tab-content" class="admin-tab-content" style="padding: 1rem 0;">
@@ -1227,23 +1211,7 @@ function openAdminPanel() {
 
   // Wire up tabs
   function activateAdminTab(tab, personId = null) {
-      panel.querySelectorAll('.admin-tab').forEach(t => {
-        t.style.background = 'transparent';
-        t.style.borderBottomColor = 'transparent';
-        t.style.color = 'rgba(255,255,255,0.6)';
-        t.classList.remove('active-admin-tab');
-      });
-      tab.style.background = 'rgba(0,224,255,0.1)';
-      tab.style.borderBottomColor = '#00e0ff';
-      tab.style.color = '#00e0ff';
-      tab.classList.add('active-admin-tab');
-
-      const tabName = tab.dataset.tab;
-      loadAdminTabContent(tabName, personId);
-      
-      // Close dropdown after selection
-      const dropdown = document.getElementById('resource-mgmt-dropdown');
-      if (dropdown) dropdown.style.display = 'none';
+    loadAdminTabContent(tab.dataset.tab, personId);
   }
   panel.querySelectorAll('.admin-tab').forEach(tab => tab.addEventListener('click', () => activateAdminTab(tab)));
   window.openAdminPersonFromAnalytics = personId => {
@@ -1252,34 +1220,37 @@ function openAdminPanel() {
     return true;
   };
   
-  // Wire up Resource Management dropdown
-  const dropdownBtn = document.getElementById('resource-mgmt-dropdown-btn');
-  const dropdown = document.getElementById('resource-mgmt-dropdown');
-  
-  if (dropdownBtn && dropdown) {
-    dropdownBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
-    });
-    
-    // Close dropdown when clicking outside
-    document.addEventListener('click', (e) => {
-      if (!dropdownBtn.contains(e.target) && !dropdown.contains(e.target)) {
-        dropdown.style.display = 'none';
-      }
-    });
-  }
-
-  // Load initial tab
-  loadAdminTabContent('visitors');
+  // Load initial tab. All actions use the same navigation and selected state.
+  loadAdminTabContent('overview');
 }
 
-function loadAdminTabContent(tabName, personId = null) {
+function loadAdminTabContent(tabName, personId = null, peopleFilters = null) {
   const content = document.getElementById('admin-tab-content');
   if (!content) return;
 
+  const parentSection = ({projects: 'community', organizations: 'community', analytics: 'community', system: 'privacy'})[tabName] || tabName;
+  document.querySelectorAll('#admin-panel .admin-main-tabs .admin-tab').forEach(button => {
+    const selected = button.dataset.tab === parentSection;
+    button.classList.toggle('active-admin-tab', selected);
+    button.setAttribute('aria-pressed', String(selected));
+    button.style.background = selected ? 'rgba(0,224,255,0.1)' : 'transparent';
+    button.style.borderBottomColor = selected ? '#00e0ff' : 'transparent';
+    button.style.color = selected ? '#00e0ff' : 'rgba(255,255,255,0.6)';
+  });
   content.dataset.activeTab = tabName;
   content.scrollTop = 0;
+  if (tabName === 'overview' || tabName === 'community') {
+    content.textContent = 'Loading admin overview…';
+    import('./admin-overview.js?v=20261114').then(({ renderAdminOverview }) => {
+      if (content.isConnected && content.dataset.activeTab === tabName) {
+        return renderAdminOverview(content, {section: tabName, navigate: loadAdminTabContent});
+      }
+    }).catch(() => {
+      if (content.isConnected && content.dataset.activeTab === tabName) content.textContent = 'This section could not load. Select another section and try again.';
+    });
+    return;
+  }
+
   if (tabName === 'visitors') {
     content.textContent = 'Loading visitor overview…';
     import('./admin-visitors.js?v=views-20261114').then(({ renderVisitors }) => {
@@ -1300,7 +1271,7 @@ function loadAdminTabContent(tabName, personId = null) {
     const checkModule = setInterval(() => {
       if (typeof window.AdminPeoplePanel !== 'undefined' && typeof window.AdminPeoplePanel.renderPeoplePanel === 'function') {
         clearInterval(checkModule);
-        if (content.isConnected && content.dataset.activeTab === 'manage') window.AdminPeoplePanel.renderPeoplePanel(content, {personId});
+        if (content.isConnected && content.dataset.activeTab === 'manage') window.AdminPeoplePanel.renderPeoplePanel(content, {personId, initialClaimed: peopleFilters?.claimed ?? null});
       }
     }, 100);
     
@@ -1585,13 +1556,16 @@ _toast('ℹ️ Unified network is not currently active. Enable it and reload to 
     const checkModule = setInterval(() => {
       if (typeof window.AdminPrivacyPanel !== 'undefined' && typeof window.AdminPrivacyPanel.renderPrivacyPanel === 'function') {
         clearInterval(checkModule);
-        window.AdminPrivacyPanel.renderPrivacyPanel(content);
+        if (!content.isConnected || content.dataset.activeTab !== 'privacy') return;
+        content.innerHTML = `<section class="admin-hub"><h2>Settings &amp; Privacy</h2><p class="admin-hub-lede">Manage profile visibility and photo consent. Admin access is enforced by database permissions.</p><details class="admin-about"><summary>Tracking and configuration</summary><p>Visit reports respect Do Not Track and Global Privacy Control. Admin accounts and recognized admin browsers are separated from community traffic. Private windows and separate test accounts may still appear as community visits.</p><p>Email delivery, authentication and database access are configured in Supabase. This panel does not expose credentials or change those settings.</p><button type="button" id="admin-system-tools">Open system diagnostics</button></details><div id="admin-settings-privacy"></div></section>`;
+        content.querySelector('#admin-system-tools').onclick = () => loadAdminTabContent('system');
+        window.AdminPrivacyPanel.renderPrivacyPanel(content.querySelector('#admin-settings-privacy'));
       }
     }, 100);
 
     setTimeout(() => {
       clearInterval(checkModule);
-      if (!window.AdminPrivacyPanel) {
+      if (!window.AdminPrivacyPanel && content.isConnected && content.dataset.activeTab === 'privacy') {
         content.innerHTML = '<div style="padding: 2rem; text-align: center; color: #ff6b6b;"><i class="fas fa-exclamation-circle"></i> Failed to load Privacy &amp; Visibility panel. Please refresh the page.</div>';
       }
     }, 5000);
