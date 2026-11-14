@@ -1,5 +1,8 @@
 # Nearify / BUILDSPACE integration follow-through
 
+Latest operational status: [legacy deprecation and completed audit](NEARIFY_LEGACY_INGESTION_DEPRECATION.md).
+Earlier preparation-stage notes below remain historical context.
+
 Recorded 2026-11-14. Deployment evidence below was supplied by the operator
 through SQL exports and an iOS smoke test, not direct database access by Codex.
 

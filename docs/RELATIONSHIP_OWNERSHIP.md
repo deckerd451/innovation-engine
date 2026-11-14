@@ -1,5 +1,8 @@
 # Relationship ownership and consolidation
 
+Latest operational status: [legacy deprecation and completed audit](NEARIFY_LEGACY_INGESTION_DEPRECATION.md).
+Earlier preparation-stage notes below remain historical context.
+
 Status: proposed contract, backed by repository inspection on 2026-11-14.
 This defines implementation boundaries and does not migrate existing relationships.
 For operator-verified deployment results and remaining work, see

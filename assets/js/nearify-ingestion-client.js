@@ -1,3 +1,8 @@
+// DEPRECATED: legacy ingestion helper; retained only for compatibility.
+// Do not add imports/callers or use these examples for new integrations.
+// Use service-only ingest_nearify_evidence_v2 from a trusted backend instead.
+// Never put a service key in a browser/native app or fall back to legacy QR
+// auto-acceptance. See docs/NEARIFY_LEGACY_INGESTION_DEPRECATION.md.
 // ================================================================
 // NEARIFY → INNOVATION ENGINE: Ingestion Client
 // ================================================================
@@ -52,7 +57,8 @@ function sleep(ms) {
 }
 
 /**
- * Send an interaction to the Innovation Engine ingestion endpoint.
+ * @deprecated Use trusted-backend ingest_nearify_evidence_v2; see deprecation notes.
+ * Send an interaction to the legacy Innovation Engine ingestion endpoint.
  *
  * @param {Object} params
  * @param {string} params.eventId - Event UUID (required)

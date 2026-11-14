@@ -1,5 +1,8 @@
 # Evidence-only Nearify ingestion v2
 
+Latest operational status: [legacy deprecation and completed audit](NEARIFY_LEGACY_INGESTION_DEPRECATION.md).
+Earlier preparation-stage notes below remain historical context.
+
 Prepared replacement, not a migrated caller or deployed service. The legacy
 `ingest_nearify_interaction` function and its grants remain unchanged.
 
