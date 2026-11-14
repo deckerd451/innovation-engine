@@ -826,3 +826,6 @@
 .admin-review-controls { display: flex; flex-wrap: wrap; gap: .5rem; }
 #admin-review-unconnected, #admin-unconnected-review button { min-height: 44px; padding: .5rem .75rem; color: var(--admin-cyan); background: #10182a; border: 1px solid #347389; border-radius: 6px; font: inherit; cursor: pointer; }
 #admin-unconnected-review button:disabled { opacity: .55; cursor: default; }
+
+.visitor-internal-summary { display: flex; flex-wrap: wrap; gap: .35rem 1rem; padding: .85rem 1rem; border: 1px solid #45495e; border-radius: 10px; background: rgba(255,255,255,.035); color: #c6cad8; }
+.visitor-internal-summary strong { font-size: 1rem; }

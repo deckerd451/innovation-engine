@@ -44,13 +44,13 @@ try {
     await page.evaluate(() => window.openAdminPanel());
     await page.getByText('Estimated browsers', {exact: true}).waitFor();
     if (await page.locator('.visitor-metrics strong').first().textContent() !== '4') throw Error('Wrong total');
-    if (!await page.evaluate(() => window.calls[0].args.p_exclude_self)) throw Error('Self not excluded');
-    await page.getByLabel('Include admin/browser activity').check();
+    if (!await page.evaluate(() => window.calls[0].args.p_view === 'community')) throw Error('Self not excluded');
+    await page.getByLabel('View', {exact:true}).selectOption('all');
     await page.waitForFunction(() => window.calls.length === 2);
-    if (await page.evaluate(() => window.calls[1].args.p_exclude_self)) throw Error('Self toggle ignored');
+    if (await page.evaluate(() => window.calls[1].args.p_view !== 'all')) throw Error('Self toggle ignored');
     await page.getByLabel('Period').selectOption('0');
     await page.waitForFunction(() => window.calls.some(call => call.args.p_days === 0));
-    await page.getByText('Separate admin/browser activity: 7 visits. Community traffic: 4 visits.', {exact:true}).waitFor();
+    await page.getByText('7 visits in this period', {exact:true}).waitFor();
     await page.getByLabel('Period').selectOption('7');
     await page.waitForFunction(() => window.calls.some(call => call.args.p_days === 7));
     const clipped = await page.evaluate(() => {
@@ -61,7 +61,7 @@ try {
     await page.screenshot({path: path.join(output, `visitors-${width}.png`)});
     await page.evaluate(() => window.failure = 'PGRST202');
     await page.getByRole('button', {name: 'Refresh', exact: true}).click();
-    await page.getByText(/Visitor logging needs database setup/).waitFor();
+    await page.getByText(/Visitor views need a database update/).waitFor();
     await page.evaluate(() => window.failure = '42501');
     await page.getByRole('button', {name: 'Refresh', exact: true}).click();
     await page.getByText(/Check your admin access/).waitFor();
