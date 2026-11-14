@@ -1282,7 +1282,7 @@ function loadAdminTabContent(tabName, personId = null) {
   content.scrollTop = 0;
   if (tabName === 'visitors') {
     content.textContent = 'Loading visitor overview…';
-    import('./admin-visitors.js?v=daily-20261113').then(({ renderVisitors }) => {
+    import('./admin-visitors.js?v=separate-20261114').then(({ renderVisitors }) => {
       if (content.isConnected && content.dataset.activeTab === 'visitors') {
         renderVisitors(content, () => loadAdminTabContent('analytics'));
       }
