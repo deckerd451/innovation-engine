@@ -192,3 +192,9 @@ Admin follow-up now runs `npm run test:admin-review` in the unit CI job and
 includes database permission/pagination coverage in `npm run test:db`.
 See [Admin member review](ADMIN_MEMBER_REVIEW.md) for the required production
 migration, count eligibility and rollback order.
+
+Real claim-email delivery adds an offline handler/callback test, synthetic
+browser journey (`npm run test:claim-email`), PostgreSQL reservation/permission
+checks, and a separate Deno type-check CI job. These do not send actual mail.
+See [Claim email deployment](CLAIM_EMAIL_DEPLOYMENT.md) for SMTP, Auth redirect,
+Edge function deployment, a controlled inbox test and rollback order.
