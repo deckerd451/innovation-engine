@@ -240,6 +240,13 @@ export function renderPeoplePanel(container, {personId = null, initialClaimed = 
   state.filters.claimed = typeof initialClaimed === 'boolean' ? initialClaimed : null;
   container.querySelector('#filter-claimed').value = state.filters.claimed === null ? '' : String(state.filters.claimed);
 
+  if (typeof window.openAdminCampaigns === 'function') {
+    const campaigns = document.createElement('button');
+    campaigns.type = 'button'; campaigns.className = 'admin-retry-btn';
+    campaigns.textContent = 'Email campaigns'; campaigns.onclick = () => window.openAdminCampaigns();
+    container.querySelector('.admin-people-heading').append(campaigns);
+  }
+
   // Setup responsive layout
   setupResponsiveLayout();
   
