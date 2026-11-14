@@ -1,8 +1,9 @@
 # Relationship ownership and consolidation
 
 Status: proposed contract, backed by repository inspection on 2026-11-14.
-This defines implementation boundaries; it does not assert deployed state or
-migrate existing relationships. BUILDSPACE snapshot: 0e56419; Nearify Web:
+This defines implementation boundaries and does not migrate existing relationships.
+For operator-verified deployment results and remaining work, see
+[Integration progress](NEARIFY_INTEGRATION_PROGRESS.md). BUILDSPACE snapshot: 0e56419; Nearify Web:
 c66b928. Native evidence: InnovationEngineBridgeService and
 BuildspaceRelationshipEnrichmentStore in deckerd451/nearify-ios.
 

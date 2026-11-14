@@ -1,0 +1,30 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {pathToFileURL} from 'node:url';
+const {PGlite}=await import(process.env.PGLITE_MODULE?pathToFileURL(process.env.PGLITE_MODULE).href:'@electric-sql/pglite');
+const sql=readFileSync(new URL('../../supabase/sql/reports/nearify_integration_snapshot.sql',import.meta.url),'utf8');
+const db=new PGlite();
+try{
+ await db.exec(`CREATE TABLE nearify_identity_map(community_id text,nearify_user_id text);
+ CREATE TABLE community_experience_authorizations(community_id text,experience text,status text);
+ CREATE TABLE nearify_event_presence(community_id text,nearify_event_id text,status text,is_live boolean);
+ CREATE TABLE project_members(user_id text,project_id text);`);
+ const report=async()=> (await db.query(sql)).rows[0].nearify_integration_snapshot;
+ const empty=await report();
+ for(const [key,value] of Object.entries(empty))if(!['measured_at','measurement_kind'].includes(key))assert.equal(value,0);
+ await db.exec(`INSERT INTO nearify_identity_map VALUES('a','near-a'),('b','near-b'),('c','near-c');
+ INSERT INTO community_experience_authorizations VALUES('a','nearify','authorized'),('b','nearify','revoked'),('c','other','authorized');
+ INSERT INTO nearify_event_presence VALUES('a','e1','joined',true),('a','e2','joined',true),('b','e1','joined',false),('c','e1','left',true),('unlinked','e1','joined',true);
+ INSERT INTO project_members VALUES('a','p1'),('a','p2'),('c','p1'),('unlinked','p1');`);
+ const result=await report();
+ assert.equal(result.linked_members,3);
+ assert.equal(result.linked_and_context_authorized_members,1);
+ assert.equal(result.linked_members_with_joined_event,2);
+ assert.equal(result.linked_members_with_live_event,1);
+ assert.equal(result.linked_members_with_project_membership,2);
+ assert.equal(result.linked_joined_members_with_project_membership,1);
+ assert.equal(result.measurement_kind,'current_state_snapshot');
+ assert.deepEqual(Object.keys(result).sort(),['measured_at','measurement_kind','linked_members','linked_and_context_authorized_members','linked_members_with_joined_event','linked_members_with_live_event','linked_members_with_project_membership','linked_joined_members_with_project_membership'].sort());
+ assert.equal((await db.query('SELECT count(*)::int AS n FROM nearify_event_presence')).rows[0].n,5,'report leaves data unchanged');
+ console.log('PASS: empty data, distinct people across events/projects, authorization separation, left/live distinction, unlinked exclusion, aggregate-only output and no row mutations');
+}finally{await db.close();}
