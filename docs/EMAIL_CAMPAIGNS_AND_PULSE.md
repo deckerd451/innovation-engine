@@ -1,3 +1,24 @@
+# Current release: Community Pulse and campaign drafts only
+
+The Community Pulse and campaign SQL updates have been applied by the project
+administrator. Release the website PR to expose Home → Community Pulse and
+Admin → People → Email campaigns. No new Edge Function deployment, mailing
+address, or Resend webhook is needed for reading Pulse, previewing audiences,
+or creating/viewing/cancelling drafts.
+
+The production campaign renderer defaults to `draftsOnly: true`: it shows a
+clear notice and disables test, pilot and remaining-queue sends. The existing
+individual claim-email workflow is unchanged. Keep mailing-address and webhook
+secrets unset and do not deploy/enable campaign delivery for this release.
+
+When a qualifying address is available, complete the delivery setup below and
+use a reviewed follow-up release to call `renderCampaigns(content,
+{draftsOnly:false})`. The UI flag is not a security boundary: sending still
+requires the deployed Edge Function, validated server configuration, an active
+admin actor, campaign ownership, and SQL test/pilot/limit checks.
+
+---
+
 # Email campaigns and Community Pulse
 
 This release adds an admin campaign workflow and a separate member aggregate

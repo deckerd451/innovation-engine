@@ -4,11 +4,17 @@ const el = (tag, text) => {
   if (text !== undefined) n.textContent = text;
   return n;
 };
-export async function renderCampaigns(host) {
+export async function renderCampaigns(host, { draftsOnly = true } = {}) {
   const root = el("section");
   root.className = "admin-hub admin-campaigns";
   host.replaceChildren(root);
   root.innerHTML = `<h2>Email campaigns</h2><p class="admin-hub-lede">Preview an audience, send yourself a test, then send a five-recipient pilot before continuing. No email is sent by previewing or creating a draft.</p><p class="campaign-status" role="status"></p><section class="admin-hub-section"><h3>Create a campaign</h3><div class="campaign-form"><label>Audience<select id="campaign-audience"><option value="unclaimed">Unclaimed profiles</option><option value="inactive">Inactive members · no activity in 30 days</option><option value="active">Active members · seen in the last 30 days</option><option value="all">All eligible accounts</option></select></label><label>Subject<input id="campaign-subject" maxlength="160" value="Your CharlestonHacks community is waiting"></label><label>Message<textarea id="campaign-message" rows="5" maxlength="5000">Discover projects, meet people, and find a way to contribute to the CharlestonHacks community.</textarea></label><label>App destination for claimed members<select id="campaign-destination"><option value="home">Home</option><option value="projects">Explore projects</option><option value="opportunities">Explore opportunities</option></select></label></div><p class="admin-hub-note">Unclaimed recipients receive an individual verified claim link instead. Unsubscribe links are included. Admins, disabled and recognized test profiles, suppressed addresses and ambiguous claim addresses are excluded. Shared addresses are deduplicated. You can exclude additional people below.</p><button type="button" id="campaign-preview">Preview audience</button><div id="campaign-preview-result"></div><button type="button" id="campaign-create" disabled>Create draft from preview</button></section><section class="admin-hub-section"><h3>Recent campaign history · latest 50</h3><button type="button" id="campaign-history-refresh">Refresh history</button><ul id="campaign-history"></ul></section><section class="admin-hub-section" id="campaign-report-section" hidden><h3>Delivery report</h3><p class="campaign-summary"></p><details><summary>Saved message and destination</summary><pre class="campaign-saved-message"></pre></details><p class="admin-hub-note">Accepted means Resend accepted the request; it does not confirm inbox delivery. Delivered, bounced and complained statuses come from signed provider events. Unknown results are not automatically retried.</p><div class="campaign-send-controls"><button type="button" id="campaign-test">Send test to my verified email</button><button type="button" id="campaign-pilot">Send pilot · up to 5 recipients</button><label><input type="checkbox" id="campaign-reviewed"> I reviewed the pilot and approve continuing</label><button type="button" id="campaign-batch">Send remaining queue · batches of 5</button><button type="button" id="campaign-pause" disabled>Pause after current batch</button><button type="button" id="campaign-report-refresh">Refresh report</button><button type="button" id="campaign-cancel">Cancel remaining recipients</button></div><p class="admin-hub-note">A draft's message and audience snapshot are fixed. Changed eligibility is rechecked at send time. Limits: 50 requests/hour, 90/day, and one campaign per recipient per seven days. Cancellation stops unsent recipients; already reserved messages may complete. To change a draft, create another one.</p><div id="campaign-delivery-rows"></div></section>`;
+  if (draftsOnly) {
+    const notice = el("p", "Draft mode: campaign sending is paused until a mailing address and delivery setup are ready. You can preview audiences and save drafts for later.");
+    notice.className = "campaign-draft-notice admin-hub-note";
+    root.querySelector("h2").after(notice);
+    root.querySelector(".admin-hub-lede").textContent = "Prepare audiences and messages now. Saved drafts remain available for when campaign delivery is enabled.";
+  }
   const q = (selector) => root.querySelector(selector);
   let preview = null,
     previewOffset = 0,
@@ -34,15 +40,15 @@ export async function renderCampaigns(host) {
       .forEach((n) => (n.disabled = busy));
     q("#campaign-create").disabled = busy || !preview || preview.eligible < 1;
     q("#campaign-test").disabled =
-      busy || !report?.can_send || report?.test_attempted;
+      draftsOnly || busy || !report?.can_send || report?.test_attempted;
     q("#campaign-pilot").disabled =
-      busy ||
+      draftsOnly || busy ||
       !report?.can_send ||
       !report?.test_accepted ||
       report?.pilot_started ||
       !(report?.counts?.ready > 0);
     q("#campaign-batch").disabled =
-      busy ||
+      draftsOnly || busy ||
       !report?.can_send ||
       !report?.pilot_started ||
       !q("#campaign-reviewed").checked ||
@@ -50,6 +56,7 @@ export async function renderCampaigns(host) {
     q("#campaign-cancel").disabled =
       busy || !report?.can_send || !(report?.counts?.ready > 0);
     q("#campaign-pause").disabled = !running;
+    q("#campaign-reviewed").disabled = busy || draftsOnly;
   }
   async function task(fn) {
     if (busy) return;
@@ -209,6 +216,7 @@ export async function renderCampaigns(host) {
     pager(target, offset, report.report_total, loadReport);
   }
   async function send(mode) {
+    if (draftsOnly) throw Error("Campaign sending is paused. Drafts remain available.");
     const { data, error } = await window.supabase.functions.invoke(
       "campaign-email",
       {

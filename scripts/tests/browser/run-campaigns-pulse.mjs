@@ -61,9 +61,15 @@ try {
     );
     await run(`document.querySelector('#campaign-create').click();true`);
     await wait(
-      `!document.querySelector('#campaign-report-section').hidden&&!document.querySelector('#campaign-test').disabled`,
-      "draft",
+      `!document.querySelector('#campaign-report-section').hidden&&!document.querySelector('#campaign-preview').disabled`,
+      "saved draft",
     );
+    check(await run(`document.querySelector('.campaign-draft-notice')&&document.querySelector('#campaign-test').disabled&&document.querySelector('#campaign-pilot').disabled&&document.querySelector('#campaign-batch').disabled&&!window.__sendRequest`), 'Production draft mode saves campaigns and keeps all send actions disabled');
+    // Exercise the future enabled workflow only with a synthetic provider.
+    await run(`(async()=>{const m=await import('./assets/js/admin-campaigns.js?v=drafts-20261114');await m.renderCampaigns(document.querySelector('#admin-tab-content'),{draftsOnly:false});return true;})()`);
+    await wait(`document.querySelector('#campaign-history button')&&!document.querySelector('#campaign-history button').disabled`,'saved campaign history');
+    await run(`document.querySelector('#campaign-history button').click();true`);
+    await wait(`!document.querySelector('#campaign-test').disabled`,'synthetic send mode');
     check(
       await run(
         `document.querySelector('#campaign-pilot').disabled&&document.querySelector('#campaign-batch').disabled`,
