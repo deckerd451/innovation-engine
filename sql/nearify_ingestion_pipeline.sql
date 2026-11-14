@@ -1,3 +1,7 @@
+-- DEPRECATED LEGACY INTERACTION INGESTION: do not bootstrap/reapply this file
+-- as a new integration. Its QR auto-acceptance is not the v2 consent contract.
+-- Identity-link APIs are separate; this warning concerns interaction ingestion.
+-- See docs/NEARIFY_LEGACY_INGESTION_DEPRECATION.md and nearify_evidence_v2.sql.
 -- ================================================================
 -- NEARIFY → INNOVATION ENGINE: Connection Ingestion Pipeline
 -- ================================================================
