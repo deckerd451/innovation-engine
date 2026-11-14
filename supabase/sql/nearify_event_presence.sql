@@ -125,13 +125,17 @@ CREATE OR REPLACE FUNCTION public.ingest_nearify_event_presence(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
 DECLARE
   v_community_id UUID;
   v_row_id       UUID;
   v_created      BOOLEAN := false;
 BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Sign in to update event participation' USING ERRCODE = '42501';
+  END IF;
+
   IF p_nearify_event_id IS NULL OR trim(p_nearify_event_id) = '' THEN
     RETURN jsonb_build_object('success', false, 'error', 'nearify_event_id is required');
   END IF;
@@ -140,18 +144,22 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'status must be joined or left');
   END IF;
 
-  -- Resolve community ID: community_id -> auth_uid -> nearify_id
-  -- (identical priority to ingest_nearify_interaction, for consistency)
-  v_community_id := p_from_community_id;
-  IF v_community_id IS NULL AND p_from_auth_user_id IS NOT NULL THEN
-    SELECT id INTO v_community_id FROM community WHERE user_id = p_from_auth_user_id LIMIT 1;
-  END IF;
-  IF v_community_id IS NULL AND p_from_nearify_id IS NOT NULL THEN
-    SELECT community_id INTO v_community_id FROM nearify_identity_map WHERE nearify_user_id = p_from_nearify_id LIMIT 1;
+  -- Identity parameters remain for native-client compatibility, but are
+  -- assertions only. Resolve the actor exclusively from the signed-in session.
+  SELECT id INTO v_community_id
+  FROM public.community WHERE user_id = auth.uid() LIMIT 1;
+  IF v_community_id IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'No community profile found for current user');
   END IF;
 
-  IF v_community_id IS NULL THEN
-    RETURN jsonb_build_object('success', false, 'error', 'Could not resolve community ID');
+  IF (p_from_community_id IS NOT NULL AND p_from_community_id <> v_community_id)
+     OR (p_from_auth_user_id IS NOT NULL AND p_from_auth_user_id <> auth.uid())
+     OR (p_from_nearify_id IS NOT NULL AND NOT EXISTS (
+       SELECT 1 FROM public.nearify_identity_map nim
+       WHERE nim.community_id = v_community_id
+         AND lower(nim.nearify_user_id) = lower(trim(p_from_nearify_id))
+     )) THEN
+    RAISE EXCEPTION 'Identity does not match signed-in member' USING ERRCODE = '42501';
   END IF;
 
   INSERT INTO nearify_event_presence (
@@ -254,12 +262,8 @@ $$;
 REVOKE ALL ON FUNCTION public.set_nearify_event_live_presence(TEXT, TEXT, TIMESTAMPTZ, BOOLEAN) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.set_nearify_event_live_presence(TEXT, TEXT, TIMESTAMPTZ, BOOLEAN) TO authenticated;
 
-REVOKE ALL ON FUNCTION public.ingest_nearify_event_presence(
-  TEXT, TEXT, TIMESTAMPTZ, TEXT, UUID, UUID, TEXT
-) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.ingest_nearify_event_presence(
-  TEXT, TEXT, TIMESTAMPTZ, TEXT, UUID, UUID, TEXT
-) TO authenticated;
+REVOKE ALL ON FUNCTION public.ingest_nearify_event_presence(TEXT, TEXT, TIMESTAMPTZ, TEXT, UUID, UUID, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.ingest_nearify_event_presence(TEXT, TEXT, TIMESTAMPTZ, TEXT, UUID, UUID, TEXT) TO authenticated, service_role;
 
 
 -- ================================================================
