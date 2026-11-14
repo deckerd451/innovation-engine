@@ -1214,6 +1214,10 @@ function openAdminPanel() {
     loadAdminTabContent(tab.dataset.tab, personId);
   }
   panel.querySelectorAll('.admin-tab').forEach(tab => tab.addEventListener('click', () => activateAdminTab(tab)));
+  window.openAdminCampaigns = () => {
+    if (!panel.isConnected || window.isAdminUser?.() !== true) return false;
+    loadAdminTabContent('campaigns'); return true;
+  };
   window.openAdminPersonFromAnalytics = personId => {
     if (!panel.isConnected || window.isAdminUser?.() !== true || !window.AdminPeoplePanel?.renderPeoplePanel) return false;
     activateAdminTab(panel.querySelector('[data-tab="manage"]'), personId);
@@ -1228,7 +1232,7 @@ function loadAdminTabContent(tabName, personId = null, peopleFilters = null) {
   const content = document.getElementById('admin-tab-content');
   if (!content) return;
 
-  const parentSection = ({projects: 'community', organizations: 'community', analytics: 'community', system: 'privacy'})[tabName] || tabName;
+  const parentSection = ({projects: 'community', organizations: 'community', analytics: 'community', campaigns: 'manage', system: 'privacy'})[tabName] || tabName;
   document.querySelectorAll('#admin-panel .admin-main-tabs .admin-tab').forEach(button => {
     const selected = button.dataset.tab === parentSection;
     button.classList.toggle('active-admin-tab', selected);
@@ -1239,9 +1243,16 @@ function loadAdminTabContent(tabName, personId = null, peopleFilters = null) {
   });
   content.dataset.activeTab = tabName;
   content.scrollTop = 0;
+  if (tabName === 'campaigns') {
+    content.textContent = 'Loading email campaigns…';
+    import('./admin-campaigns.js?v=20261114').then(({renderCampaigns}) => {
+      if (content.isConnected && content.dataset.activeTab === 'campaigns') return renderCampaigns(content);
+    }).catch(() => { if (content.isConnected && content.dataset.activeTab === 'campaigns') content.textContent = 'Campaigns could not load. Select another section and try again.'; });
+    return;
+  }
   if (tabName === 'overview' || tabName === 'community') {
     content.textContent = 'Loading admin overview…';
-    import('./admin-overview.js?v=20261114').then(({ renderAdminOverview }) => {
+    import('./admin-overview.js?v=campaigns-20261114').then(({ renderAdminOverview }) => {
       if (content.isConnected && content.dataset.activeTab === tabName) {
         return renderAdminOverview(content, {section: tabName, navigate: loadAdminTabContent});
       }

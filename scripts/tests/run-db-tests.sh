@@ -113,4 +113,20 @@ for f in \
   "${PSQL[@]}" -d ie_claim_email -f "$ROOT/$f" >/dev/null
 done
 echo "   ok (including rollback)"
+echo "Email campaign audiences, queue, suppressions and member Pulse"
+"${PSQL[@]}" -d postgres -c "CREATE DATABASE ie_campaigns" >/dev/null
+for f in \
+  scripts/tests/fixtures/site-visits-bootstrap.sql \
+  scripts/tests/fixtures/admin-claim-email-bootstrap.sql \
+  scripts/tests/fixtures/campaigns-bootstrap.sql \
+  supabase/sql/migrations/20261114d_email_campaigns.sql \
+  supabase/sql/migrations/20261114e_member_community_pulse.sql \
+  scripts/tests/email-campaigns-db.sql \
+  scripts/tests/community-pulse-db.sql \
+  supabase/sql/rollback/20261114e_member_community_pulse_rollback.sql \
+  supabase/sql/rollback/20261114d_email_campaigns_rollback.sql \
+  scripts/tests/campaigns-rollback-db.sql; do
+  "${PSQL[@]}" -d ie_campaigns -f "$ROOT/$f" >/dev/null
+done
+echo "   ok (suppression records retained on rollback)"
 echo "database checks passed"

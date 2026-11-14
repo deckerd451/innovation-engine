@@ -865,3 +865,7 @@
   .admin-hub-metric, .admin-hub-section { padding: .8rem; }
 }
 @media (max-width: 360px) { .admin-hub-metrics, .admin-hub-network { grid-template-columns: minmax(0,1fr); } }
+
+.campaign-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));gap:1rem;margin:1rem 0}.campaign-form label{display:flex;flex-direction:column;gap:.4rem}.admin-campaigns input:not([type=checkbox]),.admin-campaigns select,.admin-campaigns textarea{width:100%;min-width:0;background:#10182a;color:#f1f3fa;border:1px solid #347389;border-radius:8px;padding:.7rem;font:inherit}.admin-campaigns textarea{resize:vertical}.campaign-recipients{padding-left:1.25rem;line-height:1.6}.campaign-recipients li{padding:.4rem 0;overflow-wrap:anywhere}.campaign-recipients label{cursor:pointer}.campaign-send-controls,.campaign-pagination{display:flex;flex-wrap:wrap;gap:.75rem;align-items:center;margin:1rem 0}.campaign-send-controls label{line-height:1.6}.campaign-status{color:#c4c8d4;line-height:1.5}.admin-campaigns input:focus-visible,.admin-campaigns select:focus-visible,.admin-campaigns textarea:focus-visible{outline:3px solid #00e0ff;outline-offset:2px}.campaign-saved-message{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;background:#10182a;border:1px solid #3b4057;border-radius:8px;padding:1rem}
+
+.admin-people-heading .admin-retry-btn { min-height: 44px; margin: .5rem 0; }

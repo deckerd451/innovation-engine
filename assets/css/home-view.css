@@ -152,3 +152,5 @@
   .home-view[data-layout="desktop"] .home-grid { grid-template-columns:minmax(0, 1.6fr) minmax(0, 1fr); align-items:start; }
   .home-view[data-layout="desktop"] .home-picks, .home-view[data-layout="desktop"] .home-invites { grid-template-columns:repeat(auto-fill, minmax(15rem, 1fr)); }
 }
+
+.home-pulse-link { display: inline-flex; align-items: center; min-height: 44px; text-decoration: none; }

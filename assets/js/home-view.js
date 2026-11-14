@@ -591,7 +591,7 @@
           <section class="home-section home-profile" data-home="profile" aria-labelledby="home-curious-title" hidden></section>
           <section class="home-section home-quiet" data-home="quiet" aria-label="Getting started" hidden></section>
         </div>
-        <div class="home-side">
+        <div class="home-side"><section class="home-section"><h2 class="home-heading">Community Pulse</h2><p class="home-sub">See shared milestones, skills, and ways to participate.</p><a class="home-action home-pulse-link" href="./pulse.html">View Community Pulse →</a></section>
           <section class="home-section home-mine" data-home="mine" aria-labelledby="home-mine-title" hidden></section>
           <section class="home-section home-idea" data-home="goal" aria-labelledby="home-idea-title"></section>
         </div>

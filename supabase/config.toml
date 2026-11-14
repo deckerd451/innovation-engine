@@ -4,3 +4,9 @@ project_id = "innovation-engine"
 # This supports both legacy and newer Supabase JWT signing configurations.
 [functions.send-claim-emails]
 verify_jwt = false
+
+[functions.campaign-email]
+verify_jwt = false
+
+[functions.campaign-email-events]
+verify_jwt = false

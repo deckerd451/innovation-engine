@@ -109,6 +109,8 @@ export async function renderAdminOverview(container, {section = 'overview', navi
     card(snapshot, 'New profiles', network?.new_members_30d, 'Created in the last 30 days · not new claims');
     card(snapshot, 'New connections', network?.new_connections_30d, 'Accepted connections created in the last 30 days');
     const links = root.querySelector('.admin-hub-links'); links.replaceChildren();
+    action(links, 'Email campaigns', 'Preview recipients, send a test and pilot, and review delivery reports.', () => go('campaigns'));
+    action(links, 'Community Pulse', 'See the member-safe community summary.', () => { location.href = new URL('pulse.html', location.href).href; });
     action(links, community ? 'People directory' : 'Community tools', community ? 'Find members and manage profiles or claim emails.' : 'Manage projects and organizations, or open detailed analytics.', () => go(community ? 'manage' : 'community'));
     const partial = !traffic || !network || !claims;
     root.querySelector('.admin-hub-status').textContent = `${partial ? 'Some reports are unavailable; available figures are shown.' : 'Reports updated.'} ${new Date().toLocaleTimeString()}. Refresh to update.`;
