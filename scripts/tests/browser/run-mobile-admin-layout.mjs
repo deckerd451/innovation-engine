@@ -1,7 +1,10 @@
 // Synthetic, local-only Admin layout and touch regression.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import {appHarness} from './helpers/app-harness.mjs';
+const artifacts = path.join(process.env.RUNNER_TEMP || os.tmpdir(), 'ie-admin-layout');
 const app=await appHarness();
 const {evaluate:run,wait,sleep}=app;
 let passed=0;
@@ -51,7 +54,7 @@ try {
     check(await run(`document.querySelector('#visitor-period option[value="1"]').textContent==='Last 24 hours'&&window.__visitorArgs.p_view==='community'`),'Daily option requests one rolling day and keeps self-exclusion');
     await tap('#visitor-refresh');
     check(await run(`window.__visitorArgs.p_days===1`),'Refresh retains the daily period');
-    if(width===390) {const shot=await app.send('Page.captureScreenshot',{format:'png'});fs.mkdirSync('/workspace/shared',{recursive:true});fs.writeFileSync('/workspace/shared/mobile-admin-compact.png',Buffer.from(shot.data,'base64'));}
+    if(width===390) {const shot=await app.send('Page.captureScreenshot',{format:'png'});fs.mkdirSync(artifacts,{recursive:true});fs.writeFileSync(path.join(artifacts,'mobile-admin-compact.png'),Buffer.from(shot.data,'base64'));}
   }
   await app.send('Emulation.setDeviceMetricsOverride',{width:1280,height:800,deviceScaleFactor:1,mobile:false});await sleep(200);
   check(await run(`getComputedStyle(document.querySelector('.admin-main-tabs')).display==='flex'`),'Desktop keeps its existing navigation layout');
