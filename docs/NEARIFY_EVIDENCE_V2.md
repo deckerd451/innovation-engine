@@ -22,16 +22,18 @@ messaging permission, or contact disclosure is written. Existing graph consumers
 may display this evidence; do not equate appearing under “People you met” with
 an accepted connection or proven physical encounter.
 
-Canonical pair + event + signal type is the idempotency key, using the existing
-unique expression index. Retries return the existing edge without modifying
+Canonical pair + event + signal type is the idempotency key, using a new partial
+unique expression index scoped to source=nearify-evidence-v2 and version=2. Retries return the existing edge without modifying
 its status, confidence, provenance or timestamp. Reversed pair order is the same
-key; separate signal types are separate evidence. Duplicate historical edges
-are not relabeled. Conflicting retry payloads retain the first stored evidence.
+key; separate signal types are separate evidence. Historical evidence is outside this index and retry lookup; a v2 call may
+create its own edge for a pair/event/signal already present in legacy data.
+Duplicate historical edges are not relabeled or removed. Conflicting retry payloads retain the first stored evidence.
 New evidence returns edge_created=true; a duplicate returns false. Both return
 connection_created=false and connection_promoted=false, meaning this invocation
 did not create/promote a connection, not that no connection already exists.
 
-No arbitrary metadata is accepted. No updated_at column is assumed. The live
+No arbitrary metadata is accepted. No updated_at column is assumed. Required overlap_seconds is written as 0,
+meaning no measured overlap duration is supplied, not proven co-presence. The live
 legacy function referenced that absent column. Enabled user triggers on the
 edge table cause v2 calls to fail closed until reviewed; an indirect trigger
 must not turn evidence into a connection. Do not disable production triggers
@@ -41,7 +43,10 @@ blindly to make the check pass. Internal constraint triggers are permitted.
 
 1. Run `supabase/sql/diagnostics/nearify_evidence_v2_preflight.sql` through the
    existing SQL-admin workflow. Review columns, status/type constraints,
-   expression index and triggers. No live preflight has yet been reviewed.
+   expression index and triggers. The operator preflight confirmed no updated_at, required overlap_seconds,
+   no pair/event/signal unique index, suggested as an allowed status, and no
+   user triggers. This revision matches those constraints. Index creation
+   takes a table lock; schedule appropriately for production traffic.
 2. Review and apply `supabase/sql/migrations/20261114c_nearify_evidence_v2.sql`.
    Additive: no caller switches and no historical row changes are performed.
 3. Identify a trusted caller owner and verify its payload/event validation.
@@ -54,7 +59,7 @@ blindly to make the check pass. Internal constraint triggers are permitted.
    remaining external-use uncertainty is resolved. The quiet 60-minute log
    window is insufficient to establish historical inactivity.
 
-Rollback drops only the v2 RPC and retains evidence rows. Stop v2 callers first;
+Rollback drops the v2 RPC and its partial index, retaining evidence rows. Stop v2 callers first;
 do not automatically fall back to legacy QR auto-acceptance on RPC errors.
 
 ## Audit findings

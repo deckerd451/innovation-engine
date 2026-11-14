@@ -14,13 +14,18 @@ try{
  GRANT USAGE ON SCHEMA public TO anon,authenticated,service_role;
  CREATE TABLE nearify_identity_map(community_id uuid,nearify_user_id text UNIQUE);
  CREATE TABLE community_experience_authorizations(community_id uuid,experience text,status text);
- CREATE TABLE interaction_edges(id uuid DEFAULT gen_random_uuid() PRIMARY KEY,from_user_id uuid,to_user_id uuid,type text,status text,confidence numeric,meta jsonb,created_at timestamptz);
- CREATE UNIQUE INDEX idx_ie_dedup ON interaction_edges(LEAST(from_user_id,to_user_id),GREATEST(from_user_id,to_user_id),COALESCE((meta->>'event_id')::text,''),COALESCE((meta->>'signal_type')::text,''));
+ CREATE TABLE interaction_edges(id uuid DEFAULT gen_random_uuid() PRIMARY KEY,from_user_id uuid,to_user_id uuid,type text NOT NULL,status text NOT NULL CHECK(status IN('suggested','accepted','ignored','blocked')),confidence numeric NOT NULL,overlap_seconds integer NOT NULL,meta jsonb NOT NULL,created_at timestamptz NOT NULL);
  ALTER TABLE interaction_edges ENABLE ROW LEVEL SECURITY;
  CREATE TABLE connections(status text PRIMARY KEY);
  INSERT INTO connections VALUES('accepted'),('pending'),('blocked'),('declined');
  INSERT INTO nearify_identity_map VALUES('${a}','near-a'),('${b}','near-b');
  INSERT INTO community_experience_authorizations VALUES('${a}','nearify','authorized'),('${b}','nearify','authorized');`);
+ // Historical duplicate pairs are legal in production. V2 must neither
+ // fail on them nor return one as the result of a v2 retry.
+ await db.query(`INSERT INTO interaction_edges(from_user_id,to_user_id,type,status,confidence,overlap_seconds,meta,created_at)
+ SELECT $1::uuid,$2::uuid,'qr_confirmed','accepted',50,0,
+ jsonb_build_object('event_id',$3::text,'signal_type','qr_confirmed'),now() FROM generate_series(1,2)`,[a,b,event]);
+ const historical=(await db.query("SELECT * FROM interaction_edges ORDER BY id")).rows;
  await db.exec(migration);
  for(const role of ['anon','authenticated']){
   await db.exec(`SET ROLE ${role}`);
@@ -38,7 +43,8 @@ try{
  for(const type of ['proximity','ble_proximity'])assert.equal((await invoke('near-a','near-b',type,30)).rows[0].result.edge_created,true);
  await db.exec('RESET ROLE');
  assert.deepEqual((await db.query('SELECT status FROM connections ORDER BY status')).rows.map(r=>r.status),['accepted','blocked','declined','pending']);
- assert.ok((await db.query('SELECT * FROM interaction_edges')).rows.every(r=>r.status==='suggested'));
+ assert.ok((await db.query("SELECT * FROM interaction_edges WHERE meta->>'source'='nearify-evidence-v2'")).rows.every(r=>r.status==='suggested'&&r.overlap_seconds===0));
+ assert.deepEqual((await db.query("SELECT * FROM interaction_edges WHERE meta->>'source' IS NULL ORDER BY id")).rows,historical);
  await db.exec(`UPDATE interaction_edges SET status='blocked' WHERE id='${first.edge_id}'; SET ROLE service_role;`);
  await invoke();
  await db.exec('RESET ROLE');
@@ -59,5 +65,5 @@ try{
  await db.exec(read('supabase/sql/rollback/20261114c_nearify_evidence_v2_rollback.sql'));
  assert.deepEqual((await db.query('SELECT * FROM interaction_edges ORDER BY id')).rows,before);
  await db.exec(migration);
- console.log('PASS: service-only grants, evidence-only QR/proximity writes, reverse-pair retries, invalid/self/unlinked inputs, authorization, blocked-edge preservation, connection-state invariance, trigger fail-closed guard, no updated_at dependency, rollback/reapply');
+ console.log('PASS: service-only grants, evidence-only QR/proximity writes, reverse-pair retries, invalid/self/unlinked inputs, authorization, blocked-edge preservation, connection-state invariance, trigger fail-closed guard, production constraints and required overlap, historical duplicates unchanged, v2-only index, no updated_at dependency, rollback/reapply');
 }finally{await db.close();}

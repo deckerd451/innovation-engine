@@ -1,3 +1,13 @@
+-- Production has no global pair/event/signal unique index. Scope uniqueness
+-- to this API's own evidence; never deduplicate or constrain historical rows.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_nearify_evidence_v2_dedup
+ON public.interaction_edges (
+  LEAST(from_user_id, to_user_id), GREATEST(from_user_id, to_user_id),
+  COALESCE((meta->>'event_id')::text, ''),
+  COALESCE((meta->>'signal_type')::text, '')
+)
+WHERE meta->>'source' = 'nearify-evidence-v2' AND meta->>'evidence_version' = '2';
+
 -- Versioned trusted ingestion: encounter evidence is never connection consent.
 CREATE OR REPLACE FUNCTION public.ingest_nearify_evidence_v2(
   p_event_id UUID,
@@ -51,14 +61,14 @@ BEGIN
     RAISE EXCEPTION 'Evidence requires two distinct authorized linked members' USING ERRCODE = '22023';
   END IF;
 
-  -- Use the established pair/event/signal index. Never refresh old evidence,
+  -- Use the v2-only pair/event/signal index. Never refresh old evidence,
   -- change its lifecycle, or revive ignored/blocked rows on a retry.
   -- created_at is supported by the live table; updated_at is not assumed.
   INSERT INTO public.interaction_edges (
-    from_user_id, to_user_id, type, status, confidence, meta, created_at
+    from_user_id, to_user_id, type, status, confidence, overlap_seconds, meta, created_at
   ) VALUES (
     LEAST(v_from, v_to), GREATEST(v_from, v_to), p_signal_type,
-    'suggested', p_confidence,
+    'suggested', p_confidence, 0,
     jsonb_build_object(
       'event_id', p_event_id::text, 'event_name', p_event_name,
       'signal_type', p_signal_type, 'occurred_at', p_occurred_at,
@@ -70,13 +80,15 @@ BEGIN
     LEAST(from_user_id, to_user_id), GREATEST(from_user_id, to_user_id),
     COALESCE((meta->>'event_id')::text, ''),
     COALESCE((meta->>'signal_type')::text, '')
-  ) DO NOTHING
+  ) WHERE meta->>'source' = 'nearify-evidence-v2' AND meta->>'evidence_version' = '2'
+  DO NOTHING
   RETURNING id INTO v_edge;
 
   v_created := FOUND;
   IF NOT v_created THEN
     SELECT id INTO v_edge FROM public.interaction_edges
-    WHERE LEAST(from_user_id, to_user_id) = LEAST(v_from, v_to)
+    WHERE meta->>'source' = 'nearify-evidence-v2' AND meta->>'evidence_version' = '2'
+      AND LEAST(from_user_id, to_user_id) = LEAST(v_from, v_to)
       AND GREATEST(from_user_id, to_user_id) = GREATEST(v_from, v_to)
       AND COALESCE(meta->>'event_id', '') = p_event_id::text
       AND COALESCE(meta->>'signal_type', '') = p_signal_type;
