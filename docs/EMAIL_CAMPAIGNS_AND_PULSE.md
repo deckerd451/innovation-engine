@@ -194,3 +194,13 @@ only its member aggregate RPC. No rollback can retract delivered messages.
 - Pinned Deno SDK adapter tests run without network permission and assert
   verified actor selection, private claim links, idempotency and unsubscribe
   headers. Functions are type-checked with frozen dependency locks.
+
+## Campaign history correction (20261114f)
+
+If the campaign screen reports `column reference "audience" is ambiguous`, run
+`supabase/sql/migrations/20261114f_campaign_history_audience.sql` in the SQL
+Editor. This replaces only the admin RPC, renames its local audience variable
+and qualifies the history columns. Existing drafts, recipient snapshots,
+permissions and draft-only mode remain intact. No website or Edge Function
+deployment is needed for this correction. Refresh campaign history afterward.
+New installations should apply this correction after 20261114d.

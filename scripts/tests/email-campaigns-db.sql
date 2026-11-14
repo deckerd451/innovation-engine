@@ -14,9 +14,12 @@ END $$;
 RESET ROLE;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
 SET ROLE authenticated;
+DO $$ BEGIN ASSERT public.admin_email_campaign('list')='[]'::jsonb,'Empty history should load'; END $$;
 CREATE TEMP TABLE test_campaign(id uuid);
 INSERT INTO test_campaign SELECT (public.admin_email_campaign('create',NULL,'{"audience":"unclaimed","subject":"Community update","message":"Help build something useful.","destination":"projects"}') ->> 'id')::uuid;
 DO $$ DECLARE p jsonb; BEGIN
+ p:=public.admin_email_campaign('list');
+ ASSERT jsonb_array_length(p)=1 AND p->0->>'audience'='unclaimed','Saved draft history lost its audience';
  p:=public.admin_email_campaign('preview',NULL,'{"audience":"all"}');
  ASSERT (p->'excluded'->>'admin')::int=2, 'Admin not excluded';
  ASSERT (p->'excluded'->>'test_profile')::int=1, 'Test not excluded';

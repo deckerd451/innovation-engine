@@ -120,6 +120,7 @@ for f in \
   scripts/tests/fixtures/admin-claim-email-bootstrap.sql \
   scripts/tests/fixtures/campaigns-bootstrap.sql \
   supabase/sql/migrations/20261114d_email_campaigns.sql \
+  supabase/sql/migrations/20261114f_campaign_history_audience.sql \
   supabase/sql/migrations/20261114e_member_community_pulse.sql \
   scripts/tests/email-campaigns-db.sql \
   scripts/tests/community-pulse-db.sql \
