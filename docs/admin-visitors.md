@@ -87,3 +87,23 @@ Rollback the UI and apply
 the original report without deleting data. Regression coverage:
 `node scripts/tests/browser/run-visitor-separation.mjs` and the database suite
 `admin-visit-separation-db.sql` in `npm run test:db`.
+
+## Three report views (20261114b)
+
+Apply `supabase/sql/migrations/20261114b_visitor_report_views.sql` before
+releasing the new UI. It adds the admin-only `get_admin_site_visit_report` RPC
+with a validated `p_view` of community (default), internal, or all. The previous
+RPC is retained for older clients. No table or collection changes are needed.
+Each view computes its own exact aggregate browser count and recent list;
+internal browser counts cannot be calculated by subtracting distinct counts.
+
+The page defaults to Community visits, with cards for Visits, Estimated browsers,
+Guest visits and Member visits. A muted admin/browser activity card shows the
+excluded subtotal. The View selector offers Community, Admin/browser and All;
+the heading and recent list label follow the selection. Admin/browser activity
+is recognized activity, not a guarantee that all testing has been identified.
+
+For rollback, restore the previous UI and run
+`supabase/sql/rollback/20261114b_visitor_report_views_rollback.sql`.
+Regression coverage runs in the existing visitor browser CI step and database
+suite, including both unauthorized roles and invalid view parameters.
