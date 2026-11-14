@@ -1,20 +1,25 @@
-Innovation Engine
+# System boundaries
 
-Persistent network and intelligence layer
+BUILDSPACE (Innovation Engine) owns community profiles, the collaboration
+network, projects, organizations, opportunities, and professional context.
+Its web client uses Supabase project `mqbsjlgnsirqsmfnreqd`.
 
-Nearify Web
+Nearify Web owns event discovery and participation, saved people,
+relationship history, follow-up, and Nearify messaging flows. Its client uses
+Supabase project `unndeygygkgodmmdnlup`. Nearify iOS also owns native live-event
+interaction and consumes BUILDSPACE context through its optional bridge.
 
-Event acquisition and app handoff layer
+These are separate identity and data domains, not one shared backend.
+`auth.users.id` is local to each project and is used for session/RLS checks.
+BUILDSPACE public identity is `community.id` (`community.user_id` maps to auth).
+Nearify public identity is `profiles.id` (`profiles.user_id` maps to auth).
+Never compare or substitute IDs across projects.
 
-Nearify iOS
+The iOS bridge authenticates separately to BUILDSPACE and links the Nearify
+profile through `nearify_identity_map`. Context sharing has separate,
+revocable authorization through `community_experience_authorizations`.
+Linking accounts does not itself connect two people or authorize messaging.
 
-Live event interaction layer
-
-Shared backend
-
-Supabase is the system of record for identity, events, attendees, connections, and derived data
-
-auth.users.id = used for login/session/RLS checks
-profiles.id = used for app-facing relationships, graph, social identity
-event_attendees.profile_id = references profiles.id
-connections.profile_a / profile_b = references profiles.id
+See [Relationship ownership](docs/RELATIONSHIP_OWNERSHIP.md) for the state map,
+legacy ingestion exception, and consolidation scope. Repository definitions
+and migration comments are not proof that a migration is deployed.
