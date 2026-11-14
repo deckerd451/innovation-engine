@@ -42,12 +42,14 @@ try {
     });
     await page.addScriptTag({url: origin + '/assets/js/dashboard-actions.js'});
     await page.evaluate(() => window.openAdminPanel());
+    await page.locator('#admin-panel [data-tab=visitors]').click();
     await page.getByText('Estimated browsers', {exact: true}).waitFor();
     if (await page.locator('.visitor-metrics strong').first().textContent() !== '4') throw Error('Wrong total');
-    if (!await page.evaluate(() => window.calls[0].args.p_view === 'community')) throw Error('Self not excluded');
+    if (!await page.evaluate(() => window.calls.find(c=>c.name==='get_admin_site_visit_report').args.p_view === 'community')) throw Error('Self not excluded');
+    await page.evaluate(()=>window.calls=[]);
     await page.getByLabel('View', {exact:true}).selectOption('all');
-    await page.waitForFunction(() => window.calls.length === 2);
-    if (await page.evaluate(() => window.calls[1].args.p_view !== 'all')) throw Error('Self toggle ignored');
+    await page.waitForFunction(() => window.calls.length === 1);
+    if (await page.evaluate(() => window.calls[0].args.p_view !== 'all')) throw Error('Self toggle ignored');
     await page.getByLabel('Period').selectOption('0');
     await page.waitForFunction(() => window.calls.some(call => call.args.p_days === 0));
     await page.getByText('7 visits in this period', {exact:true}).waitFor();
@@ -99,7 +101,7 @@ try {
     await next.scrollIntoViewIfNeeded(); await next.click();
     await page.getByText('Showing 51-85 of 85 people', {exact:true}).waitFor();
     await page.evaluate(url=>import(url),origin+'/assets/js/adminPrivacyPanel.js');
-    await page.getByRole('button',{name:'Privacy',exact:true}).click();
+    await page.getByRole('button',{name:'Settings & Privacy',exact:true}).click();
     await page.locator('#admin-privacy-tbody tr').first().waitFor();
     await page.locator('#admin-privacy-tbody tr').last().scrollIntoViewIfNeeded();
     if (await page.locator('.admin-about').getAttribute('open')!==null) throw Error('Privacy help expanded by default');

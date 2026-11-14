@@ -25,6 +25,6 @@ const fs = require('node:fs');
   assert.match(sql, /user_id = auth.uid\(\) AND user_role = 'Admin'/);
   assert.match(sql, /auth_user_id IS DISTINCT FROM auth.uid\(\)/);
   const shell = fs.readFileSync('assets/js/dashboard-actions.js','utf8');
-  assert.match(shell, /loadAdminTabContent\('visitors'\)/);
+  assert.match(shell, /loadAdminTabContent\('overview'\)/);
   console.log('Visitor session and integration checks passed');
 })().catch(error => { console.error(error); process.exit(1); });

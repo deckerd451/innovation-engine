@@ -107,3 +107,10 @@ For rollback, restore the previous UI and run
 `supabase/sql/rollback/20261114b_visitor_report_views_rollback.sql`.
 Regression coverage runs in the existing visitor browser CI step and database
 suite, including both unauthorized roles and invalid view parameters.
+
+## Admin overview navigation
+
+The panel now opens on Overview; this report is under Traffic. Community tools
+contain Projects, Organizations and detailed network analytics. Existing People
+management and Privacy controls are preserved. See `docs/ADMIN_OVERVIEW.md` for
+the redesign, daily-chart migration, data definitions, and release checks.
