@@ -64,9 +64,14 @@ try {
       `!document.querySelector('#campaign-report-section').hidden&&!document.querySelector('#campaign-preview').disabled`,
       "saved draft",
     );
-    check(await run(`document.querySelector('.campaign-draft-notice')&&document.querySelector('#campaign-test').disabled&&document.querySelector('#campaign-pilot').disabled&&document.querySelector('#campaign-batch').disabled&&!window.__sendRequest`), 'Production draft mode saves campaigns and keeps all send actions disabled');
-    // Exercise the future enabled workflow only with a synthetic provider.
-    await run(`(async()=>{const m=await import('./assets/js/admin-campaigns.js?v=drafts-20261114');await m.renderCampaigns(document.querySelector('#admin-tab-content'),{draftsOnly:false});return true;})()`);
+    check(await run(`!document.querySelector('.campaign-draft-notice')&&!document.querySelector('#campaign-test').disabled&&document.querySelector('#campaign-pilot').disabled&&document.querySelector('#campaign-batch').disabled&&!window.__sendRequest`), 'Production enables only the test before test acceptance; creating a draft sends nothing');
+    // Keep the reusable draft-only mode covered, using synthetic data only.
+    await run(`(async()=>{const m=await import('./assets/js/admin-campaigns.js?v=delivery-20261121');await m.renderCampaigns(document.querySelector('#admin-tab-content'),{draftsOnly:true});return true;})()`);
+    await wait(`document.querySelector('#campaign-history button')&&!document.querySelector('#campaign-history button').disabled`,'draft-only history');
+    await run(`document.querySelector('#campaign-history button').click();true`);
+    await wait(`!document.querySelector('#campaign-report-section').hidden&&!document.querySelector('#campaign-report-refresh').disabled`,'draft-only report');
+    check(await run(`document.querySelector('.campaign-draft-notice')&&document.querySelector('#campaign-test').disabled&&document.querySelector('#campaign-pilot').disabled&&document.querySelector('#campaign-batch').disabled&&!window.__sendRequest`), 'Explicit draft-only mode retains disabled send actions');
+    await run(`(async()=>{const m=await import('./assets/js/admin-campaigns.js?v=delivery-20261121');await m.renderCampaigns(document.querySelector('#admin-tab-content'),{draftsOnly:false});return true;})()`);
     await wait(`document.querySelector('#campaign-history button')&&!document.querySelector('#campaign-history button').disabled`,'saved campaign history');
     await run(`document.querySelector('#campaign-history button').click();true`);
     await wait(`!document.querySelector('#campaign-test').disabled`,'synthetic send mode');

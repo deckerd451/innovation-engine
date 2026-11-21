@@ -1,21 +1,20 @@
-# Current release: Community Pulse and campaign drafts only
+# Current release: Community Pulse and campaign delivery controls
 
-The Community Pulse and campaign SQL updates have been applied by the project
-administrator. Release the website PR to expose Home → Community Pulse and
-Admin → People → Email campaigns. No new Edge Function deployment, mailing
-address, or Resend webhook is needed for reading Pulse, previewing audiences,
-or creating/viewing/cancelling drafts.
+The administrator has configured a campaign mailing address and Resend webhook
+signing secret and deployed `campaign-email` and `campaign-email-events`.
+The production admin page now explicitly calls `renderCampaigns(content,
+{draftsOnly:false})`. The renderer still defaults to draft-only for other callers.
 
-The production campaign renderer defaults to `draftsOnly: true`: it shows a
-clear notice and disables test, pilot and remaining-queue sends. The existing
-individual claim-email workflow is unchanged. Keep mailing-address and webhook
-secrets unset and do not deploy/enable campaign delivery for this release.
+Opening campaigns, previewing audiences and saving drafts never sends email.
+Start with **Send test to my verified email**. Inspect its footer and links,
+then confirm the signed delivery event reaches the webhook successfully before
+sending a pilot. Production delivery and webhook processing still need this
+end-to-end verification; deployment alone does not prove they work.
 
-When a qualifying address is available, complete the delivery setup below and
-use a reviewed follow-up release to call `renderCampaigns(content,
-{draftsOnly:false})`. The UI flag is not a security boundary: sending still
-requires the deployed Edge Function, validated server configuration, an active
-admin actor, campaign ownership, and SQL test/pilot/limit checks.
+Pilot sending requires an accepted test. Continuing the remaining queue requires
+a started pilot and the administrator's review checkbox. Server configuration,
+active admin authorization, draft ownership, eligibility and SQL limits continue
+to apply. Existing individual claim emails and Community Pulse are unchanged.
 
 ---
 
