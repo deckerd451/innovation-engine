@@ -427,7 +427,7 @@ try {
       `${name}: members who list it, each with why (“Lists Python”)`, JSON.stringify(r.people));
     check(!names.some(n => /Quinn|Test Member|fixture\)/.test(n)), `${name}: never someone hidden, never the member, no full name of anyone not connected`, JSON.stringify(names));
     check(JSON.stringify(r.projects) === '[["Flood map for West Ashley","Needs Python"]]', `${name}: a project that needs it, saying so`, JSON.stringify(r.projects));
-    check(/Matched on the words python, mentoring, teen/.test(r.text) && !/recommend|AI|for you/i.test(r.text), `${name}: says it matched on words; no recommendation or AI claims`, r.text.slice(0, 160));
+    check(/Matches for “Python mentoring for teens”/.test(r.text) && r.explore.length === 0 && !/recommend|AI|for you/i.test(r.text), `${name}: concise query heading, no redundant browsing or AI claims`, r.text.slice(0, 160));
     check(!(await evaluate(`!!document.getElementById('mobile-task-assistance')`)), `${name}: the idea never opens the worksheet`);
     await snap(`idea-python-${name}`);
 
@@ -453,13 +453,13 @@ try {
 
     // Nothing to match: said plainly, with ways to keep exploring.
     r = await askIdea('Underwater basket weaving');
-    check(/No matches found for underwater, basket, weaving/.test(r.text) && JSON.stringify(r.explore) === '["Browse people","Browse projects"]' && !r.people.length && !r.projects.length,
+    check(/No matches found for underwater, basket, weaving/.test(r.text) && JSON.stringify(r.explore) === '["Explore the community"]' && !r.people.length && !r.projects.length,
       `${name}: with no match it says so and offers Explore`, r.text);
     await snap(`idea-none-${name}`);
-    await evaluate(`document.querySelector('${ROOT()} [data-idea-explore="projects"]').click(); true`);
+    await evaluate(`document.querySelector('${ROOT()} [data-idea-explore="people"]').click(); true`);
     await sleep(800);
-    check((await evaluate(`document.body.dataset.destination`)) === 'explore' && (await evaluate(`document.querySelector('#udc-resource-tabs .udc-resource-tab.active')?.dataset.resource`)) === 'projects',
-      `${name}: “Browse projects” opens Explore’s projects`);
+    check((await evaluate(`document.body.dataset.destination`)) === 'explore' && (await evaluate(`document.querySelector('#udc-resource-tabs .udc-resource-tab.active')?.dataset.resource`)) === 'people',
+      `${name}: “Explore the community” opens Explore’s people`);
     await evaluate(`window.AppNav.go('home'); true`);
     await sleep(800);
 
