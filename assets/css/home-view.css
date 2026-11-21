@@ -1,8 +1,6 @@
-/* Home (home-view.js): discovery first, the same sections at every width.
-   Phones and tablets show them in #mobile-you-content (one column), desktop
-   in #cd-home (two columns: discovery, then your community and goal help).
-   Happening in the community and Picked for you carry the page (search is
-   in Explore, in the navigation); Your community and goal help stay quiet. */
+/* Home: intent first, followed by one next step, compact projects and open
+   invitations. One reading order at every width; the desktop grid places
+   the project summary alongside the next step. */
 .home-view { display:grid; gap:1rem; color:#e6ebf5; }
 .home-sr { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
 .home-header { display:grid; grid-template-columns:auto minmax(0, 1fr); align-items:center; gap:.45rem .75rem; padding:.15rem 108px .1rem 0; }
@@ -154,3 +152,34 @@
 }
 
 .home-pulse-link { display: inline-flex; align-items: center; min-height: 44px; text-decoration: none; }
+
+/* Intent-first Home: one finder, one next step, compact real invitations. */
+.home-grid>.home-idea{grid-column:1 / -1;padding:1rem;background:rgba(0,224,255,.035);border-color:rgba(0,224,255,.25)}
+.home-idea .home-heading{font-size:1.18rem;color:#fff;letter-spacing:0;text-transform:none;margin-bottom:.4rem}
+.home-idea-form button{background:#00d9ee;color:#061018;border-color:#00d9ee}
+.home-idea-form input{flex-basis:20rem;width:100%}
+.home-idea .home-idea-example{margin-top:.25rem}
+.home-picked .home-meet-card .network-reflection-concierge{border:0;padding:.5rem 0 0;background:none}
+.home-picked .network-reflection-concierge-prompt,.home-picked .network-reflection-concierge-eyebrow{display:none}
+.home-picked .network-reflection-concierge-profile{border:1px solid rgba(0,224,255,.35);border-radius:10px;background:rgba(0,224,255,.08)}
+.home-picked .network-reflection-concierge-primary{border:0;background:none;font-weight:600}
+.home-picked .home-pick{border:0;padding:.5rem 0 0;background:none}
+.home-happening .home-invite{border:0;border-top:1px solid rgba(255,255,255,.1);border-radius:0;background:none;padding:.75rem 0}
+.home-happening .home-invites{margin-bottom:.3rem}
+.home-mine .home-heading{font-size:1rem}
+.home-main:has(>.home-attention[hidden]):has(>.home-picked[hidden]),.home-side:has(>.home-profile[hidden]){display:none}
+@media(min-width:1024px){
+  .home-grid>.home-main{grid-column:1}
+  .home-grid>.home-mine{grid-column:2;grid-row:2}
+  .home-grid>.home-happening{grid-column:1}
+  .home-grid>.home-side{grid-column:2}
+}
+@media(max-width:699px){
+  .home-view{gap:.75rem}
+  .home-grid,.home-main,.home-side{gap:.75rem}
+  .home-section{padding:.85rem}
+  .home-idea-form button{width:100%}
+  .home-header{padding-bottom:.25rem}
+}
+
+.home-picked .home-picks,.home-side{grid-template-columns:minmax(0,1fr)}
