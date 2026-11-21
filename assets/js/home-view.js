@@ -454,7 +454,7 @@
       <p class="home-muted">Find people and projects around an idea, interest, or skill.</p>
       <form class="home-idea-form" aria-labelledby="home-idea-title">
         <label class="home-sr" for="home-idea-input">Your idea, interest, or skill</label>
-        <input id="home-idea-input" name="idea" required maxlength="280" autocomplete="off" enterkeyhint="search" placeholder="An idea, a skill to learn, or help you can offer…">
+        <input id="home-idea-input" name="idea" required maxlength="280" autocomplete="off" enterkeyhint="search" placeholder="An idea, interest, or skill…">
         <button type="submit">Find people &amp; projects</button>
       </form>
       <p class="home-idea-example">Try: <button type="button" class="home-link" data-idea-example="I'm looking for help with community building">Community building</button></p>
