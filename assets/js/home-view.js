@@ -452,18 +452,17 @@
     const chevron = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
     const initial = (name) => String(name || '?').trim().charAt(0).toUpperCase() || '?';
     const row = (attrs, lead, title, meta) => `<li><button type="button" class="home-mine-row" ${attrs}>${lead}<span class="home-mine-text"><strong>${esc(title)}</strong>${meta ? `<span>${esc(meta)}</span>` : ''}</span>${chevron}</button></li>`;
-    const explore = '<div class="home-idea-more"><button type="button" class="home-link" data-idea-explore="people">Browse people</button><button type="button" class="home-link" data-idea-explore="projects">Browse projects</button></div>';
+    const explore = '<div class="home-idea-more"><button type="button" class="home-link" data-idea-explore="people">Explore the community</button></div>';
     if (result === 'error') {
       slot.innerHTML = '<p class="home-muted">That search couldn’t be done right now. Try again in a moment.</p>';
     } else if (!result.terms.length) {
       slot.innerHTML = `<p class="home-muted">Add a word or two about what it involves, like a skill or a topic, so it can be matched.</p>`;
     } else if (!result.people.length && !result.projects.length) {
-      slot.innerHTML = `<p class="home-muted">No matches found for ${esc(result.terms.join(', '))}. Try another skill or topic, or browse:</p>${explore}`;
+      slot.innerHTML = `<p class="home-muted">No matches found for ${esc(result.terms.join(', '))}. Try another skill or topic.</p>${explore}`;
     } else {
-      slot.innerHTML = `<p class="home-muted">Matched on the words ${esc(result.terms.join(', '))} in what members list and projects describe.</p>
+      slot.innerHTML = `<p class="home-muted">Matches for “${esc(idea)}”</p>
         ${result.people.length ? `<h3 class="home-subheading">People</h3><ul class="home-mine-list">${result.people.map(person => row(`data-idea-person="${esc(person.id)}" data-name="${esc(person.name)}"`, `<span class="home-mine-icon home-idea-face" aria-hidden="true">${esc(initial(person.name))}</span>`, person.name, [person.reason, person.connected ? 'Connected' : ''].filter(Boolean).join(' · '))).join('')}</ul>` : ''}
-        ${result.projects.length ? `<h3 class="home-subheading">Projects</h3><ul class="home-mine-list">${result.projects.map(project => row(`data-idea-project="${esc(project.id)}"`, `<span class="home-mine-icon" aria-hidden="true">${esc(initial(project.title))}</span>`, project.title, project.reason)).join('')}</ul>` : ''}
-        ${explore}`;
+        ${result.projects.length ? `<h3 class="home-subheading">Projects</h3><ul class="home-mine-list">${result.projects.map(project => row(`data-idea-project="${esc(project.id)}"`, `<span class="home-mine-icon" aria-hidden="true">${esc(initial(project.title))}</span>`, project.title, project.reason)).join('')}</ul>` : ''}`;
     }
     slot.querySelectorAll('[data-idea-person]').forEach(button => button.addEventListener('click', () => window.openNodePanel?.({ id: button.dataset.ideaPerson, type: 'person', name: button.dataset.name })));
     slot.querySelectorAll('[data-idea-project]').forEach(button => button.addEventListener('click', () => window.viewProjectDetails?.(button.dataset.ideaProject)));
