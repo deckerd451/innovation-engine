@@ -140,6 +140,14 @@
   }
 
   function showPage(page) {
+    const exploreToggle = document.getElementById('cd-explore-toggle');
+    if (exploreToggle) {
+      exploreToggle.disabled = page === 'explore';
+      if (page === 'explore') {
+        exploreToggle.setAttribute('aria-expanded', 'true');
+        document.getElementById('cd-explore-body').hidden = false;
+      }
+    }
     if (isDesktop()) {
       window.MobileNav?.reset?.();
       window.CommandDashboard?.setWorkspaceView?.(page === 'network' ? 'network' : 'today');

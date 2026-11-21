@@ -547,8 +547,9 @@
 
   function build(target, desktop) {
     const name = displayName(profile());
+    const avatar = window.profilePhotoUrl?.(profile());
     target.innerHTML = `<div class="home-view" data-layout="${desktop ? 'desktop' : 'phone'}">
-      ${desktop ? '' : `<header class="home-header"><div class="home-avatar" aria-hidden="true">${esc((name || 'M').slice(0, 1).toUpperCase())}</div><h1 id="mobile-you-title"><span class="home-hello">Welcome,</span><span class="home-name">${esc(name || 'community member')}</span></h1></header>`}
+      ${desktop ? '' : `<header class="home-header"><div class="home-avatar" aria-hidden="true">${avatar ? `<img src="${esc(avatar)}" alt="">` : esc((name || 'M').slice(0, 1).toUpperCase())}</div><h1 id="mobile-you-title"><span class="home-hello">Welcome,</span><span class="home-name">${esc(name || 'community member')}</span></h1></header>`}
       <div class="home-grid">
         <section class="home-section home-idea" data-home="goal" aria-labelledby="home-idea-title"></section>
           <section class="home-section home-attention" data-home="attention" aria-labelledby="home-attention-title" hidden></section>
@@ -622,6 +623,11 @@
       mountGoal();
     }
     state.memberId = p.id;
+    const avatarNode = target.querySelector('.home-avatar');
+    if (avatarNode) {
+      const photo = window.profilePhotoUrl?.(p);
+      avatarNode.innerHTML = photo ? `<img src="${esc(photo)}" alt="">` : esc((displayName(p) || 'M').slice(0, 1).toUpperCase());
+    }
     paintProfilePrompt();
     paintAttention();
     paintMine();

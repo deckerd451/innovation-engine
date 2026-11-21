@@ -309,12 +309,14 @@ const MessagingModule = (function () {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "mobile-back-btn";
-    btn.setAttribute("aria-label", "Back to conversations");
-    btn.innerHTML = `<i class="fas fa-chevron-left"></i>`;
+    btn.setAttribute("aria-label", "Back to Inbox conversations");
+    btn.innerHTML = `<i class="fas fa-chevron-left" aria-hidden="true"></i><span>Inbox</span>`;
     btn.style.cssText = `
       display: inline-flex;
-      width: 40px;
-      height: 40px;
+      min-width: 44px;
+      height: 44px;
+      padding: 0 10px;
+      gap: 6px;
       align-items: center;
       justify-content: center;
       border-radius: 10px;
@@ -689,10 +691,15 @@ const MessagingModule = (function () {
   }
 
   async function updateUnreadCount() {
-    // optional RPC; if it doesn't exist, silently ignore
-    const { data, error } = await window.supabase.rpc("get_unread_count");
-    if (!error && data !== null && data !== undefined) {
-      state.unreadCount = data;
+    // Match conversation badges: sender_id is a community ID, not auth.uid().
+    // RLS restricts visible messages to this member's conversations.
+    if (!state.currentUser?.communityId) return;
+    const { count, error } = await window.supabase.from("messages")
+      .select("id", { count: "exact", head: true })
+      .neq("sender_id", state.currentUser.communityId)
+      .eq("read", false);
+    if (!error && Number.isInteger(count)) {
+      state.unreadCount = count;
       updateUnreadBadge();
     }
   }
@@ -856,13 +863,17 @@ const MessagingModule = (function () {
     requireReady();
 
     // Mark as read: messages in convo NOT sent by me
-    await window.supabase
+    const { error } = await window.supabase
       .from("messages")
       .update({ read: true })
       .eq("conversation_id", conversationId)
       .neq("sender_id", state.currentUser.communityId)
       .eq("read", false);
 
+    if (error) throw error;
+    const conversation = state.conversations.find(c => c.id === conversationId);
+    if (conversation) conversation.unreadCount = 0;
+    renderConversationsList();
     console.log(`[Messages] marked as read for conversation: ${conversationId}`);
 
     // Dispatch event for message badges
@@ -1455,9 +1466,18 @@ const MessagingModule = (function () {
     }
 
     // Update header badge
+    const heading = document.querySelector(".conversations-header h3");
+    if (heading && state.unreadCount > 0 && !heading.querySelector('.unread-badge')) {
+      const badge = document.createElement('span');
+      badge.className = 'unread-badge';
+      heading.append(badge);
+    }
     const headerBadge = document.querySelector(".conversations-header .unread-badge");
     if (headerBadge) {
-      if (state.unreadCount > 0) headerBadge.textContent = state.unreadCount;
+      if (state.unreadCount > 0) {
+        headerBadge.textContent = state.unreadCount;
+        headerBadge.setAttribute('aria-label', `${state.unreadCount} unread messages`);
+      }
       else headerBadge.remove();
     }
   }
