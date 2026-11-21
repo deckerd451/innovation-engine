@@ -119,3 +119,17 @@ body[data-destination=explore] #command-dashboard #cd-focus{display:none!importa
  #messages-modal input:not([type=checkbox]),#profile-modal .ch-input,#profile-modal .ch-textarea,#profile-modal .ch-select,
  #admin-panel input:not([type=checkbox]):not([type=radio]),#admin-panel select,#admin-panel textarea{font-size:16px!important}
 }
+/* Dedicated destinations retain their content and begin near the top. */
+body[data-destination=explore] #cd-explore-toggle{cursor:default;opacity:1}
+body[data-destination=explore] #cd-explore-toggle i{display:none}
+body[data-destination=explore] #cd-explore-body[hidden]{display:block!important}
+body[data-destination=explore] #command-dashboard .cd-scroll-area{padding-top:1rem!important}
+body[data-destination=explore] #command-dashboard #cd-explore{border-top:0;margin-top:0}
+.home-avatar{overflow:hidden}
+.home-avatar img{width:100%;height:100%;object-fit:cover;display:block}
+#profile-modal .ch-connected-app summary{display:flex;align-items:center;justify-content:space-between;gap:1rem;cursor:pointer;min-height:44px;list-style:none}
+#profile-modal .ch-connected-app summary::-webkit-details-marker{display:none}
+#profile-modal .ch-app-manage{color:var(--bs-accent-text);font-weight:650}
+#profile-modal .ch-connected-app summary:focus-visible{outline:2px solid var(--bs-accent);outline-offset:3px}
+#messages-modal .unread-preview{font-weight:750;color:var(--bs-text)}
+#messages-modal .conversation-item.unread .conversation-name>span:first-child::before{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--bs-accent);margin-right:6px}

@@ -1908,7 +1908,9 @@ window.CommandDashboard = (() => {
     const body = $id('cd-explore-body');
     const toggle = $id('cd-explore-toggle');
     if (!body || !toggle) return;
-    const next = window.innerWidth >= 1024 ? true : Boolean(expanded);
+    const dedicated = document.body.dataset.destination === 'explore';
+    toggle.disabled = dedicated;
+    const next = dedicated || window.innerWidth >= 1024 ? true : Boolean(expanded);
     body.hidden = !next;
     toggle.setAttribute('aria-expanded', String(next));
     toggle.querySelector('i')?.classList.toggle('fa-chevron-up', next);

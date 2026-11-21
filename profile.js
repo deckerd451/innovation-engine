@@ -494,10 +494,7 @@
           </div>
 
           <div class="ch-network-experiences-card" id="network-experiences-card">
-            <div class="ch-network-experiences-label">Your community profile</div>
-            <div class="ch-network-experiences-blurb">Your skills and interests help people find you.</div>
-            <div class="ch-network-experiences-heading">Network experiences</div>
-            <div class="ch-network-experiences-subblurb">Choose which experiences can use your profile.</div>
+            <div class="ch-network-experiences-label">Connected apps</div>
             <div class="ch-experience-row" id="nearify-experience-row">
               <div class="ch-experience-name">Nearify: checking…</div>
             </div>
@@ -631,7 +628,7 @@
       // the not-connected copy for a genuinely linked identity)
       const when = linkedAt ? new Date(linkedAt).toLocaleDateString() : "";
       rowEl.innerHTML = `
-        <div class="ch-experience-name"><span class="connected-dot" aria-hidden="true"></span>Nearify · Connected</div>
+        <details class="ch-connected-app"><summary><span class="ch-experience-name"><span class="connected-dot" aria-hidden="true"></span>Nearify · Connected</span><span class="ch-app-manage">Manage</span></summary>
         <div class="ch-experience-desc">Use my community profile to make introductions more relevant when I participate in Nearify experiences.</div>
         <div class="ch-experience-desc">People you meet at Nearify events can see your name, short bio and the events you were both at, under People you met in Buildspace.</div>
         <div class="ch-experience-desc">Disconnecting unlinks your accounts and stops Nearify using your profile. It doesn’t erase encounters already recorded: people you met can still see them.</div>
@@ -639,6 +636,7 @@
         <div class="ch-experience-actions">
           <button type="button" class="ch-nearify-unlink-btn" id="nearify-unlink-btn">Disconnect</button>
         </div>
+        </details>
       `;
       content.querySelector("#nearify-unlink-btn")?.addEventListener("click", async (e) => {
         const btn = e.currentTarget;
