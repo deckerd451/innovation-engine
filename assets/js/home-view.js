@@ -1,32 +1,6 @@
-// Home: discovery first, the same sections at every width, shown in the
-// phone and tablet Home screen (#mobile-you-content, mobile-you.js) or the
-// desktop dashboard (#cd-home). It composes what already exists -- what
-// others are waiting on the member for, the Daily Brief's suggestions and
-// community summary (start-daily-digest.js), Explore's tabs and search, the
-// member's connections and projects, goal assistance -- and has no data of
-// its own.
-//
-//   Welcome                   the member's name; "Discover what we could do together."
-//   Waiting on you            inbound only, and only when something needs a reply
-//   (No search or Explore link on Home: Explore, with its search, is in the
-//   navigation.)
-//   Happening in the community  open to everyone, first: projects looking
-//                             for people, open opportunities, and (when no
-//                             one is introduced) skills to find people by
-//   Picked for you            one person to meet, then a project and an
-//                             opportunity, each with its reason; omitted
-//                             when nothing qualifies (Happening's skill
-//                             chips are then the way to find people)
-//   What are you curious about?  only when nothing is listed; optional
-//   Your community            the people the member is connected to and the
-//                             projects they are on, each one tap away; tasks
-//                             live in each project's Work, never ranked here
-//   Have an idea?             quiet, below the community: an idea's words
-//                             matched against what members list and what
-//                             projects describe, each match with its reason
-//
-// Sections update on their own: an unread count or a new brief never
-// rebuilds Home, so open sections, typed text and scroll stay as they are.
+// Home: intent first, then a useful next step, current projects and open invitations.
+// The finder remains mounted while other sections update; all existing permissions,
+// safe profile rendering, suggestion dismissal and project navigation are preserved.
 (function () {
   'use strict';
   if (window.HomeView) return;
@@ -124,14 +98,17 @@
   function paintAttention() {
     const rows = (digest().inboundAttention?.(state.attention || {}) || []).filter(row => row.key !== 'unread_messages');
     const unread = state.unread ?? Number(state.attention?.immediate_actions?.unread_messages?.count || 0);
-    if (unread > 0) rows.splice(0, 0, { key: 'unread_messages', count: unread, message: n => `${n === 1 ? 'Someone is' : `${n} people are`} waiting on your reply`, action: 'Reply', handler: 'openMessaging' });
-    setSection('attention', rows.length ? `<h2 class="home-heading" id="home-attention-title">Waiting on you</h2>
-      <ul class="home-rows">${rows.map(row => `<li class="home-row"><span>${esc(row.message(row.count))}</span><button type="button" class="home-action" data-attention="${esc(row.handler)}">${esc(row.action)}</button></li>`).join('')}</ul>` : '');
+    if (unread > 0) rows.splice(0, 0, { key: 'unread_messages', count: unread, message: n => `${n} unread message${n === 1 ? '' : 's'}`, action: 'Open Inbox', handler: 'openMessaging' });
+    const attentionRow = row => `<li class="home-row"><span>${esc(row.message(row.count))}</span><button type="button" class="home-action" data-attention="${esc(row.handler)}">${esc(row.action)}</button></li>`;
+    setSection('attention', rows.length ? `<h2 class="home-heading" id="home-attention-title">Your next step</h2>
+      <ul class="home-rows">${rows.slice(0, 1).map(attentionRow).join('')}</ul>${rows.length > 1 ? `<details class="home-more-list"><summary>More to respond to (${rows.length - 1})</summary><ul class="home-rows">${rows.slice(1).map(attentionRow).join('')}</ul></details>` : ''}` : '');
     part('attention')?.querySelectorAll('[data-attention]').forEach(button => button.addEventListener('click', (event) => {
       const handler = event.currentTarget.dataset.attention;
       if (handler === 'openMessaging') window.AppNav?.go?.('inbox');
       else window.EnhancedStartUI?.handleAction?.(handler, event);
     }));
+    paintPicked();
+    paintHappening();
   }
 
   // The terms themselves, from the same shapes.
@@ -208,12 +185,13 @@
     return Number.isFinite(date.getTime()) ? date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
   };
 
-  // Picked for you: one person to meet, then up to two ways to join in, each
-  // with its reason. Shown only when there is something real to show.
+  // One next step: inbound attention, otherwise one person or reasoned invitation.
   function paintPicked() {
-    const shown = ['meet', 'join'].some(name => part(name)?.hidden === false);
-    const el = part('picked');
-    if (el) el.hidden = !shown;
+    const meet = part('meet'), join = part('join'), picked = part('picked');
+    if (!picked) return;
+    const hasMeet = !!meet?.innerHTML && !meet.hidden;
+    if (join) join.hidden = hasMeet || !join.innerHTML;
+    picked.hidden = part('attention')?.hidden === false || !(hasMeet || (join && !join.hidden));
   }
 
   function paintMeet() {
@@ -238,7 +216,6 @@
       setSection('meet', '');
       paintPicked();
       paintHappening();
-      paintQuiet();
     });
     paintPicked();
   }
@@ -247,14 +224,14 @@
   function paintJoin() {
     const ownProjectIds = state.mine && state.mine !== 'error' ? state.mine.projects.map(project => project.id) : [];
     const suggestions = digest().homeSuggestions?.({ ownProjectIds }) || { joinIn: [] };
-    const items = suggestions.joinIn || [];
+    const items = (suggestions.joinIn || []).slice(0, 1);
     const kind = (type) => ({ project: 'Project you could join', opportunity: 'Opportunity' }[type] || '');
     setSection('join', items.length ? `<ul class="home-picks">${items.map((item, index) => {
       const reasons = String(item.reason || '').split(' · ').filter(Boolean);
       const closes = item.type === 'opportunity' && item.until ? `<li class="home-chip-date">Closes ${esc(shortDate(item.until))}</li>` : '';
       return `<li class="home-pick"><span class="home-kind">${esc(kind(item.type))}</span><strong>${esc(item.name)}</strong>
         <ul class="home-reasons" aria-label="Why this fits">${reasons.map(text => `<li>${esc(text)}</li>`).join('')}${closes}</ul>
-        <div class="home-pick-actions"><button type="button" class="home-action" data-join="${index}">Take a look</button><button type="button" class="home-dismiss" data-skip="${index}">Not now</button></div></li>`;
+        <div class="home-pick-actions"><button type="button" class="home-action" data-join="${index}">View details</button><button type="button" class="home-dismiss" data-skip="${index}">Not now</button></div></li>`;
     }).join('')}</ul>` : '');
     const el = part('join');
     el?.querySelectorAll('[data-join]').forEach(button => button.addEventListener('click', () => open(items[Number(button.dataset.join)])));
@@ -262,7 +239,6 @@
       digest().setAsideSuggestion?.(items[Number(button.dataset.skip)]?.id);
       paintJoin();
       paintHappening();
-      paintQuiet();
     }));
     paintPicked();
   }
@@ -274,12 +250,13 @@
     const suggestions = digest().homeSuggestions?.({ ownProjectIds }) || {};
     const community = suggestions.community;
     if (suggestions.status !== 'ready' || !community) { setSection('happening', ''); return; }
-    const projects = community.projects.slice(0, 2);
-    const opportunities = community.opportunities.slice(0, 2);
+    const pickedIds = new Set(part('picked')?.hidden === false && part('join')?.hidden === false ? (suggestions.joinIn || []).slice(0, 1).map(item => String(item.entityId)) : []);
+    const projects = community.projects.filter(item => !pickedIds.has(String(item.id))).slice(0, 2);
+    const opportunities = community.opportunities.filter(item => !pickedIds.has(String(item.id))).slice(0, 3 - projects.length);
     // Skills open a way to people when Home has no one to introduce.
-    const skills = part('meet')?.hidden !== false ? community.skills.slice(0, 6) : [];
+    const skills = []; // Skill browsing belongs in Explore, not another Home list.
     const empty = !projects.length && !opportunities.length && !skills.length;
-    if (empty && quietNow()) { setSection('happening', ''); return; }
+    if (empty) { setSection('happening', ''); return; }
     // A newcomer (nothing picked for them, no projects yet) starts here.
     const newcomer = part('picked')?.hidden !== false && !!state.mine && state.mine !== 'error' && !state.mine.projects.length;
     // Each one is a short invitation, the whole card one tap: what it is,
@@ -305,9 +282,9 @@
       ['Opportunity', opp.kind ? opp.kind.charAt(0).toUpperCase() + opp.kind.slice(1) : ''].filter(Boolean).join(' · '),
       opp.title, opp.about, [opp.organization, opp.deadline ? `Closes ${shortDate(opp.deadline)}` : ''].filter(Boolean).join(' · '), youList(opp.needs));
     setSection('happening', `${newcomer
-      ? '<h2 class="home-heading" id="home-happening-title" tabindex="-1">Start anywhere</h2><p class="home-sub">What’s open in your community right now. Nothing to set up first.</p>'
-      : '<h2 class="home-heading" id="home-happening-title" tabindex="-1">Happening in the community</h2><p class="home-sub">Open to everyone.</p>'}
-      ${empty ? '<p class="home-muted">Nothing new is open in the community right now.</p>' : ''}
+      ? '<h2 class="home-heading" id="home-happening-title" tabindex="-1">Looking for help</h2><p class="home-sub">Projects and opportunities you can take part in. Nothing to set up first.</p>'
+      : '<h2 class="home-heading" id="home-happening-title" tabindex="-1">Looking for help</h2><p class="home-sub">Projects and opportunities you can take part in.</p>'}
+      ${empty ? '<p class="home-muted">No open invitations to show right now. You can still find people and projects above.</p>' : ''}
       ${projects.length ? `<h3 class="home-subheading">Projects looking for people</h3><ul class="home-invites">${projects.map(projectCard).join('')}</ul>` : ''}
       ${opportunities.length ? `<h3 class="home-subheading">Open opportunities</h3><ul class="home-invites">${opportunities.map(opportunityCard).join('')}</ul>` : ''}
       ${skills.length ? `<h3 class="home-subheading">Find people by what they do</h3><ul class="home-topics">${skills.map((skill, index) => `<li><button type="button" class="home-topic" data-skill="${index}">${esc(skill.label)}</button></li>`).join('')}</ul>
@@ -325,39 +302,28 @@
     el?.querySelector('[data-home-action="topics"]')?.addEventListener('click', () => exploreTab('themes'));
   }
 
-  // Your community: the people the member is connected to and the projects
-  // they are on, each one tap away (Your Network, and each project's own page,
-  // where its tasks are). Nothing is ranked or recommended here; with no
-  // connections or projects, Explore is where to find them.
+  // Two current project rows, with the rest available on demand. All existing
+  // project access remains; no activity or task status is invented.
   function paintMine() {
     const mine = state.mine;
     if (mine === 'error') {
-      setSection('mine', '<h2 class="home-heading home-label" id="home-mine-title">Your community</h2><p class="home-muted">Your projects couldn’t be loaded.</p><button type="button" class="home-link" data-home-action="retry">Try again</button>');
+      setSection('mine', '<h2 class="home-heading home-label" id="home-mine-title">Your projects</h2><p class="home-muted">Your projects couldn’t be loaded.</p><button type="button" class="home-link" data-home-action="retry">Try again</button>');
       part('mine')?.querySelector('[data-home-action="retry"]')?.addEventListener('click', () => refreshMine());
       return;
     }
     if (!mine) { setSection('mine', ''); return; }
     const chevron = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
-    const initials = (name) => String(name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || '?';
-    const names = mine.connections.map(person => person.name);
-    const peopleLine = names.length <= 2 ? names.join(' and ') : `${names.slice(0, 2).join(', ')} and ${names.length - 2} other${names.length - 2 === 1 ? '' : 's'}`;
     const row = (attrs, lead, title, meta) => `<li><button type="button" class="home-mine-row" ${attrs}>${lead}<span class="home-mine-text"><strong>${esc(title)}</strong>${meta ? `<span>${esc(meta)}</span>` : ''}</span>${chevron}</button></li>`;
-    const people = mine.connections.length
-      ? row('data-mine="people"', `<span class="home-mine-faces" aria-hidden="true">${mine.connections.slice(0, 3).map(person => `<span>${esc(initials(person.name))}</span>`).join('')}</span>`,
-        `${mine.connections.length} ${mine.connections.length === 1 ? 'person' : 'people'} you’re connected to`, peopleLine)
-      : row('data-mine="find-people"', '<span class="home-mine-icon" aria-hidden="true">+</span>', 'Find people to connect with', 'Browse the community in Explore');
-    const shown = mine.projects.slice(0, 4);
-    const more = mine.projects.slice(4);
+    const shown = mine.projects.slice(0, 2);
+    const more = mine.projects.slice(2);
     const projectRow = project => row(`data-project-id="${esc(project.id)}"`, `<span class="home-mine-icon" aria-hidden="true">${esc(String(project.title || '?').trim().charAt(0).toUpperCase() || '?')}</span>`,
-      project.title || 'Untitled project', project.started ? 'You started it' : 'You’re a member');
+      project.title || 'Untitled project', '');
     const projects = mine.projects.length
       ? shown.map(projectRow).join('')
       : row('data-mine="find-projects"', '<span class="home-mine-icon" aria-hidden="true">+</span>', 'Find a project to join', 'Browse projects in Explore');
-    setSection('mine', `<h2 class="home-heading home-label" id="home-mine-title">Your community</h2>
-      <ul class="home-mine-list">${people}</ul>
-      <h3 class="home-subheading">${mine.projects.length ? `Your projects (${mine.projects.length})` : 'Your projects'}</h3>
+    setSection('mine', `<h2 class="home-heading" id="home-mine-title">Your projects${mine.projects.length ? ` (${mine.projects.length})` : ''}</h2>
       <ul class="home-mine-list">${projects}</ul>
-      ${more.length ? `<details class="home-more-list"><summary><span>${more.length} more project${more.length === 1 ? '' : 's'}</span><span class="home-more-cta">Show</span></summary><ul class="home-mine-list">${more.map(projectRow).join('')}</ul></details>` : ''}`);
+      ${more.length ? `<details class="home-more-list"><summary><span>View all ${mine.projects.length} projects</span><span class="home-more-cta" aria-hidden="true">⌄</span></summary><ul class="home-mine-list">${more.map(projectRow).join('')}</ul></details>` : ''}`);
     const el = part('mine');
     el?.querySelector('[data-mine="people"]')?.addEventListener('click', () => window.AppNav?.openNetwork?.());
     el?.querySelector('[data-mine="find-people"]')?.addEventListener('click', () => exploreTab('people'));
@@ -466,7 +432,7 @@
     } else if (!result.terms.length) {
       slot.innerHTML = `<p class="home-muted">Add a word or two about what it involves, like a skill or a topic, so it can be matched.</p>`;
     } else if (!result.people.length && !result.projects.length) {
-      slot.innerHTML = `<p class="home-muted">No members or projects mention ${esc(result.terms.join(', '))} yet. You can still look around:</p>${explore}`;
+      slot.innerHTML = `<p class="home-muted">No matches found for ${esc(result.terms.join(', '))}. Try another skill or topic, or browse:</p>${explore}`;
     } else {
       slot.innerHTML = `<p class="home-muted">Matched on the words ${esc(result.terms.join(', '))} in what members list and projects describe.</p>
         ${result.people.length ? `<h3 class="home-subheading">People</h3><ul class="home-mine-list">${result.people.map(person => row(`data-idea-person="${esc(person.id)}" data-name="${esc(person.name)}"`, `<span class="home-mine-icon home-idea-face" aria-hidden="true">${esc(initial(person.name))}</span>`, person.name, [person.reason, person.connected ? 'Connected' : ''].filter(Boolean).join(' · '))).join('')}</ul>` : ''}
@@ -484,14 +450,14 @@
     const el = part('goal');
     if (!el || el.dataset.mounted === 'true') return;
     el.dataset.mounted = 'true';
-    el.innerHTML = `<h2 class="home-heading home-label" id="home-idea-title">Have an idea?</h2>
-      <p class="home-muted">Tell us what you’re thinking about. We’ll help you find people and projects that might fit.</p>
+    el.innerHTML = `<h2 class="home-heading home-label" id="home-idea-title">What would you like to work on?</h2>
+      <p class="home-muted">Find people and projects around an idea, interest, or skill.</p>
       <form class="home-idea-form" aria-labelledby="home-idea-title">
-        <label class="home-sr" for="home-idea-input">Your idea</label>
-        <input id="home-idea-input" name="idea" required maxlength="280" autocomplete="off" enterkeyhint="search" placeholder="What are you thinking about?">
+        <label class="home-sr" for="home-idea-input">Your idea, interest, or skill</label>
+        <input id="home-idea-input" name="idea" required maxlength="280" autocomplete="off" enterkeyhint="search" placeholder="An idea, a skill to learn, or help you can offer…">
         <button type="submit">Find people &amp; projects</button>
       </form>
-      <p class="home-idea-example">Try: <button type="button" class="home-link" data-idea-example="I'm looking for help with community building">“I’m looking for help with community building”</button></p>
+      <p class="home-idea-example">Try: <button type="button" class="home-link" data-idea-example="I'm looking for help with community building">Community building</button></p>
       <div class="home-idea-results" aria-live="polite"></div>`;
     // The example fills the field to edit or send; it never searches by itself.
     el.querySelector('[data-idea-example]').addEventListener('click', (event) => {
@@ -499,39 +465,21 @@
       input.value = event.currentTarget.dataset.ideaExample;
       input.focus();
     });
+    let searchRequest = 0;
     el.querySelector('form').addEventListener('submit', async (event) => {
       event.preventDefault();
       const input = event.currentTarget.querySelector('input');
       const idea = input.value.trim();
       if (!idea) return;
+      const search = ++searchRequest;
+      const memberId = state.memberId;
       input.blur();
       const slot = el.querySelector('.home-idea-results');
       slot.innerHTML = '<p class="home-muted" role="status">Looking…</p>';
       let result;
       try { result = await findForIdea(idea); } catch (error) { console.warn('[Home] idea search unavailable:', error?.message || error); result = 'error'; }
-      if (input.value.trim() === idea) paintIdeaResults(idea, result);
+      if (search === searchRequest && el.isConnected && part('goal') === el && state.memberId === memberId && input.value.trim() === idea) paintIdeaResults(idea, result);
     });
-  }
-
-  // Nothing waiting, no one to meet, nothing to join, nothing open in the
-  // community and no work: say so plainly and offer one small step.
-  function quietNow() {
-    const status = digest().homeSuggestions?.().status || 'unavailable';
-    const community = digest().homeSuggestions?.().community;
-    const communityEmpty = !community || !['projects', 'opportunities', 'skills'].some(key => community[key]?.length);
-    return status !== 'loading' && !!state.mine && communityEmpty
-      && ['attention', 'meet', 'join'].every(name => part(name)?.hidden !== false)
-      // Connections alone don't make Home busy: it is quiet without projects,
-      // as it was without work.
-      && (state.mine === 'error' || !state.mine.projects.length);
-  }
-
-  function paintQuiet() {
-    setSection('quiet', quietNow() ? `<h2 class="home-heading">It’s quiet around you right now</h2>
-      <p class="home-muted">Tell people what you’re looking for or how you can help, and suggestions will follow.</p>
-      <button type="button" class="home-primary" data-home-action="share">Share what you’re looking for</button>` : '');
-    const el = part('quiet');
-    el?.querySelector('[data-home-action="share"]')?.addEventListener('click', () => window.openProfileModal?.());
   }
 
   // A section appearing or growing above the field the member is typing in
@@ -543,7 +491,7 @@
   }
   const waiting = new Set();
   function calmly(paint) {
-    if (!typingInHome()) { paint(); paintQuiet(); return; }
+    if (!typingInHome()) { paint(); return; }
     const armed = waiting.size > 0;
     waiting.add(paint);
     if (armed) return;
@@ -556,8 +504,7 @@
         waiting.clear();
         if (host !== target) return;
         paints.forEach(fn => fn());
-        paintQuiet();
-      }, 0);
+        }, 0);
     });
   }
 
@@ -566,34 +513,28 @@
     paintMeet();
     paintJoin();
     paintHappening();
-    paintQuiet();
   }
 
   // ---------------------------------------------------------------- frame
 
   function build(target, desktop) {
-    const p = profile();
-    const name = displayName(p);
+    const name = displayName(profile());
     target.innerHTML = `<div class="home-view" data-layout="${desktop ? 'desktop' : 'phone'}">
-      ${desktop
-        ? '<p class="home-tagline">Discover what we could do together.</p>'
-        : `<header class="home-header"><div class="home-avatar" aria-hidden="true">${esc((name || 'M').slice(0, 1).toUpperCase())}</div><h1 id="mobile-you-title">${name ? `<span class="home-hello">Welcome,</span> <span class="home-name">${esc(name)}</span>` : '<span class="home-name">Welcome</span>'}</h1><p class="home-intro">Discover what we could do together.</p></header>`}
-      <section class="home-section home-attention" data-home="attention" aria-labelledby="home-attention-title" hidden></section>
+      ${desktop ? '<p class="home-tagline">Find people to build with.</p>' : `<header class="home-header"><div class="home-avatar" aria-hidden="true">${esc((name || 'M').slice(0, 1).toUpperCase())}</div><h1 id="mobile-you-title"><span class="home-hello">Welcome,</span><span class="home-name">${esc(name || 'community member')}</span></h1><p class="home-intro">Find people to build with.</p></header>`}
       <div class="home-grid">
+        <section class="home-section home-idea" data-home="goal" aria-labelledby="home-idea-title"></section>
         <div class="home-main">
-          <section class="home-section home-happening" data-home="happening" aria-labelledby="home-happening-title" hidden></section>
+          <section class="home-section home-attention" data-home="attention" aria-labelledby="home-attention-title" hidden></section>
           <section class="home-section home-picked" data-home="picked" aria-labelledby="home-picked-title" hidden>
-            <h2 class="home-heading" id="home-picked-title" tabindex="-1">Picked for you</h2>
-            <p class="home-sub">From what you listed and the people you know.</p>
+            <h2 class="home-heading" id="home-picked-title" tabindex="-1">Your next step</h2>
             <div class="home-part" data-home="meet" hidden></div>
             <div class="home-part" data-home="join" hidden></div>
           </section>
-          <section class="home-section home-profile" data-home="profile" aria-labelledby="home-curious-title" hidden></section>
-          <section class="home-section home-quiet" data-home="quiet" aria-label="Getting started" hidden></section>
         </div>
-        <div class="home-side"><section class="home-section"><h2 class="home-heading">Community Pulse</h2><p class="home-sub">See shared milestones, skills, and ways to participate.</p><a class="home-action home-pulse-link" href="./pulse.html">View Community Pulse →</a></section>
-          <section class="home-section home-mine" data-home="mine" aria-labelledby="home-mine-title" hidden></section>
-          <section class="home-section home-idea" data-home="goal" aria-labelledby="home-idea-title"></section>
+        <section class="home-section home-mine" data-home="mine" aria-labelledby="home-mine-title" hidden></section>
+        <section class="home-section home-happening" data-home="happening" aria-labelledby="home-happening-title" hidden></section>
+        <div class="home-side">
+          <section class="home-section home-profile" data-home="profile" aria-labelledby="home-curious-title" hidden></section>
         </div>
       </div>
     </div>`;

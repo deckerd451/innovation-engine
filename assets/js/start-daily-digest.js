@@ -1819,7 +1819,8 @@ function _renderCollaborationConcierge(root, candidate, options = {}) {
     if (candidate.type === 'person') selectReflectionEntity('person', candidate.entityId, candidate.name);
     else advance();
   });
-  actions.appendChild(profile);
+  if (layout === 'home') actions.prepend(profile);
+  else actions.appendChild(profile);
   actions.appendChild(skip);
   root.appendChild(card);
 }

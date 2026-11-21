@@ -49,8 +49,8 @@ const server = http.createServer((req, res) => {
   fs.createReadStream(file).pipe(res);
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-// Served as buildspace.test (mapped to this server), as the parity run does.
-const base = `http://buildspace.test:${server.address().port}`;
+// Loopback avoids proxy-dependent DNS and never contacts production.
+const base = `http://127.0.0.1:${server.address().port}`;
 
 const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bs-idea-chrome-'));
 const chrome = spawn(CHROME, ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profileDir}`, '--no-first-run', '--host-resolver-rules=MAP buildspace.test 127.0.0.1', '--no-default-browser-check', '--disable-gpu', '--no-sandbox', 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
@@ -399,11 +399,11 @@ try {
     await loadHome('established', VIEWPORTS[name]);
     const section = await callInPage(function (root) {
       const s = document.querySelector(root + ' [data-home="goal"]');
-      return { tag: s.tagName, text: [s.querySelector('h2')?.textContent, s.querySelector('p')?.textContent].join(' ').replace(/\s+/g, ' ').trim(), inputs: s.querySelectorAll('input').length, buttons: [...s.querySelectorAll('form button')].map(b => b.textContent.trim()), resume: !!document.querySelector(root + ' .home-resume'), afterMine: !!(document.querySelector(root + ' [data-home="mine"]').compareDocumentPosition(s) & Node.DOCUMENT_POSITION_FOLLOWING) };
+      return { tag: s.tagName, text: [s.querySelector('h2')?.textContent, s.querySelector('p')?.textContent].join(' ').replace(/\s+/g, ' ').trim(), inputs: s.querySelectorAll('input').length, buttons: [...s.querySelectorAll('form button')].map(b => b.textContent.trim()), resume: !!document.querySelector(root + ' .home-resume'), beforeMine: !!(s.compareDocumentPosition(document.querySelector(root + ' [data-home="mine"]')) & Node.DOCUMENT_POSITION_FOLLOWING) };
     }, ROOT());
-    check(/^Have an idea\? Tell us what you’re thinking about\. We’ll help you find people and projects that might fit\.$/i.test(section.text) && section.inputs === 1 && JSON.stringify(section.buttons) === '["Find people & projects"]',
+    check(/^What would you like to work on\? Find people and projects around an idea, interest, or skill\.$/i.test(section.text) && section.inputs === 1 && JSON.stringify(section.buttons) === '["Find people & projects"]',
       `${name}: one input and one action, with the plain promise`, JSON.stringify(section));
-    check(!section.resume && !/worksheet|draft|Get help|next step/i.test(section.text) && section.afterMine, `${name}: quiet, below the community; no worksheet language or draft resume`, JSON.stringify(section));
+    check(!section.resume && !/worksheet|draft|Get help|next step/i.test(section.text) && section.beforeMine, `${name}: first, before projects; no worksheet language or draft resume`, JSON.stringify(section));
 
     // The example fills the field to edit or send; it never searches by itself.
     await evaluate(`(() => { const s = document.querySelector('${ROOT()} [data-home="goal"]'); s.scrollIntoView({ block: 'start' }); s.querySelector('[data-idea-example]').click(); return true; })()`);
@@ -413,7 +413,7 @@ try {
       const input = s.querySelector('#home-idea-input');
       return { label: s.querySelector('[data-idea-example]').textContent.trim(), value: input.value, focused: document.activeElement === input, results: s.querySelector('.home-idea-results').innerHTML.trim(), placeholder: input.placeholder };
     }, ROOT());
-    check(example.label === '“I’m looking for help with community building”' && example.value === "I'm looking for help with community building" && example.focused && !example.results && !/flood map/i.test(example.placeholder),
+    check(example.label === 'Community building' && example.value === "I'm looking for help with community building" && example.focused && !example.results && !/flood map/i.test(example.placeholder),
       `${name}: the example fills the field, focused, and doesn’t search by itself`, JSON.stringify(example));
     await snap(`idea-example-${name}`);
     await send('Input.insertText', { text: ' events' });
@@ -453,7 +453,7 @@ try {
 
     // Nothing to match: said plainly, with ways to keep exploring.
     r = await askIdea('Underwater basket weaving');
-    check(/No members or projects mention underwater, basket, weaving yet/.test(r.text) && JSON.stringify(r.explore) === '["Browse people","Browse projects"]' && !r.people.length && !r.projects.length,
+    check(/No matches found for underwater, basket, weaving/.test(r.text) && JSON.stringify(r.explore) === '["Browse people","Browse projects"]' && !r.people.length && !r.projects.length,
       `${name}: with no match it says so and offers Explore`, r.text);
     await snap(`idea-none-${name}`);
     await evaluate(`document.querySelector('${ROOT()} [data-idea-explore="projects"]').click(); true`);

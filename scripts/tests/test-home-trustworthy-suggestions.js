@@ -45,6 +45,7 @@ class FakeElement {
   get innerHTML() { return this.textContent; }
   set innerHTML(value) { this.textContent = String(value).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(); }
   appendChild(child) { this.children.push(child); return child; }
+  prepend(child) { this.children = [child, ...this.children.filter(existing => existing !== child)]; }
   append(...children) {
     children.forEach(child => {
       if (typeof child !== 'string') return this.appendChild(child);

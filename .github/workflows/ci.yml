@@ -59,6 +59,7 @@ jobs:
           node scripts/tests/browser/run-visitor-separation.mjs
           node scripts/tests/browser/run-admin-overview.mjs
           node scripts/tests/browser/run-campaigns-pulse.mjs
+          node scripts/tests/browser/run-home-purpose-flow.mjs
           node scripts/tests/browser/run-mobile-admin-layout.mjs
 
   db-authz:

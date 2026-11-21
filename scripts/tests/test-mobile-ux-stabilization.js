@@ -45,9 +45,9 @@ assert.match(nav, /unread > 0/);
 // Home keeps the member's projects (in Your community) and goal help; the
 // profile biography/intent is never presented as the member's objective.
 assert.match(home, /Your projects/);
-assert.match(home, /Your community/);
+assert.match(home, /Your next step/);
 assert.match(home, /window\.viewProjectDetails\?\.\(button\.dataset\.projectId\)/);
-assert.match(home, /Have an idea\?/);
+assert.match(home, /What would you like to work on\?/);
 assert.doesNotMatch(home, /profile\.(bio|intent)|p\?\.(bio|intent) *\?/);
 assert.match(youCss, /z-index: 700/);
 
@@ -61,7 +61,7 @@ assert.match(projectCss, /scroll-padding-bottom/);
 const shellTag = (sw.match(/const VERSION = "v\d+-([^"]+)"/) || [])[1];
 assert.ok(shellTag, 'service worker must declare a versioned shell');
 for (const asset of ['command-dashboard.css', 'mobile-nav.js', 'mobile-you.css', 'mobile-you.js', 'home-view.js', 'home-view.css', 'mobile-goal-discovery.js', 'mobile-task-assistance.js', 'mobile-task-assistance.css', 'assistance-interventions.js', 'assistance-interventions.css', 'capability-memory.js']) {
-  const assetTag = ['command-dashboard.css','mobile-task-assistance.js'].includes(asset) ? 'a11y-20261112' : shellTag;
+  const assetTag = ['home-view.js','home-view.css'].includes(asset) ? 'intent-first-20261121' : ['command-dashboard.css','mobile-task-assistance.js'].includes(asset) ? 'a11y-20261112' : shellTag;
   assert.match(index, new RegExp(`${asset.replace('.', '\\.')}\\?v=${assetTag}`), `${asset} must be cache-busted with the current shell version`);
 }
 // One vocabulary at every width: Home, Explore, Inbox, You (Network lives in You).
