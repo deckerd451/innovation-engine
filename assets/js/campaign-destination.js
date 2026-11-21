@@ -4,7 +4,7 @@
   const url = new URL(location.href),
     resource = url.searchParams.get("campaign_resource");
   try {
-    if (["projects", "opportunities"].includes(resource)) {
+    if (["projects", "opportunities", "people"].includes(resource)) {
       sessionStorage.setItem(key, resource);
       url.searchParams.delete("campaign_resource");
       history.replaceState(null, "", url.pathname + url.search + url.hash);
@@ -28,7 +28,7 @@
     } catch {
       /* use current URL choice */
     }
-    if (!["projects", "opportunities"].includes(target)) {
+    if (!["projects", "opportunities", "people"].includes(target)) {
       completed = true;
       clearInterval(timer);
       return;
