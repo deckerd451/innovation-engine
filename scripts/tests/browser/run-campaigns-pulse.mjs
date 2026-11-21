@@ -65,6 +65,13 @@ try {
       "saved draft",
     );
     check(await run(`!document.querySelector('.campaign-draft-notice')&&!document.querySelector('#campaign-test').disabled&&document.querySelector('#campaign-pilot').disabled&&document.querySelector('#campaign-batch').disabled&&!window.__sendRequest`), 'Production enables only the test before test acceptance; creating a draft sends nothing');
+    check(await run(`document.querySelectorAll('.campaign-steps>li').length===3&&document.querySelector('#campaign-reviewed').closest('label').hidden&&!document.querySelector('.campaign-compose').open&&document.querySelector('.campaign-identity').textContent.includes('Draft 00000001')&&document.querySelector('#campaign-history button').getAttribute('aria-pressed')==='true'`),'Selected draft is identified, composer is collapsed and approval is hidden before pilot');
+    await run(`window.__campaignState.can_send=false;document.querySelector('#campaign-report-refresh').click();true`);
+    await wait(`document.querySelector('.campaign-access').textContent.includes('different login')`,'draft ownership explanation');
+    check(await run(`document.querySelector('#campaign-test').disabled&&document.querySelector('#campaign-cancel').disabled&&!window.__sendRequest`),'Read-only draft explains disabled sending without bypassing ownership');
+    await run(`window.__campaignState.can_send=true;document.querySelector('#campaign-report-refresh').click();true`);
+    await wait(`!document.querySelector('#campaign-test').disabled`,'owned draft restored');
+    const guidedShot=await app.send('Page.captureScreenshot',{format:'png'});fs.writeFileSync('/tmp/campaign-guided-'+width+'.png',Buffer.from(guidedShot.data,'base64'));
     // Keep the reusable draft-only mode covered, using synthetic data only.
     await run(`(async()=>{const m=await import('./assets/js/admin-campaigns.js?v=delivery-20261121');await m.renderCampaigns(document.querySelector('#admin-tab-content'),{draftsOnly:true});return true;})()`);
     await wait(`document.querySelector('#campaign-history button')&&!document.querySelector('#campaign-history button').disabled`,'draft-only history');

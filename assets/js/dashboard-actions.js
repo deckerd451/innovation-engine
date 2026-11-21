@@ -1245,7 +1245,7 @@ function loadAdminTabContent(tabName, personId = null, peopleFilters = null) {
   content.scrollTop = 0;
   if (tabName === 'campaigns') {
     content.textContent = 'Loading email campaigns…';
-    import('./admin-campaigns.js?v=delivery-20261121').then(({renderCampaigns}) => {
+    import('./admin-campaigns.js?v=guided-20261121').then(({renderCampaigns}) => {
       if (content.isConnected && content.dataset.activeTab === 'campaigns') return renderCampaigns(content, { draftsOnly: false });
     }).catch(() => { if (content.isConnected && content.dataset.activeTab === 'campaigns') content.textContent = 'Campaigns could not load. Select another section and try again.'; });
     return;
