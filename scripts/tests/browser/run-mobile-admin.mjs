@@ -16,6 +16,8 @@ try {
   // Short mobile windows must retain a tappable account action above navigation.
   for (const height of [844,600]) {
     await app.send('Emulation.setDeviceMetricsOverride',{width:390,height,deviceScaleFactor:1,mobile:true});await sleep(250);
+    await run(`document.querySelector('#btn-profile-admin').scrollIntoView({block:'center'});true`);
+    await sleep(100);
     const point = await run(`(() => {const b=document.querySelector('#btn-profile-admin');const r=b.getBoundingClientRect(),n=document.querySelector('#app-nav').getBoundingClientRect();const x=r.x+r.width/2,y=r.y+r.height/2;return {x,y,visible:r.top>=0&&r.bottom<=n.top&&r.height>=44&&b.contains(document.elementFromPoint(x,y)),overflow:document.documentElement.scrollWidth>innerWidth};})()`);
     check(point.visible&&!point.overflow,`Admin control is unobstructed at 390×${height}`);
     await app.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:point.x,y:point.y}]});

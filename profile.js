@@ -495,9 +495,9 @@
 
           <div class="ch-network-experiences-card" id="network-experiences-card">
             <div class="ch-network-experiences-label">Your community profile</div>
-            <div class="ch-network-experiences-blurb">Your community profile helps people understand who you are, what you're building, and what you can contribute across network experiences.</div>
+            <div class="ch-network-experiences-blurb">Your skills and interests help people find you.</div>
             <div class="ch-network-experiences-heading">Network experiences</div>
-            <div class="ch-network-experiences-subblurb">Choose where your community profile can be used to personalize connections.</div>
+            <div class="ch-network-experiences-subblurb">Choose which experiences can use your profile.</div>
             <div class="ch-experience-row" id="nearify-experience-row">
               <div class="ch-experience-name">Nearify: checking…</div>
             </div>
@@ -537,6 +537,15 @@
     if (!content) return;
     ensureStyles();
     content.innerHTML = renderProfileView(state.profile, state.user);
+    const top = content.querySelector('.ch-profile-top');
+    const actions = content.querySelector('.ch-profile-actions');
+    const edit = content.querySelector('#btn-open-profile-editor');
+    if (top && actions && edit) {
+      edit.classList.add('ch-profile-edit-action');
+      top.querySelector('.ch-profile-header').after(edit);
+      top.append(actions);
+    }
+
 
     $("btn-open-profile-editor")?.addEventListener("click", () => window.openProfileEditor?.(), { once: true });
     $("btn-open-your-network")?.addEventListener("click", () => window.AppNav?.openNetwork?.());

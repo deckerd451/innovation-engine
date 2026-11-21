@@ -46,6 +46,6 @@ assert.match(readRpc, /SET search_path = public/);
 assert.match(readRpc, /auth\.uid\(\)/);
 assert.match(readRpc, /GRANT EXECUTE ON FUNCTION public\.get_my_community_intents\(\) TO authenticated/);
 assert.match(readRpc, /i\.active = true/);
-assert.match(index, /profile\.js\?v=(?:community-intent-20260921|photo-consent-20261010a|network-dest-20261017|profile-close-20261017|inbox-you-20261020|nav-four-tabs-20261027|nearify-consent-20261028|email-prep-20261028|email-lock-20261029|mobile-admin-20261113)/);
+assert.match(index, /src="profile\.js\?v=[A-Za-z0-9_-]+"/, 'the profile entry remains cache-versioned across design releases');
 
 console.log('✅ community intent authoring truth/idempotency checks passed');
