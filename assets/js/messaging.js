@@ -1021,7 +1021,7 @@ const MessagingModule = (function () {
         <div class="conversations-sidebar" id="msg-sidebar">
           <div class="conversations-header">
             <h3>
-              💬 Messages
+              Inbox
               ${state.unreadCount > 0 ? `<span class="unread-badge">${state.unreadCount}</span>` : ""}
             </h3>
             <button class="new-message-btn" type="button" aria-label="New message" onclick="MessagingModule.showNewMessageModal()">
@@ -1029,7 +1029,7 @@ const MessagingModule = (function () {
             </button>
           </div>
           <div class="conv-search-bar">
-            <input type="text" id="conv-search-input" placeholder="Search conversations..."
+            <input type="text" id="conv-search-input" placeholder="Search conversations…" aria-label="Search conversations"
               oninput="MessagingModule.filterConversations(this.value)"
               value="${escapeHtml(state.conversationSearch || '')}">
           </div>

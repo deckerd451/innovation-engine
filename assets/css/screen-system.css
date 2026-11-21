@@ -1,0 +1,121 @@
+/* Shared member/admin screen language. Layout ownership and modal stacking
+   remain in the screen styles; these tokens unify surfaces and controls. */
+:root{
+ --bs-page:#0b1024;--bs-surface:#151b30;--bs-raised:#1b2339;
+ --bs-text:#f3f5fb;--bs-muted:#b6bfd0;--bs-line:#35415a;
+ --bs-accent:#00d9ee;--bs-accent-text:#9ae5f1;--bs-selected:#102e40;
+ --bs-radius:14px;--bs-control-radius:10px;--bs-gap:1rem;
+}
+body[data-destination] #main-content,
+body[data-destination] #command-dashboard,
+body[data-destination] #mobile-you-content,
+#profile-modal .modal-content,#messages-modal .modal-content,#admin-panel{
+ background:var(--bs-page)!important;color:var(--bs-text);
+ font-family:inherit;
+}
+/* Home remains the reference surface. */
+.home-section{background:var(--bs-surface);border-color:var(--bs-line);border-radius:var(--bs-radius)}
+.home-heading{color:var(--bs-text)}
+.home-muted,.home-sub,.home-mine-text span{color:var(--bs-muted)}
+/* Shared field treatment scoped to the four destinations and admin. */
+#command-dashboard #global-search,#messages-modal input:not([type=checkbox]),
+#profile-modal .ch-input,#profile-modal .ch-textarea,#profile-modal .ch-select,
+#admin-panel input:not([type=checkbox]):not([type=radio]),#admin-panel select,#admin-panel textarea{
+ background:var(--bs-page)!important;color:var(--bs-text)!important;
+ border:1px solid var(--bs-line)!important;border-radius:var(--bs-control-radius)!important;
+ font:inherit;min-height:44px;box-sizing:border-box;
+}
+#messages-modal input::placeholder,#command-dashboard input::placeholder{color:var(--bs-muted);opacity:1}
+#command-dashboard button:focus-visible,#messages-modal button:focus-visible,
+#profile-modal button:focus-visible,#admin-panel button:focus-visible{
+ outline:2px solid var(--bs-accent);outline-offset:3px;
+}
+/* Explore: tabs and useful rows, without another frame around the page. */
+body[data-destination=explore] #command-dashboard .cd-section-toggle{
+ color:var(--bs-text)!important;font-size:1.2rem!important;font-weight:750;letter-spacing:0;text-transform:none;
+}
+#command-dashboard .udc-resource-tabs{gap:.5rem}
+#command-dashboard .udc-resource-tab{
+ background:var(--bs-surface)!important;border:1px solid var(--bs-line)!important;
+ border-radius:var(--bs-control-radius)!important;color:var(--bs-muted)!important;min-height:44px;
+}
+#command-dashboard .udc-resource-tab.active{
+ background:var(--bs-selected)!important;border-color:var(--bs-accent)!important;color:var(--bs-text)!important;
+}
+#command-dashboard .udc-resource-item{
+ background:var(--bs-surface)!important;border:1px solid var(--bs-line)!important;border-radius:var(--bs-radius)!important;
+}
+#command-dashboard .udc-resource-name{color:var(--bs-text)!important}
+#command-dashboard .udc-resource-meta{color:var(--bs-muted)!important}
+#command-dashboard .udc-resource-show-btn{border-radius:var(--bs-control-radius);min-width:44px;min-height:44px}
+/* Inbox: conversation density, typography and surfaces. */
+#messages-modal .messages-container{background:var(--bs-page);border:0!important}
+#messages-modal .conversations-sidebar,#messages-modal .chat-panel{
+ background:var(--bs-page)!important;border-color:var(--bs-line)!important;
+}
+#messages-modal .conversations-header,#messages-modal .conv-search-bar,#messages-modal .chat-header{
+ background:var(--bs-page)!important;border-color:var(--bs-line)!important;padding:1rem;
+}
+#messages-modal .conversations-header h3{color:var(--bs-text);font-size:1.2rem;font-weight:750}
+#messages-modal .new-message-btn{
+ background:var(--bs-accent);color:#061018;border-radius:var(--bs-control-radius);min-height:44px;box-shadow:none;
+}
+#messages-modal .conversation-item{padding:.85rem 1rem;min-height:76px;border-bottom:1px solid var(--bs-line);background:transparent}
+#messages-modal .conversation-item.active{background:var(--bs-selected)}
+#messages-modal .conversation-header{margin:0;gap:.75rem;align-items:center}
+#messages-modal .conversation-avatar{width:40px;height:40px;flex:0 0 40px;margin:0}
+#messages-modal .conversation-name{font-size:.95rem;color:var(--bs-text);gap:.75rem;align-items:baseline}
+#messages-modal .conversation-time{color:var(--bs-muted);font-size:.75rem;white-space:nowrap}
+#messages-modal .conversation-preview{color:var(--bs-muted);font-size:.86rem;line-height:1.4}
+/* You: edit near identity; secondary account actions scroll with the page. */
+#profile-modal .ch-profile-name{color:var(--bs-text);font-size:1.35rem}
+#profile-modal .ch-profile-email,#profile-modal .ch-profile-availability{color:var(--bs-muted)}
+#profile-modal .ch-profile-card,#profile-modal .ch-network-experiences-card,
+#profile-modal .ch-right-now-card,#profile-modal .ch-your-network-open{
+ background:var(--bs-surface);border:1px solid var(--bs-line);border-radius:var(--bs-radius);
+}
+#profile-modal .ch-profile-card-label,#profile-modal .ch-network-experiences-label,
+#profile-modal .ch-network-experiences-heading{color:var(--bs-text);text-transform:none;letter-spacing:0}
+#profile-modal .ch-network-experiences-blurb,#profile-modal .ch-network-experiences-subblurb{color:var(--bs-muted)}
+#profile-modal .ch-profile-edit-action{
+ background:var(--bs-accent);color:#061018;border:0;border-radius:var(--bs-control-radius);
+ min-height:44px;padding:.65rem 1rem;margin:0 0 1rem;font:inherit;font-weight:750;
+}
+#profile-modal .ch-profile-top>.ch-profile-actions{
+ display:flex;flex-wrap:wrap;gap:.5rem;padding:1rem 0 0;margin-top:1rem;
+ border-top:1px solid var(--bs-line);background:none;backdrop-filter:none;
+}
+#profile-modal .ch-profile-actions .btn,#profile-modal .ch-your-network-map{
+ border-radius:var(--bs-control-radius);min-height:44px;background:var(--bs-surface);
+ border:1px solid var(--bs-line);color:var(--bs-text);font-size:.9rem;
+}
+/* Admin shares the product language; status colors retain their meaning. */
+#admin-panel{border:1px solid var(--bs-line)!important;border-radius:var(--bs-radius)!important;
+ --admin-cyan:var(--bs-accent);--admin-text-muted:var(--bs-muted)}
+#admin-panel .admin-shell-header{border-bottom:1px solid var(--bs-line)!important}
+#admin-panel .admin-shell-header h2{color:var(--bs-text)!important;display:flex;gap:.65rem;align-items:center}
+#admin-panel .admin-mode-label{color:var(--bs-accent-text);font-size:.7rem;font-weight:650;
+ background:var(--bs-selected);border:1px solid var(--bs-line);border-radius:6px;padding:.25rem .4rem}
+#admin-panel .admin-close-btn{width:44px!important;height:44px!important;background:var(--bs-surface)!important;border:1px solid var(--bs-line)!important;border-radius:var(--bs-control-radius)!important}
+#admin-panel .admin-hub-section,#admin-panel .admin-hub-metric,#admin-panel .admin-people-stat{
+ background:var(--bs-surface);border-color:var(--bs-line);border-radius:var(--bs-radius);
+}
+#admin-panel .admin-hub button{border-radius:var(--bs-control-radius);min-height:44px}
+#admin-panel .admin-main-tabs>button{border-radius:var(--bs-control-radius)!important}
+@media(max-width:1023px){
+ #messages-modal .messages-modal-content,#messages-modal .modal-content{border:0!important;border-radius:0!important}
+ #messages-modal .conversations-sidebar{border:0!important;border-radius:0}
+ #profile-modal .ch-profile-top{padding:1rem!important}
+ #profile-modal .ch-profile-actions .btn{flex:1 1 8rem;min-width:0}
+ body[data-destination=explore] #command-dashboard.cd-mobile-panel .cd-scroll-area{padding-top:calc(env(safe-area-inset-top,0px) + 52px)}
+ #command-dashboard.cd-mobile-panel .udc-resource-tab{min-height:44px!important;font-size:.9rem!important;padding:.6rem!important}
+}
+/* Let existing high-specificity dashboard rules consume the shared palette. */
+#command-dashboard{--cd-bg:var(--bs-page);--cd-border:var(--bs-line);--cd-text:var(--bs-text);--cd-text-dim:var(--bs-muted);--cd-accent:var(--bs-accent)}
+body[data-destination=explore] #command-dashboard #cd-focus{display:none!important}
+#command-dashboard #search-container{background:var(--bs-page);border-color:var(--bs-line);border-radius:var(--bs-control-radius)}
+#command-dashboard #search-container #global-search{background:transparent!important;border:0!important}
+@media(max-width:1023px){
+ #messages-modal input:not([type=checkbox]),#profile-modal .ch-input,#profile-modal .ch-textarea,#profile-modal .ch-select,
+ #admin-panel input:not([type=checkbox]):not([type=radio]),#admin-panel select,#admin-panel textarea{font-size:16px!important}
+}

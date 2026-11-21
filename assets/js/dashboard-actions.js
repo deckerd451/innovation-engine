@@ -1182,7 +1182,7 @@ function openAdminPanel() {
   panel.innerHTML = `
     <div class="admin-shell-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 2px solid rgba(255,215,0,0.3); padding-bottom: 1rem;">
       <h2 style="color: #ffd700; margin: 0; font-size: 1.75rem;">
-        Admin Panel
+        Admin <span class="admin-mode-label">Management</span>
       </h2>
       <button aria-label="Close admin panel" onclick="document.getElementById('admin-panel').remove()"
         class="admin-close-btn"

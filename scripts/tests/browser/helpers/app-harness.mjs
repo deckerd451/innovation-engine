@@ -37,8 +37,15 @@ export async function appHarness() {
   async function close(){socket?.close();chrome.kill();server.closeAllConnections();server.close();await sleep(200);fs.rmSync(profile,{recursive:true,force:true,maxRetries:5,retryDelay:100});}
   try {
     const endpoint=await waitForChromeEndpoint(chrome,'accessibility Chrome');
-    const targets=await (await fetch(endpoint.replace('ws://','http://').replace(/\/devtools\/browser\/.*/,'/json/list'))).json();
-    socket=new WebSocket(targets.find(target=>target.type==='page').webSocketDebuggerUrl);
+    const targetUrl=endpoint.replace('ws://','http://').replace(/\/devtools\/browser\/.*/,'/json/list');
+    let pageTarget;
+    for(let attempt=0;attempt<100&&!pageTarget;attempt++){
+      const targets=await (await fetch(targetUrl)).json();
+      pageTarget=targets.find(target=>target.type==='page');
+      if(!pageTarget) await sleep(100);
+    }
+    if(!pageTarget) throw Error('Chrome did not create a page target');
+    socket=new WebSocket(pageTarget.webSocketDebuggerUrl);
     await new Promise((resolve,reject)=>{socket.addEventListener('open',resolve,{once:true});socket.addEventListener('error',reject,{once:true});});
     let sequence=0; const pending=new Map(); const dialogs=[]; const errors=[];
     function send(method,params={}){return new Promise((resolve,reject)=>{const id=++sequence;pending.set(id,{resolve,reject});socket.send(JSON.stringify({id,method,params}));});}

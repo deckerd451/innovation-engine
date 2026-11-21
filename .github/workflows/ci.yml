@@ -61,6 +61,7 @@ jobs:
           node scripts/tests/browser/run-campaigns-pulse.mjs
           node scripts/tests/browser/run-home-purpose-flow.mjs
           node scripts/tests/browser/run-mobile-admin-layout.mjs
+          node scripts/tests/browser/run-screen-system.mjs
 
   db-authz:
     name: db-authz
