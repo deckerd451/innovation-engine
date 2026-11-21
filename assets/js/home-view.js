@@ -1,4 +1,4 @@
-// Home: intent first, then a useful next step, current projects and open invitations.
+// Home: participation first for established members, discovery first otherwise.
 // The finder remains mounted while other sections update; all existing permissions,
 // safe profile rendering, suggestion dismissal and project navigation are preserved.
 (function () {
@@ -95,12 +95,35 @@
     el.innerHTML = html || '';
   }
 
+  // Adapt to actual participation, not a guessed first-visit timestamp.
+  // Move existing nodes so draft text, results and handlers survive the change.
+  function arrangeHome() {
+    if (!host) return;
+    if (typingInHome()) { calmly(arrangeHome); return; }
+    const participating = state.mine && state.mine !== 'error' &&
+      (state.mine.projects.length > 0 || state.mine.connections.length > 0);
+    const view = host.querySelector('.home-view');
+    view.dataset.homeMode = participating ? 'participating' : 'discover';
+    const order = participating
+      ? ['attention', 'mine', 'goal', 'picked', 'happening', 'profile']
+      : ['goal', 'attention', 'picked', 'mine', 'happening', 'profile'];
+    const grid = view.querySelector('.home-grid');
+    order.forEach((name, index) => {
+      const section = part(name);
+      if (section && grid.children[index] !== section) grid.insertBefore(section, grid.children[index] || null);
+    });
+    const title = part('goal')?.querySelector('h2');
+    if (title) title.textContent = participating ? 'Looking for someone or something?' : 'Find your people';
+    const description = part('goal')?.querySelector('.home-muted');
+    if (description) description.textContent = 'Search by an idea, interest, or skill.';
+  }
+
   function paintAttention() {
     const rows = (digest().inboundAttention?.(state.attention || {}) || []).filter(row => row.key !== 'unread_messages');
     const unread = state.unread ?? Number(state.attention?.immediate_actions?.unread_messages?.count || 0);
     if (unread > 0) rows.splice(0, 0, { key: 'unread_messages', count: unread, message: n => `${n} unread message${n === 1 ? '' : 's'}`, action: 'Open Inbox', handler: 'openMessaging' });
     const attentionRow = row => `<li class="home-row"><span>${esc(row.message(row.count))}</span><button type="button" class="home-action" data-attention="${esc(row.handler)}">${esc(row.action)}</button></li>`;
-    setSection('attention', rows.length ? `<h2 class="home-heading" id="home-attention-title">Your next step</h2>
+    setSection('attention', rows.length ? `<h2 class="home-heading" id="home-attention-title">Needs your attention</h2>
       <ul class="home-rows">${rows.slice(0, 1).map(attentionRow).join('')}</ul>${rows.length > 1 ? `<details class="home-more-list"><summary>More to respond to (${rows.length - 1})</summary><ul class="home-rows">${rows.slice(1).map(attentionRow).join('')}</ul></details>` : ''}` : '');
     part('attention')?.querySelectorAll('[data-attention]').forEach(button => button.addEventListener('click', (event) => {
       const handler = event.currentTarget.dataset.attention;
@@ -109,6 +132,7 @@
     }));
     paintPicked();
     paintHappening();
+    arrangeHome();
   }
 
   // The terms themselves, from the same shapes.
@@ -274,6 +298,7 @@
       ${about ? `<span class="home-invite-about">${esc(about)}</span>` : ''}
       ${meta ? `<span class="home-invite-meta">${esc(meta)}</span>` : ''}
       ${match ? `<span class="home-invite-match">${esc(match)}</span>` : ''}
+      <span class="home-invite-action">View details <span aria-hidden="true">→</span></span>
     </button></li>`;
     const projectCard = (project, index) => card(`data-project="${index}"`,
       ['Project', project.people > 1 ? `${project.people} people` : ''].filter(Boolean).join(' · '),
@@ -282,8 +307,8 @@
       ['Opportunity', opp.kind ? opp.kind.charAt(0).toUpperCase() + opp.kind.slice(1) : ''].filter(Boolean).join(' · '),
       opp.title, opp.about, [opp.organization, opp.deadline ? `Closes ${shortDate(opp.deadline)}` : ''].filter(Boolean).join(' · '), youList(opp.needs));
     setSection('happening', `${newcomer
-      ? '<h2 class="home-heading" id="home-happening-title" tabindex="-1">Looking for help</h2><p class="home-sub">Projects and opportunities you can take part in. Nothing to set up first.</p>'
-      : '<h2 class="home-heading" id="home-happening-title" tabindex="-1">Looking for help</h2><p class="home-sub">Projects and opportunities you can take part in.</p>'}
+      ? '<h2 class="home-heading" id="home-happening-title" tabindex="-1">Ways to get involved</h2><p class="home-sub">Projects and opportunities you can take part in. Nothing to set up first.</p>'
+      : '<h2 class="home-heading" id="home-happening-title" tabindex="-1">Ways to get involved</h2><p class="home-sub">Projects and opportunities you can take part in.</p>'}
       ${empty ? '<p class="home-muted">No open invitations to show right now. You can still find people and projects above.</p>' : ''}
       ${projects.length ? `<h3 class="home-subheading">Projects looking for people</h3><ul class="home-invites">${projects.map(projectCard).join('')}</ul>` : ''}
       ${opportunities.length ? `<h3 class="home-subheading">Open opportunities</h3><ul class="home-invites">${opportunities.map(opportunityCard).join('')}</ul>` : ''}
@@ -306,6 +331,7 @@
   // project access remains; no activity or task status is invented.
   function paintMine() {
     const mine = state.mine;
+    arrangeHome();
     if (mine === 'error') {
       setSection('mine', '<h2 class="home-heading home-label" id="home-mine-title">Your projects</h2><p class="home-muted">Your projects couldn’t be loaded.</p><button type="button" class="home-link" data-home-action="retry">Try again</button>');
       part('mine')?.querySelector('[data-home-action="retry"]')?.addEventListener('click', () => refreshMine());
@@ -321,7 +347,7 @@
     const projects = mine.projects.length
       ? shown.map(projectRow).join('')
       : row('data-mine="find-projects"', '<span class="home-mine-icon" aria-hidden="true">+</span>', 'Find a project to join', 'Browse projects in Explore');
-    setSection('mine', `<h2 class="home-heading" id="home-mine-title">Your projects${mine.projects.length ? ` (${mine.projects.length})` : ''}</h2>
+    setSection('mine', `<h2 class="home-heading" id="home-mine-title">Continue your projects${mine.projects.length ? ` (${mine.projects.length})` : ''}</h2>
       <ul class="home-mine-list">${projects}</ul>
       ${more.length ? `<details class="home-more-list"><summary><span>View all ${mine.projects.length} projects</span><span class="home-more-cta" aria-hidden="true">⌄</span></summary><ul class="home-mine-list">${more.map(projectRow).join('')}</ul></details>` : ''}`);
     const el = part('mine');
@@ -496,16 +522,19 @@
     waiting.add(paint);
     if (armed) return;
     const target = host;
-    target.addEventListener('focusout', function later() {
+    function later() {
       window.setTimeout(() => {
         if (typingInHome()) return;
-        target.removeEventListener('focusout', later);
+        target.removeEventListener('focusout', later, true);
+        target.removeEventListener('blur', later, true);
         const paints = [...waiting];
         waiting.clear();
         if (host !== target) return;
         paints.forEach(fn => fn());
-        }, 0);
-    });
+      }, 0);
+    }
+    target.addEventListener('focusout', later, true);
+    target.addEventListener('blur', later, true);
   }
 
   function paintSuggestions() {
@@ -520,22 +549,18 @@
   function build(target, desktop) {
     const name = displayName(profile());
     target.innerHTML = `<div class="home-view" data-layout="${desktop ? 'desktop' : 'phone'}">
-      ${desktop ? '<p class="home-tagline">Find people to build with.</p>' : `<header class="home-header"><div class="home-avatar" aria-hidden="true">${esc((name || 'M').slice(0, 1).toUpperCase())}</div><h1 id="mobile-you-title"><span class="home-hello">Welcome,</span><span class="home-name">${esc(name || 'community member')}</span></h1><p class="home-intro">Find people to build with.</p></header>`}
+      ${desktop ? '' : `<header class="home-header"><div class="home-avatar" aria-hidden="true">${esc((name || 'M').slice(0, 1).toUpperCase())}</div><h1 id="mobile-you-title"><span class="home-hello">Welcome,</span><span class="home-name">${esc(name || 'community member')}</span></h1></header>`}
       <div class="home-grid">
         <section class="home-section home-idea" data-home="goal" aria-labelledby="home-idea-title"></section>
-        <div class="home-main">
           <section class="home-section home-attention" data-home="attention" aria-labelledby="home-attention-title" hidden></section>
           <section class="home-section home-picked" data-home="picked" aria-labelledby="home-picked-title" hidden>
             <h2 class="home-heading" id="home-picked-title" tabindex="-1">Your next step</h2>
             <div class="home-part" data-home="meet" hidden></div>
             <div class="home-part" data-home="join" hidden></div>
           </section>
-        </div>
         <section class="home-section home-mine" data-home="mine" aria-labelledby="home-mine-title" hidden></section>
         <section class="home-section home-happening" data-home="happening" aria-labelledby="home-happening-title" hidden></section>
-        <div class="home-side">
-          <section class="home-section home-profile" data-home="profile" aria-labelledby="home-curious-title" hidden></section>
-        </div>
+        <section class="home-section home-profile" data-home="profile" aria-labelledby="home-curious-title" hidden></section>
       </div>
     </div>`;
   }

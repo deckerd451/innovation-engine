@@ -401,9 +401,9 @@ try {
       const s = document.querySelector(root + ' [data-home="goal"]');
       return { tag: s.tagName, text: [s.querySelector('h2')?.textContent, s.querySelector('p')?.textContent].join(' ').replace(/\s+/g, ' ').trim(), inputs: s.querySelectorAll('input').length, buttons: [...s.querySelectorAll('form button')].map(b => b.textContent.trim()), resume: !!document.querySelector(root + ' .home-resume'), beforeMine: !!(s.compareDocumentPosition(document.querySelector(root + ' [data-home="mine"]')) & Node.DOCUMENT_POSITION_FOLLOWING) };
     }, ROOT());
-    check(/^What would you like to work on\? Find people and projects around an idea, interest, or skill\.$/i.test(section.text) && section.inputs === 1 && JSON.stringify(section.buttons) === '["Find people & projects"]',
+    check(/^Looking for someone or something\? Search by an idea, interest, or skill\.$/i.test(section.text) && section.inputs === 1 && JSON.stringify(section.buttons) === '["Find people & projects"]',
       `${name}: one input and one action, with the plain promise`, JSON.stringify(section));
-    check(!section.resume && !/worksheet|draft|Get help|next step/i.test(section.text) && section.beforeMine, `${name}: first, before projects; no worksheet language or draft resume`, JSON.stringify(section));
+    check(!section.resume && !/worksheet|draft|Get help|next step/i.test(section.text) && !section.beforeMine, `${name}: available after projects for participating members; no worksheet language or draft resume`, JSON.stringify(section));
 
     // The example fills the field to edit or send; it never searches by itself.
     await evaluate(`(() => { const s = document.querySelector('${ROOT()} [data-home="goal"]'); s.scrollIntoView({ block: 'start' }); s.querySelector('[data-idea-example]').click(); return true; })()`);

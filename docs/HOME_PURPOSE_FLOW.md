@@ -1,6 +1,12 @@
-# Home: find a way to participate
+# Home: participate or discover
 
-Home leads with one optional idea/interest/skill finder. Results appear under
+Home adapts to actual participation: members with owned/joined projects or
+accepted connections see pending attention first, then project shortcuts and a
+compact finder. Members with neither start with discovery. This is not a claim
+about the date of their last visit or whether an account is new. Loading or
+failed project data does not invent participation. All sections remain available.
+
+The optional finder searches by idea, interest or skill. Results appear under
 the input, state why words match, and open existing limited profiles or project
 details. A blank profile does not block discovery. Search failures and no-match
 results remain distinct; typing survives other Home updates. Old requests cannot
@@ -21,8 +27,14 @@ setup card. The Pulse promotion and skill-count shortcuts have been removed
 from Home. The standalone Pulse page and its member-safe RPC remain available
 at their existing URL.
 
-The reading order is finder, next step, own projects, open invitations, optional
-interests. Desktop places projects beside the next step; phone uses one column.
+For participating members, the reading order is attention, projects, finder,
+recommendation, open invitations and optional interests. For discovery members,
+the finder leads, followed by attention/recommendation, projects, invitations and
+optional interests. DOM order matches the reading and keyboard order on phone
+and desktop. Existing nodes are moved, never recreated to change modes, and
+changes wait until a member leaves an active input. Project and opportunity
+cards retain real descriptions, needs and organizer/deadline information when
+available; View details makes the whole-card action explicit. No feed is added.
 No database migration, email deployment or production data edits are required.
 Existing search sampling limits are unchanged by this frontend redesign.
 
