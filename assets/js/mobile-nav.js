@@ -102,7 +102,7 @@
         ? (topMessage?.preview || `${unread} conversation${unread === 1 ? '' : 's'} waiting for you`)
         : intents.length
           ? `Find a useful connection around ${firstIntent}`
-          : 'Give Buildspace one thing to work with';
+          : 'Give Innovation Engine one thing to work with';
       const copy = unread > 0
         ? `${unread} unread ${unread === 1 ? 'message' : 'messages'} · Reply while the context is fresh.`
         : intents.length

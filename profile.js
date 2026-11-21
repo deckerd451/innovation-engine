@@ -594,7 +594,7 @@
       if (!linked) {
         rowEl.innerHTML = `
           <div class="ch-experience-name">Nearify</div>
-          <div class="ch-experience-desc">Connect from the Nearify app to use your community profile there. Once connected, people you meet at Nearify events can see your name, short bio and the events you were both at, under People you met in Buildspace.</div>
+          <div class="ch-experience-desc">Connect from the Nearify app to use your community profile there. Once connected, people you meet at Nearify events can see your name, short bio and the events you were both at, under People you met in Innovation Engine.</div>
         `;
         return;
       }
@@ -603,7 +603,7 @@
         rowEl.innerHTML = `
           <div class="ch-experience-name">Nearify</div>
           <div class="ch-experience-desc">We've clarified how your community profile works with Nearify. When you participate in a Nearify experience, your profile can help Nearify make relevant introductions for you and explain why another participant may benefit from meeting you.</div>
-          <div class="ch-experience-desc">People you meet at Nearify events can see your name, short bio and the events you were both at, under People you met in Buildspace.</div>
+          <div class="ch-experience-desc">People you meet at Nearify events can see your name, short bio and the events you were both at, under People you met in Innovation Engine.</div>
           <div class="ch-experience-actions">
             <button type="button" class="ch-nearify-continue-btn" id="nearify-continue-btn">Continue</button>
           </div>
@@ -630,7 +630,7 @@
       rowEl.innerHTML = `
         <details class="ch-connected-app"><summary><span class="ch-experience-name"><span class="connected-dot" aria-hidden="true"></span>Nearify · Connected</span><span class="ch-app-manage">Manage</span></summary>
         <div class="ch-experience-desc">Use my community profile to make introductions more relevant when I participate in Nearify experiences.</div>
-        <div class="ch-experience-desc">People you meet at Nearify events can see your name, short bio and the events you were both at, under People you met in Buildspace.</div>
+        <div class="ch-experience-desc">People you meet at Nearify events can see your name, short bio and the events you were both at, under People you met in Innovation Engine.</div>
         <div class="ch-experience-desc">Disconnecting unlinks your accounts and stops Nearify using your profile. It doesn’t erase encounters already recorded: people you met can still see them.</div>
         ${when ? `<div class="ch-experience-meta">Connected since ${escapeHtml(when)}</div>` : ""}
         <div class="ch-experience-actions">

@@ -1764,7 +1764,7 @@ function _renderCollaborationConcierge(root, candidate, options = {}) {
   outcome.className = 'network-reflection-concierge-outcome';
   outcome.textContent = candidate.type === 'person'
     ? 'If they accept, your conversation will appear in Inbox.'
-    : 'Buildspace chose this from your profile and recent activity.';
+    : 'Innovation Engine chose this from your profile and recent activity.';
   if (layout === 'home') outcome.hidden = true;
   card.appendChild(outcome);
 

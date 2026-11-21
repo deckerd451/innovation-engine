@@ -34,7 +34,7 @@ assert.doesNotMatch(js, /from\('project_goals'\)|from\('assistance/, 'no paralle
 // Honest progress language.
 assert.match(js, /doesn’t mark the task complete or count as verified/);
 assert.match(js, /Saved as <strong>untested<\/strong>/);
-assert.match(js, /Buildspace doesn’t send this for you/);
+assert.match(js, /Innovation Engine doesn’t send this for you/);
 assert.match(js, /draft on this device/);
 assert.match(js, /if \(session\.task\.status === 'open'\) fields\.status = 'in_progress'/);
 

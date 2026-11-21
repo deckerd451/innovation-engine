@@ -114,7 +114,7 @@
     }
     if (block.type === 'message') {
       const body = valueOf(values, `${block.id}.body`, block.body);
-      return `<div class="ai-block ai-message"><h3>${esc(block.label)}</h3><p class="ai-subject">Subject: <span data-ai-subject="${esc(block.id)}">${esc(block.subject || '')}</span></p><textarea rows="7" data-ai-message="${esc(block.id)}"${values[`${block.id}.body`] !== undefined ? ' data-edited="true"' : ''}>${esc(body)}</textarea><div class="ai-message-actions"><button type="button" data-ai-copy-message="${esc(block.id)}">Copy message</button><a class="ai-email" data-ai-email="${esc(block.id)}" href="${mailto(block.subject, body)}">Open in email</a></div><small>Buildspace doesn’t send this for you — edit the [brackets], then send it from your own email or messages.</small></div>`;
+      return `<div class="ai-block ai-message"><h3>${esc(block.label)}</h3><p class="ai-subject">Subject: <span data-ai-subject="${esc(block.id)}">${esc(block.subject || '')}</span></p><textarea rows="7" data-ai-message="${esc(block.id)}"${values[`${block.id}.body`] !== undefined ? ' data-edited="true"' : ''}>${esc(body)}</textarea><div class="ai-message-actions"><button type="button" data-ai-copy-message="${esc(block.id)}">Copy message</button><a class="ai-email" data-ai-email="${esc(block.id)}" href="${mailto(block.subject, body)}">Open in email</a></div><small>Innovation Engine doesn’t send this for you — edit the [brackets], then send it from your own email or messages.</small></div>`;
     }
     return '';
   }
@@ -192,7 +192,7 @@
 
   function shareMarkup(session, decision) {
     const reported = session.progress.some(item => /Took this step|Got a result/.test(item.kind));
-    if (!reported || !session.project || session.shared) return session.shared ? `<p class="mta-complete">${session.shared === 'community' ? 'Shared with Buildspace members as untested.' : 'Saved privately to your project.'}</p>` : '';
+    if (!reported || !session.project || session.shared) return session.shared ? `<p class="mta-complete">${session.shared === 'community' ? 'Shared with Innovation Engine members as untested.' : 'Saved privately to your project.'}</p>` : '';
     const playbook = decision.playbook ? engine().PLAYBOOKS.find(item => item.id === decision.playbook.id) : null;
     const steps = playbook ? playbook.steps.map(step => step.title) : session.progress.map(item => item.note).filter(Boolean);
     const lastResult = [...session.progress].reverse().find(item => item.note)?.note || '';
@@ -203,7 +203,7 @@
       <label><span>What happened</span><textarea rows="2" maxlength="500" data-share-summary>${esc(lastResult)}</textarea></label>
       <label><span>Steps, one per line</span><textarea rows="4" data-share-steps>${esc(steps.join('\n'))}</textarea></label>
       <label><span>What to watch for</span><textarea rows="2" maxlength="500" data-share-watch></textarea></label>
-      <label class="mta-consent"><input type="checkbox" data-share-community> Share with Buildspace members (otherwise only you can see it)</label>
+      <label class="mta-consent"><input type="checkbox" data-share-community> Share with Innovation Engine members (otherwise only you can see it)</label>
       <p class="mta-note">Saved as <strong>untested</strong>. It is labelled tested only after members report results, and verified only when someone else confirms them. Don’t include private details about other people.</p>
       <button type="button" class="mta-secondary-action" data-mta-share>Save method</button></details>`;
   }
