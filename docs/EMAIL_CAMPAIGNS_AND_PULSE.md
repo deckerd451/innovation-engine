@@ -193,3 +193,18 @@ only its member aggregate RPC. No rollback can retract delivered messages.
 - Pinned Deno SDK adapter tests run without network permission and assert
   verified actor selection, private claim links, idempotency and unsubscribe
   headers. Functions are type-checked with frozen dependency locks.
+
+## Guided campaign screen
+
+Campaigns are listed newest first with creation time and a short draft ID.
+The selected draft is highlighted and its identity stays above the sending steps.
+A draft owned by another login is explicitly view-only; creating a new draft
+under the current account preserves the ownership checks. New campaigns are
+composed separately from the selected draft's saved message.
+
+The report groups sending into test, pilot, and remaining recipients. It shows
+test delivery status beside the first step and reveals the approval checkbox
+only after a pilot starts. Recipient details, cancellation and limits are under
+a disclosure. All send actions remain explicit; selecting, refreshing, previewing
+and saving never sends email. No database or Edge Function changes are required
+for this layout update.

@@ -869,3 +869,28 @@
 .campaign-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));gap:1rem;margin:1rem 0}.campaign-form label{display:flex;flex-direction:column;gap:.4rem}.admin-campaigns input:not([type=checkbox]),.admin-campaigns select,.admin-campaigns textarea{width:100%;min-width:0;background:#10182a;color:#f1f3fa;border:1px solid #347389;border-radius:8px;padding:.7rem;font:inherit}.admin-campaigns textarea{resize:vertical}.campaign-recipients{padding-left:1.25rem;line-height:1.6}.campaign-recipients li{padding:.4rem 0;overflow-wrap:anywhere}.campaign-recipients label{cursor:pointer}.campaign-send-controls,.campaign-pagination{display:flex;flex-wrap:wrap;gap:.75rem;align-items:center;margin:1rem 0}.campaign-send-controls label{line-height:1.6}.campaign-status{color:#c4c8d4;line-height:1.5}.admin-campaigns input:focus-visible,.admin-campaigns select:focus-visible,.admin-campaigns textarea:focus-visible{outline:3px solid #00e0ff;outline-offset:2px}.campaign-saved-message{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;background:#10182a;border:1px solid #3b4057;border-radius:8px;padding:1rem}
 
 .admin-people-heading .admin-retry-btn { min-height: 44px; margin: .5rem 0; }
+
+/* Guided campaigns: selected draft, next action, then optional details. */
+.admin-campaigns .campaign-picker ul{list-style:none;padding:0;display:grid;gap:.6rem;max-height:16rem;overflow:auto}
+.admin-campaigns .campaign-picker button[aria-pressed=true]{border:2px solid #00d9ee;background:#102b3a}
+.admin-campaigns .campaign-picker li button{width:100%;text-align:left;white-space:normal;overflow-wrap:anywhere}
+.admin-campaigns .campaign-identity{color:#9ae5f1;font-size:.9rem;overflow-wrap:anywhere}
+.admin-campaigns .campaign-access:not(:empty){padding:1rem;border:1px solid #e6b650;border-radius:8px}
+.admin-campaigns .campaign-steps{list-style:none;counter-reset:campaign-step;padding:0;display:grid;gap:1rem}
+.admin-campaigns .campaign-steps>li{counter-increment:campaign-step;border:1px solid #3b536c;border-radius:10px;padding:1rem;min-width:0}
+.admin-campaigns .campaign-steps h4{font-size:1.1rem;margin:0 0 .6rem}
+.admin-campaigns .campaign-steps h4:before{content:counter(campaign-step) '. ';color:#00d9ee}
+.admin-campaigns .campaign-steps p{margin:.5rem 0;line-height:1.5}
+.admin-campaigns .campaign-steps [data-current=true]{border-color:#00d9ee;background:#102335}
+.admin-campaigns .campaign-step-state{color:#b5dce4}
+.admin-campaigns .campaign-steps label{display:block;margin:1rem 0;line-height:1.5}
+.admin-campaigns .campaign-steps label[hidden]{display:none}
+.admin-campaigns .campaign-steps button{margin-top:.6rem;max-width:100%;white-space:normal}
+.admin-campaigns .campaign-details,.admin-campaigns .campaign-compose{margin:1.25rem 0}
+.admin-campaigns summary{cursor:pointer;min-height:44px;padding:.7rem 0;color:#9ae5f1}
+.admin-campaigns .campaign-status:not(:empty){padding:1rem;border-left:3px solid #00d9ee;background:#101e31;overflow-wrap:anywhere}
+.admin-campaigns .campaign-status{position:relative}
+.admin-campaigns .campaign-report-tools button[hidden]{display:none}
+.admin-campaigns #campaign-report-section{scroll-margin-top:1rem}
+
+.admin-campaigns #campaign-preview-result .campaign-recipients{max-height:20rem;overflow:auto;padding-right:.5rem}
