@@ -198,6 +198,18 @@ try {
     ),
     "Member summary calls only the dedicated privacy-safe report",
   );
+  check(await run(`document.querySelectorAll('.pulse-metrics article').length===2&&!document.querySelector('.pulse-more').open&&document.querySelector('.pulse-actions').compareDocumentPosition(document.querySelector('.pulse-metrics'))&Node.DOCUMENT_POSITION_FOLLOWING`),'Participation links and two main metrics lead; detailed stats are collapsed');
+  check(await run(`document.querySelectorAll('.pulse-months li').length===0&&document.querySelector('.pulse-growth').textContent.includes('grouped for privacy')`),'Small monthly counts collapse into one privacy note');
+  await run(`document.querySelector('.pulse-more').open=true;window.__pulseData.monthly=[{month:'2026-10',profiles_band:10},{month:'2026-11',profiles_band:null}];document.querySelector('#pulse-refresh').click();true`);
+  await wait(`document.querySelector('.pulse-months')?.textContent.includes('10+')`,'reported growth');
+  check(await run(`document.querySelectorAll('.pulse-months li').length===1&&document.querySelector('.pulse-more').open`),'Reported growth remains available and refresh preserves the disclosure');
+  await run(`document.querySelector('.pulse-more').open=false;true`);
+  for(const width of [320,390,1280]) {
+    await app.send('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width<1024});await app.sleep(100);
+    check(await run(`document.documentElement.scrollWidth<=innerWidth`),'Simplified Pulse fits '+width);
+    const shot=await app.send('Page.captureScreenshot',{format:'png'});fs.writeFileSync('/tmp/community-pulse-simple-'+width+'.png',Buffer.from(shot.data,'base64'));
+  }
+
   await app.sleep(200);
   await run(axe + ";true");
   const pulseViolations = await run(
@@ -226,6 +238,9 @@ try {
   await app.send('Page.navigate',{url:origin+'/index.html?campaign_resource=projects'});
   await wait(`document.body.dataset.destination==='explore'&&document.querySelector('.udc-resource-tab[data-resource=projects]')?.getAttribute('aria-selected')==='true'`,'email app destination');
   check(await run(`!location.search.includes('campaign_resource')`),'Email project links reach Explore and remove the routing parameter');
+  await app.send('Page.navigate',{url:origin+'/index.html?campaign_resource=people'});
+  await wait(`document.body.dataset.destination==='explore'&&document.querySelector('.udc-resource-tab[data-resource=people]')?.getAttribute('aria-selected')==='true'`,'people destination');
+  check(await run(`!location.search.includes('campaign_resource')`),'Meet people opens the directory directly');
   // Real unsubscribe page: URL fragment is removed before the RPC and no GET mutates preferences.
   await app.send("Page.addScriptToEvaluateOnNewDocument", {
     source: `window.__unsubCalls=[];window.supabase.rpc=async(name,args)=>{window.__unsubCalls.push({name,args});return {error:null};};`,
