@@ -183,3 +183,20 @@
 }
 
 .home-picked .home-picks,.home-side{grid-template-columns:minmax(0,1fr)}
+
+/* Participation-based Home, with matching DOM/keyboard and visual order. */
+.home-grid>.home-attention,.home-grid>.home-picked,.home-grid>.home-mine,.home-grid>.home-happening,.home-grid>.home-profile{grid-column:auto;grid-row:auto}
+.home-grid>.home-idea{padding:.85rem;background:rgba(0,224,255,.025)}
+.home-idea .home-heading{font-size:1.08rem;margin-bottom:.25rem}
+.home-idea>.home-muted{margin-bottom:.65rem}
+.home-view[data-home-mode=participating] .home-idea-example{display:none}
+.home-view[data-home-mode=participating] .home-mine{border-color:rgba(0,224,255,.2)}
+.home-view .home-header{padding-bottom:0}
+@media(min-width:1024px){
+ .home-grid>.home-attention{grid-column:1 / -1}
+ .home-view[data-home-mode=participating] .home-grid>.home-mine{grid-column:1 / -1}
+ .home-view[data-home-mode=participating] .home-grid>.home-mine>.home-mine-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 1.5rem}
+ .home-view[data-home-mode=participating] .home-grid>.home-mine>.home-mine-list li:nth-child(2) .home-mine-row{border-top:0}
+}
+
+.home-invite-action{color:#9eefff;font-size:.82rem;font-weight:700;margin-top:.25rem}
