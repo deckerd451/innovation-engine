@@ -59,7 +59,7 @@
       obstacle: 'Progress depends on knowledge or skills you don’t have yet.',
       blocks: (ctx, values) => [
         { type: 'fields', id: 'need', label: 'Be specific about the help', items: [
-          { key: 'skill', label: 'Skill or experience needed', value: '', hint: 'e.g. “event sponsorship”, “React”, “grant writing”. Buildspace uses this to check your connections.', searchable: true },
+          { key: 'skill', label: 'Skill or experience needed', value: '', hint: 'e.g. “event sponsorship”, “React”, “grant writing”. Innovation Engine uses this to check your connections.', searchable: true },
           { key: 'ask', label: 'The specific question or task', value: '' },
           { key: 'time', label: 'How much of their time', value: '20 minutes on a call, or a written answer' },
         ] },
@@ -269,7 +269,7 @@
           obstacle: '“Looking for help” gets no replies; a concrete role with a time commitment does.',
           blocks: (ctx, values) => [
             { type: 'fields', id: 'role', label: 'Role brief', items: [
-              { key: 'skills', label: 'Skills needed (comma separated)', value: '', hint: 'Buildspace checks your connections’ profiles for these exact skills.', searchable: true },
+              { key: 'skills', label: 'Skills needed (comma separated)', value: '', hint: 'Innovation Engine checks your connections’ profiles for these exact skills.', searchable: true },
               { key: 'own', label: 'What they would own', value: '' },
               { key: 'time', label: 'Time commitment and duration', value: '3–5 hours a week for 6 weeks' },
               { key: 'gain', label: 'What’s in it for them', value: '' },
@@ -529,7 +529,7 @@
     if (!decision.intervention && !decision.complete) {
       decision.clarify = {
         question: 'What’s in the way right now?',
-        note: classified ? null : 'Buildspace doesn’t have a guide for this kind of objective yet. Pick what’s blocking you and it will prepare something concrete.',
+        note: classified ? null : 'Innovation Engine doesn’t have a guide for this kind of objective yet. Pick what’s blocking you and it will prepare something concrete.',
         options: Object.entries(OBSTACLES).map(([key, item]) => ({ key, label: item.label })),
       };
     }

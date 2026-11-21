@@ -239,7 +239,7 @@
 
     document.body.style.overflow = "hidden";
     if (window.__CH_PORTAL_AUTH_HANDOFF__) {
-      setHint("Sign in through Community Chat in the Member Portal to unlock Buildspace.");
+      setHint("Sign in through Community Chat in the Member Portal to unlock Innovation Engine.");
       const oauthButtons = document.querySelector(".ie-oauth-buttons");
       const oauthLabel = document.querySelector(".ie-login-module-label");
       if (oauthButtons) {
@@ -853,7 +853,7 @@
           // its Supabase client refreshes, avoiding competing refresh-token rotation.
           await window.supabase.auth.stopAutoRefresh();
         } catch (error) {
-          err("Buildspace member session could not be restored:", error);
+          err("Innovation Engine member session could not be restored:", error);
           showAuthError("Your member session could not be restored. Return to the portal and sign in again.");
         }
         return;

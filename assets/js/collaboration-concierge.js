@@ -48,7 +48,7 @@ async function respond(connectionId, status, schedule = null) {
   if (status === 'accepted' && data.from_user_id && window.sendDirectMessage) {
     await window.sendDirectMessage(
       data.from_user_id,
-      `I accepted our Buildspace collaboration invitation. ${data.context_prompt || 'Let’s compare what we are building and trade one useful resource.'}`,
+      `I accepted our Innovation Engine collaboration invitation. ${data.context_prompt || 'Let’s compare what we are building and trade one useful resource.'}`,
       { collaboration: { connectionId, targetCommunityUserId: data.from_user_id } },
     );
   }
