@@ -69,3 +69,16 @@ r = plain(matchIdea({ ...base, idea: 'Underwater basket weaving' }));
 assert.deepEqual([r.people, r.projects], [[], []], 'nothing mentions it: nothing matched');
 
 console.log('Home idea matching: all checks passed');
+
+const all = plain(matchIdea({...base, idea:'GIS', organizations:[{id:'org',name:'GIS Collective'}], opportunities:[
+ {id:'opp',title:'GIS mentor',status:'open',is_public:true},
+ {id:'private',title:'GIS private',status:'open',is_public:false},
+ {id:'closed',title:'GIS closed',status:'closed',is_public:true},
+ {id:'expired',title:'GIS expired',status:'open',is_public:true,application_deadline:'2000-01-01'}
+]}));
+assert.ok(all.people.length && all.projects.length && all.skills.includes('GIS'));
+assert.deepEqual(all.organizations.map(o=>o.id), ['org']);
+assert.deepEqual(all.opportunities.map(o=>o.id), ['opp'], 'only open, public, unexpired opportunities');
+assert.deepEqual(plain(matchIdea({...base,idea:'Ana'})).people.map(p=>p.id), ['ana'], 'visible names are searchable and deduplicated');
+assert.deepEqual(plain(matchIdea({...base,idea:'Lopez'})).people, [], 'a stranger surname is not searchable through the abbreviated-name preview');
+console.log('All-category community search checks passed');

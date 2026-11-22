@@ -401,7 +401,7 @@ try {
       const s = document.querySelector(root + ' [data-home="goal"]');
       return { tag: s.tagName, text: [s.querySelector('h2')?.textContent, s.querySelector('p')?.textContent].join(' ').replace(/\s+/g, ' ').trim(), inputs: s.querySelectorAll('input').length, buttons: [...s.querySelectorAll('form button')].map(b => b.textContent.trim()), resume: !!document.querySelector(root + ' .home-resume'), beforeMine: !!(s.compareDocumentPosition(document.querySelector(root + ' [data-home="mine"]')) & Node.DOCUMENT_POSITION_FOLLOWING) };
     }, ROOT());
-    check(/^Looking for someone or something\? Search by an idea, interest, or skill\.$/i.test(section.text) && section.inputs === 1 && JSON.stringify(section.buttons) === '["Find people & projects"]',
+    check(/^Search the community People, projects, skills, organizations, and opportunities\.$/i.test(section.text) && section.inputs === 1 && JSON.stringify(section.buttons) === '["Search"]',
       `${name}: one input and one action, with the plain promise`, JSON.stringify(section));
     check(!section.resume && !/worksheet|draft|Get help|next step/i.test(section.text) && !section.beforeMine, `${name}: available after projects for participating members; no worksheet language or draft resume`, JSON.stringify(section));
 
@@ -440,11 +440,11 @@ try {
     await sleep(400);
     // A project opens its page, with Request to Join.
     await evaluate(`document.querySelector('${ROOT()} [data-idea-project]').click(); true`);
-    await waitFor(`document.getElementById('project-detail-overlay')`, 'project', 8000);
+    await waitFor(`document.querySelector('#node-side-panel .project-owner')`, 'project', 8000);
     await sleep(1200);
-    check(/Flood map for West Ashley/.test(await evaluate(`document.getElementById('project-detail-overlay').innerText`)) && (await evaluate(`[...document.querySelectorAll('#project-detail-overlay button')].some(b => b.textContent.trim() === 'Request to Join')`)),
+    check(/Flood map for West Ashley/.test(await evaluate(`document.getElementById('node-side-panel').innerText`)) && (await evaluate(`[...document.querySelectorAll('#node-side-panel button')].some(b => b.textContent.trim() === 'Request to Join')`)),
       `${name}: a project opens its page, with Request to Join`);
-    await evaluate(`document.getElementById('pd-close-btn')?.click(); true`);
+    await evaluate(`window.closeNodePanel(); true`);
     await sleep(400);
 
     // An idea about a topic: projects whose description mentions it.
@@ -453,7 +453,7 @@ try {
 
     // Nothing to match: said plainly, with ways to keep exploring.
     r = await askIdea('Underwater basket weaving');
-    check(/No matches found for underwater, basket, weaving/.test(r.text) && JSON.stringify(r.explore) === '["Explore the community"]' && !r.people.length && !r.projects.length,
+    check(/No matches for “Underwater basket weaving”/.test(r.text) && JSON.stringify(r.explore) === '["Explore the community"]' && !r.people.length && !r.projects.length,
       `${name}: with no match it says so and offers Explore`, r.text);
     await snap(`idea-none-${name}`);
     await evaluate(`document.querySelector('${ROOT()} [data-idea-explore="people"]').click(); true`);

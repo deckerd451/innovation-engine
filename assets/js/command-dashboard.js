@@ -1448,8 +1448,8 @@ window.CommandDashboard = (() => {
               ? `<span class="udc-resource-stub-badge">sample</span>`
               : item.joinable
                 ? `<button class="udc-resource-join-btn" data-id="${item.id}" data-name="${_escapeHtml(item.name)}" type="button" title="Request to join ${_escapeHtml(item.name)}">Join</button>`
-              : `<button class="udc-resource-show-btn" data-id="${item.id}" title="${_activeResourceTab === 'people' ? 'Show in graph' : _activeResourceTab === 'themes' ? 'See who lists this' : 'View details'}" aria-label="Show ${_escapeHtml(item.name)}">
-                  <i class="fas ${_activeResourceTab === 'people' ? 'fa-crosshairs' : _activeResourceTab === 'themes' ? 'fa-users' : 'fa-info-circle'}"></i>
+              : `<button class="udc-resource-show-btn" data-id="${item.id}" title="${_activeResourceTab === 'people' ? 'View profile' : _activeResourceTab === 'themes' ? 'See who lists this' : 'View details'}" aria-label="${_activeResourceTab === 'people' ? 'View profile of' : 'View'} ${_escapeHtml(item.name)}">
+                  ${_activeResourceTab === 'people' ? 'View profile' : _activeResourceTab === 'themes' ? 'View people' : 'View details'}
                 </button>`
             }
           </div>

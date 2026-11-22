@@ -60,7 +60,8 @@ assert.match(dashboard, /ExplorerCoordinator\.selectOpportunity\(\{ id, label: n
 assert.match(coordinator, /await window\.openNodePanel\(\{ id, type: 'opportunity', name: label \}\)/, 'opportunity selection must preserve the current detail-panel flow');
 assert.match(panel, /href="opportunity\.html\?id=\$\{encodeURIComponent\(opp\.id\)\}"/, 'the in-app opportunity panel must use a deployment-base-safe relative link to the canonical interest workflow');
 assert.doesNotMatch(panel, /href="\/opportunity\.html\?/, 'the canonical interest link must not discard a GitHub Pages project base path');
-assert.match(panel, /Express or manage interest/, 'members must see an obvious interest action in the normal in-app flow');
+assert.match(panel, /id="opportunity-interest-toggle"/, 'members can share interest directly in the panel');
+assert.match(panel, /await expressOpportunityInterest\(opp.id\)/, 'panel uses the canonical private interest service');
 assert.match(panel, /View interested people/, 'posters must see an obvious interested-people action in the normal in-app flow');
 
 assert.match(migration, /UNIQUE\s*\(opportunity_id, community_id\)/i, 'duplicate interest must be prevented in the database');

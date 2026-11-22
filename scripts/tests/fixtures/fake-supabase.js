@@ -105,6 +105,11 @@
           return { data: single ? row : [row], error: null };
         }
         let matched = rows.filter(canSee).filter(row => filters.every(f => f(row)));
+        if (mode === 'delete') {
+          const allowed = matched.filter(row => !writable[table] || writable[table](row));
+          db[table] = rows.filter(row => !allowed.includes(row));
+          return { data: null, error: null };
+        }
         if (mode === 'update') {
           const allowed = matched.filter(row => !writable[table] || writable[table](row));
           if (!allowed.length && single) return { data: null, error: { code: 'PGRST116', message: 'no rows updated' } };

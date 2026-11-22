@@ -40,7 +40,7 @@
     setMobileMapButton(isNetwork);
     removeMobileRightNow();
     // Network lists people ("People you met" is added by app-nav.js).
-    document.querySelector(`[data-resource="${isNetwork ? 'people' : 'themes'}"]`)?.click();
+    document.querySelector(`[data-resource="${'people'}"]`)?.click();
     const toggle = document.getElementById('cd-explore-toggle');
     const browse = document.querySelector('.cd-mobile-browse');
     if (browse) browse.open = true;
