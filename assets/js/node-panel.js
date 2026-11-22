@@ -8,6 +8,7 @@ import './dialog-focus.js?v=a11y-20261112';
 import { makeProfileImageClickable } from './profile-image-modal.js';
 import { getRelationshipEvidence } from './relationship-evidence.js';
 import { summarizeFollowups } from './followup-contact.js';
+import { initOpportunityManager, getOpportunityInterest, expressOpportunityInterest, withdrawOpportunityInterest } from './organizations/opportunities.js';
 
 const NODE_PANEL_VERSION = 'v2.2-' + Date.now();
 console.log(`%c👤 Node Panel ${NODE_PANEL_VERSION} (Project Approval Fix)`, "color:#0ff; font-weight: bold; font-size: 16px");
@@ -961,6 +962,30 @@ async function renderOpportunityPanel(nodeData) {
     return;
   }
 
+  const viewerId = currentUserProfile?.id;
+  const isPoster = viewerId === opp.posted_by;
+  let interest = null;
+  let interestReady = false;
+  let posterName = 'Poster profile unavailable';
+  if (opp.posted_by) {
+    const { data: poster } = await supabase.from('community').select('name').eq('id', opp.posted_by).maybeSingle();
+    if (poster?.name) posterName = isPoster || window.isAdminUser?.() ? poster.name : limitedDisplayName(poster.name);
+  }
+  try {
+    const identity = await initOpportunityManager(supabase);
+    if (identity.currentUserCommunityId && !isPoster) {
+      interest = await getOpportunityInterest(opp.id);
+      interestReady = true;
+    }
+  } catch (error) {
+    console.warn('Opportunity interest unavailable:', error);
+  }
+  if (String(currentNodeData?.id) !== String(oppId)) return;
+  const available = opp.status === 'open' && opp.is_public === true &&
+    (!opp.application_deadline || new Date(opp.application_deadline).getTime() > Date.now());
+  const interestLabel = () => interest ? 'Withdraw interest' : "I'm interested";
+  const interestHint = () => interest ? 'Interest shared. The poster can contact you.' : 'Share your profile privately with the poster so they can contact you.';
+
   const typeColors = {
     job: '#00e0ff', internship: '#a855f7', volunteer: '#10b981',
     contract: '#f59e0b', mentorship: '#ec4899',
@@ -983,6 +1008,7 @@ async function renderOpportunityPanel(nodeData) {
           <i class="fas fa-bolt" style="color: ${typeColor};"></i>
         </div>
         <h2 style="color: ${typeColor}; font-size: 1.5rem; margin-bottom: 0.5rem;">${escapeHtml(opp.title)}</h2>
+        <p class="opportunity-poster" style="color:#b6bfd0;margin:.5rem 0;">Posted by ${escapeHtml(posterName)}</p>
         ${oppType ? `<span style="background: ${typeColor}22; color: ${typeColor}; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.8rem; font-weight: 600; text-transform: uppercase;">${escapeHtml(oppType)}</span>` : ''}
       </div>
 
@@ -994,6 +1020,13 @@ async function renderOpportunityPanel(nodeData) {
         ${opp.location ? `<span style="background: rgba(255,255,255,0.08); color: #ccc; padding: 0.2rem 0.6rem; border-radius: 8px; font-size: 0.78rem;"><i class="fas fa-map-marker-alt"></i> ${escapeHtml(opp.location)}</span>` : ''}
         ${opp.compensation_type ? `<span style="background: rgba(255,255,255,0.08); color: #ccc; padding: 0.2rem 0.6rem; border-radius: 8px; font-size: 0.78rem;"><i class="fas fa-dollar-sign"></i> ${escapeHtml(opp.compensation_type)}${opp.compensation_min != null ? ': ' + opp.compensation_min + (opp.compensation_max != null && opp.compensation_max !== opp.compensation_min ? '–' + opp.compensation_max : '') : ''}</span>` : ''}
         ${deadline ? `<span style="background: rgba(239,68,68,0.15); color: #ef4444; padding: 0.2rem 0.6rem; border-radius: 8px; font-size: 0.78rem;"><i class="fas fa-calendar"></i> Due ${escapeHtml(deadline)}</span>` : ''}
+      </div>
+
+      <!-- One action, in place: uses the same canonical interest service as opportunity.html. -->
+      <div class="opportunity-interest" style="margin:1rem 0;">
+        ${isPoster ? `<a href="opportunity.html?id=${encodeURIComponent(opp.id)}" class="direct-value-action">View interested people</a>` :
+          available && interestReady ? `<p id="opportunity-interest-status" role="status" style="color:#b6bfd0;">${interestHint()}</p><button type="button" id="opportunity-interest-toggle" class="direct-value-action">${interestLabel()}</button>` :
+          `<p role="status">${!available ? 'This opportunity is no longer accepting interest.' : 'Interest could not be loaded. Reopen this opportunity to try again.'}</p>`}
       </div>
 
       <!-- Description -->
@@ -1014,15 +1047,7 @@ async function renderOpportunityPanel(nodeData) {
         </div>
       ` : ''}
 
-      ${renderOpportunityRelevantPeople(opp.id, typeColor)}
 
-      <!-- Canonical interest workflow -->
-      <div style="margin: 1.5rem 0;">
-        <a href="opportunity.html?id=${encodeURIComponent(opp.id)}" style="width: 100%; box-sizing: border-box; padding: 0.85rem; background: linear-gradient(135deg, ${typeColor}, ${typeColor}cc); border: none; border-radius: 8px; color: #041018; font-weight: bold; cursor: pointer; font-size: 1rem; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
-          <i class="fas ${currentUserProfile?.id === opp.posted_by ? 'fa-users' : 'fa-hand'}"></i>
-          ${currentUserProfile?.id === opp.posted_by ? 'View interested people' : 'Express or manage interest'}
-        </a>
-      </div>
 
       <!-- Status badge -->
       <div style="text-align: center; margin-top: 1rem;">
@@ -1030,6 +1055,8 @@ async function renderOpportunityPanel(nodeData) {
           ${opp.status === 'open' ? '● Open' : opp.status === 'filled' ? '✓ Filled' : '✕ Closed'}
         </span>
       </div>
+
+      ${isPoster ? renderOpportunityRelevantPeople(opp.id, typeColor) : ''}
 
       <!-- Creator Actions -->
       ${currentUserProfile?.id === opp.posted_by ? `
@@ -1046,6 +1073,25 @@ async function renderOpportunityPanel(nodeData) {
       ` : ''}
     </div>
   `;
+  const interestButton = panelElement.querySelector('#opportunity-interest-toggle');
+  interestButton?.addEventListener('click', async () => {
+    if (interestButton.disabled) return;
+    interestButton.disabled = true;
+    const status = panelElement.querySelector('#opportunity-interest-status');
+    try {
+      // Refresh identity before each mutation; canonical service and RLS authorize it.
+      const identity = await initOpportunityManager(supabase);
+      if (identity.currentUserCommunityId !== viewerId || currentUserProfile?.id !== viewerId) throw new Error('Your sign-in changed. Reopen this opportunity.');
+      interest = interest ? (await withdrawOpportunityInterest(opp.id), null) : await expressOpportunityInterest(opp.id);
+      interestButton.textContent = interestLabel();
+      status.textContent = interestHint();
+    } catch (error) {
+      status.textContent = error.message || 'Could not update interest. Try again.';
+    } finally {
+      interestButton.disabled = false;
+    }
+  });
+
 }
 
 window.editOpportunityFromPanel = async function(oppId) {
@@ -2155,7 +2201,8 @@ async function renderProjectPanel(nodeData) {
           <i class="fas fa-lightbulb"></i>
         </div>
 
-        <h2 style="color: #ff6b6b; font-size: 1.75rem; margin-bottom: 0.5rem; text-align: center;">${project.title}</h2>
+        <h2 style="color: #ff6b6b; font-size: 1.75rem; margin-bottom: 0.5rem; text-align: center;">${escapeHtml(project.title)}</h2>
+        <p class="project-owner" style="text-align:center;color:#b6bfd0;">Led by ${escapeHtml(project.creator?.name || 'Community member')}</p>
 
         <div style="text-align: center; margin-bottom: 1rem;">
           <span style="background: rgba(255,107,107,0.2); color: #ff6b6b; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.85rem;">
@@ -2227,24 +2274,7 @@ async function renderProjectPanel(nodeData) {
         </div>
       ` : ''}
 
-      <!-- Creator Info -->
-      ${project.creator ? `
-        <div style="margin-bottom: 2rem;">
-          <h3 style="color: #ff6b6b; font-size: 1rem; margin-bottom: 0.75rem; text-transform: uppercase;">
-            <i class="fas fa-user-circle"></i> Created By
-          </h3>
-          <div style="display: flex; align-items: center; gap: 1rem; background: rgba(255,107,107,0.05); padding: 1rem; border-radius: 8px; border: 1px solid rgba(255,107,107,0.2);">
-            ${window.profilePhotoUrl?.(project?.creator) ?
-              `<img loading="lazy" src="${window.profilePhotoUrl?.(project?.creator)}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;">` :
-              `<div style="width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #ff6b6b, #ff8c8c); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: bold; color: white;">${project.creator.name[0]}</div>`
-            }
-            <div>
-              <div style="color: white; font-weight: bold;">${project.creator.name}</div>
-              <div style="color: #aaa; font-size: 0.85rem;">Project Creator</div>
-            </div>
-          </div>
-        </div>
-      ` : ''}
+
     </div>
 
     <!-- Action Bar -->
@@ -2282,7 +2312,7 @@ async function renderProjectPanel(nodeData) {
       `}
 
       <button onclick="viewProjectDetails('${project.id}')" style="width: 100%; padding: 0.75rem; background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3); border-radius: 8px; color: #ff6b6b; font-weight: bold; cursor: pointer;">
-        <i class="fas fa-eye"></i> View Full Details
+        <i class="fas fa-eye"></i> Open project workspace
       </button>
     </div>
   `;

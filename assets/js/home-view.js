@@ -113,9 +113,9 @@
       if (section && grid.children[index] !== section) grid.insertBefore(section, grid.children[index] || null);
     });
     const title = part('goal')?.querySelector('h2');
-    if (title) title.textContent = participating ? 'Looking for someone or something?' : 'Find your people';
+    if (title) title.textContent = 'Search the community';
     const description = part('goal')?.querySelector('.home-muted');
-    if (description) description.textContent = 'Search by an idea, interest, or skill.';
+    if (description) description.textContent = 'People, projects, skills, organizations, and opportunities.';
   }
 
   function paintAttention() {
@@ -376,7 +376,7 @@
 
   function ideaTerms(text) {
     const generic = window.AssistanceEngine?.isGenericWord || (() => false);
-    return [...new Set(wordsOf(text).filter(word => word.length >= 3 && !/^\d+$/.test(word) && !generic(word) && !generic(`${word}s`)))];
+    return [...new Set(wordsOf(text).filter(word => word.length >= 2 && !['of','in','on','to','by','at','as','an','or','be','is','it','we','me','my','do','so','if','no','up','us'].includes(word) && !/^\d+$/.test(word) && !generic(word) && !generic(`${word}s`)))];
   }
 
   function limitedName(raw) {
@@ -385,9 +385,9 @@
     return `${parts[0]} ${parts[parts.length - 1][0]}.`;
   }
 
-  function matchIdea({ idea, me, myAuth, connected = new Set(), isAdmin = false, people = [], projects = [] }) {
+  function matchIdea({ idea, me, myAuth, connected = new Set(), isAdmin = false, people = [], projects = [], organizations = [], opportunities = [] }) {
     const terms = ideaTerms(idea);
-    if (!terms.length) return { terms, people: [], projects: [] };
+    if (!terms.length) return { terms, people: [], projects: [], skills: [], organizations: [], opportunities: [] };
     const hits = (entries) => entries.filter(entry => terms.some(term => wordsOf(entry).includes(term)));
     const seen = new Set();
     const matchedPeople = [];
@@ -400,13 +400,14 @@
       const skills = listedTerms(person.skills);
       const skillHits = hits(full ? skills : skills.slice(0, 3));
       const interestHits = full ? hits(listedTerms(person.interests)) : [];
-      if (!skillHits.length && !interestHits.length) continue;
+      const nameHit = hits([full ? person.name : limitedName(person.name)]).length > 0;
+      if (!skillHits.length && !interestHits.length && !nameHit) continue;
       seen.add(identity);
       matchedPeople.push({
         id: person.id,
         name: full ? String(person.name || 'Community member').trim() : limitedName(person.name),
         connected: connected.has(String(person.id)),
-        reason: [skillHits.length ? `Lists ${skillHits.join(', ')}` : '', interestHits.length ? `Interested in ${interestHits.join(', ')}` : ''].filter(Boolean).join(' · '),
+        reason: [nameHit ? 'Name matches' : '', skillHits.length ? `Lists ${skillHits.join(', ')}` : '', interestHits.length ? `Interested in ${interestHits.join(', ')}` : ''].filter(Boolean).join(' · '),
         strength: skillHits.length + interestHits.length,
       });
     }
@@ -425,24 +426,31 @@
       });
     }
     const order = (key) => (a, b) => b.strength - a.strength || String(a[key]).localeCompare(String(b[key]));
-    return { terms, people: matchedPeople.sort(order('name')).slice(0, 5), projects: matchedProjects.sort(order('title')).slice(0, 3) };
+    const skills = [...new Set(people.filter(p => p.id && !p.is_hidden && String(p.id) !== String(me) && (!myAuth || String(p.user_id) !== String(myAuth))).flatMap(p => listedTerms(p.skills).slice(0, isAdmin || connected.has(String(p.id)) ? undefined : 3)))].filter(skill => hits([skill]).length).sort().slice(0, 3);
+    const matchRows = (rows, name) => rows.filter(row => hits([row[name], row.description || '']).length).slice(0, 3);
+    return { terms, people: matchedPeople.sort(order('name')).slice(0, 5), projects: matchedProjects.sort(order('title')).slice(0, 3), skills,
+      organizations: matchRows(organizations, 'name'),
+      opportunities: matchRows(opportunities.filter(o => o.status === 'open' && o.is_public === true && (!o.application_deadline || new Date(o.application_deadline).getTime() > Date.now())), 'title') };
+
   }
 
   async function findForIdea(idea) {
     const client = window.supabase;
     const me = profile();
     if (!client || !me?.id) throw new Error('Not signed in');
-    const [peopleResult, projectsResult, linksResult] = await Promise.all([
+    const [peopleResult, projectsResult, linksResult, orgResult, oppResult] = await Promise.all([
       client.from('community').select('id, user_id, name, skills, interests').or('is_hidden.is.null,is_hidden.eq.false').limit(1000),
       client.from('projects').select('id, title, description, required_skills, status, creator_id').limit(500),
       client.from('connections').select('from_user_id, to_user_id').or(`from_user_id.eq.${me.id},to_user_id.eq.${me.id}`).eq('status', 'accepted'),
+      client.from('organizations').select('id, name, description').limit(500),
+      client.from('opportunities').select('id, title, description, status, is_public, application_deadline').eq('status','open').eq('is_public',true).or(`application_deadline.is.null,application_deadline.gt.${new Date().toISOString()}`).limit(500),
     ]);
-    if (peopleResult.error || projectsResult.error) throw (peopleResult.error || projectsResult.error);
+    if (peopleResult.error || projectsResult.error || orgResult.error || oppResult.error) throw (peopleResult.error || projectsResult.error || orgResult.error || oppResult.error);
     const connected = new Set((linksResult.data || []).map(row => String(String(row.from_user_id) === String(me.id) ? row.to_user_id : row.from_user_id)));
     return matchIdea({
       idea, me: me.id, myAuth: me.user_id, connected,
       isAdmin: typeof window.isAdminUser === 'function' && window.isAdminUser(),
-      people: peopleResult.data || [], projects: projectsResult.data || [],
+      people: peopleResult.data || [], projects: projectsResult.data || [], organizations: orgResult.data || [], opportunities: oppResult.data || [],
     });
   }
 
@@ -457,15 +465,29 @@
       slot.innerHTML = '<p class="home-muted">That search couldn’t be done right now. Try again in a moment.</p>';
     } else if (!result.terms.length) {
       slot.innerHTML = `<p class="home-muted">Add a word or two about what it involves, like a skill or a topic, so it can be matched.</p>`;
-    } else if (!result.people.length && !result.projects.length) {
-      slot.innerHTML = `<p class="home-muted">No matches found for ${esc(result.terms.join(', '))}. Try another skill or topic.</p>${explore}`;
+    } else if (!result.people.length && !result.projects.length && !result.skills.length && !result.organizations.length && !result.opportunities.length) {
+      slot.innerHTML = `<p class="home-muted">No matches for “${esc(idea)}”. Try a name, skill, or keyword.</p>${explore}`;
     } else {
       slot.innerHTML = `<p class="home-muted">Matches for “${esc(idea)}”</p>
         ${result.people.length ? `<h3 class="home-subheading">People</h3><ul class="home-mine-list">${result.people.map(person => row(`data-idea-person="${esc(person.id)}" data-name="${esc(person.name)}"`, `<span class="home-mine-icon home-idea-face" aria-hidden="true">${esc(initial(person.name))}</span>`, person.name, [person.reason, person.connected ? 'Connected' : ''].filter(Boolean).join(' · '))).join('')}</ul>` : ''}
         ${result.projects.length ? `<h3 class="home-subheading">Projects</h3><ul class="home-mine-list">${result.projects.map(project => row(`data-idea-project="${esc(project.id)}"`, `<span class="home-mine-icon" aria-hidden="true">${esc(initial(project.title))}</span>`, project.title, project.reason)).join('')}</ul>` : ''}`;
     }
+    if (result && result !== 'error') {
+      for (const [heading, rows, attr, name] of [
+        ['Skills', (result.skills || []).map(name=>({id:name,name})), 'skill', 'name'],
+        ['Organizations', result.organizations || [], 'organization', 'name'],
+        ['Opportunities', result.opportunities || [], 'opportunity', 'title'],
+      ]) {
+        if (!rows.length) continue;
+        slot.insertAdjacentHTML('beforeend', `<h3 class="home-subheading">${heading}</h3><ul class="home-mine-list">${rows.map(item=>row(`data-search-kind="${attr}" data-search-id="${esc(item.id)}"`, '', item[name], '')).join('')}</ul>`);
+      }
+    }
+    slot.querySelectorAll('[data-search-kind]').forEach(button=>button.addEventListener('click',()=> {
+      if(button.dataset.searchKind==='skill') openSkill(button.dataset.searchId);
+      else open({type:button.dataset.searchKind,entityId:button.dataset.searchId});
+    }));
     slot.querySelectorAll('[data-idea-person]').forEach(button => button.addEventListener('click', () => window.openNodePanel?.({ id: button.dataset.ideaPerson, type: 'person', name: button.dataset.name })));
-    slot.querySelectorAll('[data-idea-project]').forEach(button => button.addEventListener('click', () => window.viewProjectDetails?.(button.dataset.ideaProject)));
+    slot.querySelectorAll('[data-idea-project]').forEach(button => button.addEventListener('click', () => open({type:'project',entityId:button.dataset.ideaProject})));
     slot.querySelectorAll('[data-idea-explore]').forEach(button => button.addEventListener('click', () => exploreTab(button.dataset.ideaExplore)));
     slot.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
@@ -475,12 +497,12 @@
     const el = part('goal');
     if (!el || el.dataset.mounted === 'true') return;
     el.dataset.mounted = 'true';
-    el.innerHTML = `<h2 class="home-heading home-label" id="home-idea-title">What would you like to work on?</h2>
-      <p class="home-muted">Find people and projects around an idea, interest, or skill.</p>
+    el.innerHTML = `<h2 class="home-heading home-label" id="home-idea-title">Search the community</h2>
+      <p class="home-muted">People, projects, skills, organizations, and opportunities.</p>
       <form class="home-idea-form" aria-labelledby="home-idea-title">
-        <label class="home-sr" for="home-idea-input">Your idea, interest, or skill</label>
-        <input id="home-idea-input" name="idea" required maxlength="280" autocomplete="off" enterkeyhint="search" placeholder="An idea, interest, or skill…">
-        <button type="submit">Find people &amp; projects</button>
+        <label class="home-sr" for="home-idea-input">Search the community</label>
+        <input id="home-idea-input" name="idea" required maxlength="280" autocomplete="off" enterkeyhint="search" placeholder="Name, skill, or keyword…">
+        <button type="submit">Search</button>
       </form>
       <p class="home-idea-example">Try: <button type="button" class="home-link" data-idea-example="I'm looking for help with community building">Community building</button></p>
       <div class="home-idea-results" aria-live="polite"></div>`;
@@ -491,6 +513,10 @@
       input.focus();
     });
     let searchRequest = 0;
+    el.querySelector('#home-idea-input').addEventListener('input', () => {
+      searchRequest += 1;
+      el.querySelector('.home-idea-results').innerHTML = '';
+    });
     el.querySelector('form').addEventListener('submit', async (event) => {
       event.preventDefault();
       const input = event.currentTarget.querySelector('input');

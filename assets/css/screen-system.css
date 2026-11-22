@@ -133,3 +133,9 @@ body[data-destination=explore] #command-dashboard #cd-explore{border-top:0;margi
 #profile-modal .ch-connected-app summary:focus-visible{outline:2px solid var(--bs-accent);outline-offset:3px}
 #messages-modal .unread-preview{font-weight:750;color:var(--bs-text)}
 #messages-modal .conversation-item.unread .conversation-name>span:first-child::before{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--bs-accent);margin-right:6px}
+
+/* Reuse existing controls: explicit labels and an in-place contribution action. */
+#command-dashboard .udc-resource-show-btn{width:auto;flex-shrink:0;padding:.55rem .65rem;font:inherit;font-size:.8rem}
+#node-side-panel .direct-value-action{display:block;box-sizing:border-box;width:100%;min-height:44px;padding:.8rem 1rem;border:0;border-radius:10px;background:var(--bs-accent);color:#061018;text-align:center;text-decoration:none;font:inherit;font-weight:750;cursor:pointer}
+#node-side-panel .direct-value-action:disabled{opacity:.65;cursor:wait}
+#node-side-panel .direct-value-action:focus-visible{outline:2px solid var(--bs-accent);outline-offset:3px}
