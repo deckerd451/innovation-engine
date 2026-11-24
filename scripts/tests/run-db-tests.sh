@@ -129,4 +129,16 @@ for f in \
   "${PSQL[@]}" -d ie_campaigns -f "$ROOT/$f" >/dev/null
 done
 echo "   ok (suppression records retained on rollback)"
+echo "Guest Zork saves"
+"${PSQL[@]}" -d postgres -c "CREATE DATABASE ie_zork_saves" >/dev/null
+for f in \
+  scripts/tests/fixtures/zork-saves-bootstrap.sql \
+  supabase/sql/migrations/20261124c_zork_saves_private_keys.sql \
+  supabase/sql/migrations/20261124d_zork_saves_close_public_access.sql \
+  scripts/tests/zork-saves-db.sql \
+  supabase/sql/rollback/20261124d_zork_saves_close_public_access_rollback.sql \
+  supabase/sql/rollback/20261124c_zork_saves_private_keys_rollback.sql; do
+  "${PSQL[@]}" -d ie_zork_saves -f "$ROOT/$f" >/dev/null
+done
+echo "   ok (including rollbacks)"
 echo "database checks passed"
