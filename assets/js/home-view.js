@@ -70,7 +70,9 @@
       if (joinedResult.error) throw joinedResult.error;
       joined = joinedResult.data || [];
     }
+    // Archived projects are not ones to continue; Explore leaves them out too.
     const projects = [...created.map(project => ({ ...project, started: true })), ...joined]
+      .filter(project => project.status !== 'archived')
       .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
     // Connections are a convenience here; if they can't be read, Home still
     // shows the projects and Network still has them.

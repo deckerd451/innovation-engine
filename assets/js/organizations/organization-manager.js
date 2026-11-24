@@ -544,7 +544,8 @@ export async function getOrganizations(filters = {}) {
     if (filters.location) {
       query = query.ilike("location", `%${filters.location}%`);
     }
-    if (filters.verified !== undefined) {
+    // null means "any": only filter when true/false was chosen
+    if (filters.verified === true || filters.verified === false) {
       query = query.eq("verified", filters.verified);
     }
     if (filters.search) {
