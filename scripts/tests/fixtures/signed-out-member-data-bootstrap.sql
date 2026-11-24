@@ -47,10 +47,14 @@ CREATE POLICY "Anyone can view project members" ON public.project_members FOR SE
 CREATE POLICY "Project members are viewable by everyone" ON public.project_members FOR SELECT USING (true);
 CREATE POLICY "Anyone can view endorsements" ON public.endorsements FOR SELECT USING (true);
 CREATE POLICY "Public read access to active themes" ON public.theme_circles FOR SELECT USING (status = 'active');
--- theme_participants as live (2026-11-24). _my_theme_ids() exists only in production;
--- this definition is an ASSUMPTION modelled on the policy's intent (themes the caller is in).
+ALTER TABLE public.theme_circles ADD COLUMN created_by uuid;
+-- theme_participants as live (2026-11-24); _my_theme_ids() copied from production.
 CREATE FUNCTION public._my_theme_ids() RETURNS SETOF uuid LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public' AS $$
-  SELECT tp.theme_id FROM theme_participants tp JOIN community c ON c.id = tp.community_id WHERE c.user_id = auth.uid() $$;
+  select tp.theme_id from theme_participants tp
+   where tp.community_id in (select id from community where user_id = auth.uid())
+  union
+  select tc.id from theme_circles tc
+   where tc.created_by in (select id from community where user_id = auth.uid()) $$;
 CREATE FUNCTION public.is_admin(uid uuid) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public' AS $$ SELECT false $$;
 CREATE POLICY "Members can see who is in their circles" ON public.theme_participants FOR SELECT TO authenticated
   USING ((theme_id IN (SELECT _my_theme_ids())) OR is_admin(auth.uid()));
