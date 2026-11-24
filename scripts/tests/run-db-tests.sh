@@ -161,4 +161,14 @@ for f in \
   "${PSQL[@]}" -d ie_zork_saves -f "$ROOT/$f" >/dev/null
 done
 echo "   ok (including rollbacks)"
+echo "Zork event logs"
+"${PSQL[@]}" -d postgres -c "CREATE DATABASE ie_zork_events" >/dev/null
+for f in \
+  scripts/tests/fixtures/zork-events-bootstrap.sql \
+  supabase/sql/migrations/20261124e_zork_events_service_only.sql \
+  scripts/tests/zork-events-db.sql \
+  supabase/sql/rollback/20261124e_zork_events_service_only_rollback.sql; do
+  "${PSQL[@]}" -d ie_zork_events -f "$ROOT/$f" >/dev/null
+done
+echo "   ok (including rollback)"
 echo "database checks passed"
