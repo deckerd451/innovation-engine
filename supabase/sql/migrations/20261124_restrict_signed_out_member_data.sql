@@ -2,31 +2,18 @@
 -- BUILDSPACE / Innovation Engine: signed-out access to member data
 -- Project: mqbsjlgnsirqsmfnreqd
 --
--- Why: signed-out visitors (the public API key) can still read rows that
--- describe members: who endorsed whom for what, who works on which project,
--- every open project's details, organization members' titles/bios/permissions,
--- who follows which organization, and idea team members (including their
--- join messages and sign-in account ids). Verified live 2026-11-24 with
--- one-row, id-only requests. Members never chose to make these public.
+-- What: limits read access on member-related tables (endorsements,
+-- project_members, projects, organization_followers, team_members,
+-- organization_members) to signed-in members. Signed-in access is unchanged;
+-- organization owners/admins explicitly keep seeing their organization's
+-- pending membership requests.
 --
--- What this does: the same rows stay readable to signed-in members, exactly
--- as today. Only signed-out access is removed.
---   * endorsements, project_members, projects, organization_followers,
---     team_members: public read -> signed-in read
---   * organization_members: removes "allow_select" (USING true for everyone),
---     which overrode the narrower rules. Signed-in members keep reading active
---     members; members keep seeing their own rows; organization owners/admins
---     explicitly keep seeing pending requests for their own organizations
---     (previously they only could because of allow_select).
+-- Not changed: theme_participants (live policy already scoped to the member's
+-- own circles; must not be widened), organizations, theme_circles.
 --
--- NOT changed: theme_participants (live policy, verified 2026-11-24, already
--- limits members to their own circles; this migration must not widen it),
--- organizations and theme_circles (organization-level public
--- information), zork_saves (guest game saves, needs an app change; see
--- docs/community-capability-profile in the CharlestonHacks repo).
---
--- Visible effect for signed-out visitors: organization pages no longer list
--- members or follower rows; project lists are empty until sign-in.
+-- Self-check: the transaction aborts unless a signed-out visitor sees no rows
+-- in the affected tables afterwards.
+-- Rollback: supabase/sql/rollback/20261124_restrict_signed_out_member_data_rollback.sql
 -- Test: scripts/tests/run-signed-out-member-data-db.sh
 -- ============================================================
 
@@ -83,5 +70,21 @@ create policy "Organization admins can view their organization's members"
   on public.organization_members for select to authenticated
   using (public.authz_org_role(organization_id) = any (array['owner', 'admin']));
 -- org_members_select_safe (members see their own rows) is unchanged.
+
+-- Self-check (runs as a signed-out visitor; aborts everything if it fails)
+do $check$
+declare t text; n bigint;
+begin
+  execute 'set local role anon';
+  foreach t in array array['endorsements','project_members','projects','organization_followers',
+                           'team_members','organization_members'] loop
+    execute format('select count(*) from public.%I', t) into n;
+    if n > 0 then
+      raise exception 'Self-check failed: signed-out visitors can still read % rows of %. Nothing was changed.', n, t;
+    end if;
+  end loop;
+  execute 'reset role';
+end
+$check$;
 
 commit;
