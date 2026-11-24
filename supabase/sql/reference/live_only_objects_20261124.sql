@@ -28,7 +28,26 @@ $function$;
 --   FOR SELECT TO authenticated
 --   USING ((theme_id IN (SELECT _my_theme_ids())) OR is_admin(auth.uid()));
 
--- Still to record (definition not yet captured):
---   public.is_admin(uid uuid)  -- SELECT pg_get_functiondef('public.is_admin(uuid)'::regprocedure);
---   the presence_sessions read policy (live name differs from 20261115d):
---   SELECT policyname, roles, qual FROM pg_policies WHERE tablename = 'presence_sessions';
+-- Used by the theme_participants policy above. Not SECURITY DEFINER: it reads
+-- community with the caller's access, so signed-out callers always get false.
+CREATE OR REPLACE FUNCTION public.is_admin(uid uuid)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE
+AS $function$
+  select exists (
+    select 1
+    from public.community c
+    where c.user_id = uid
+      and c.user_role = 'Admin'
+      and coalesce(c.is_disabled,false) = false
+  );
+$function$;
+
+-- presence_sessions policies in production (names differ from 20261115d;
+-- reading is limited to signed-in members' own sessions):
+--   "Users can view their own presence sessions"   SELECT  to authenticated
+--   "Users can insert their own presence sessions" INSERT
+--   "Users can update their own presence sessions" UPDATE
+--   "Users can delete their own presence sessions" DELETE
+--   each scoped to user_id IN (select id from community where user_id = auth.uid())
