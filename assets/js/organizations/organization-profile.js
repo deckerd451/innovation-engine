@@ -124,18 +124,18 @@ function renderHeader() {
               ${org.location ? `<span class="location-tag"><i class="fas fa-map-marker-alt"></i> ${org.location}</span>` : ''}
             </div>
             <div class="org-stats">
-              <span class="stat">
+              ${_communityId ? `<span class="stat">
                 <i class="fas fa-users"></i>
                 <strong>${org.follower_count || 0}</strong> followers
-              </span>
+              </span>` : ''}
               <span class="stat">
                 <i class="fas fa-briefcase"></i>
                 <strong>${org.opportunity_count || 0}</strong> opportunities
               </span>
-              <span class="stat">
+              ${_communityId ? `<span class="stat">
                 <i class="fas fa-user-tie"></i>
                 <strong>${currentMembers.length}</strong> members
-              </span>
+              </span>` : ''}
             </div>
           </div>
           <div class="org-header-actions">
@@ -206,7 +206,7 @@ function renderTabs() {
     <div class="org-tabs">
       <button class="org-tab active" data-tab="about">About</button>
       <button class="org-tab" data-tab="opportunities">Opportunities (${currentOrganization.opportunity_count || 0})</button>
-      <button class="org-tab" data-tab="team">Team (${currentMembers.length})</button>
+      <button class="org-tab" data-tab="team">${_communityId ? `Team (${currentMembers.length})` : 'Team'}</button>
       <button class="org-tab" data-tab="themes">Sponsored Themes</button>
     </div>
   `;
@@ -295,6 +295,10 @@ function renderAboutTab() {
 }
 
 function renderTeamTab() {
+  // Member information is only available to signed-in members.
+  if (!_communityId) {
+    return '<p class="empty-state">Sign in to see this organization\'s team.</p>';
+  }
   if (currentMembers.length === 0) {
     return '<p class="empty-state">No team members yet.</p>';
   }

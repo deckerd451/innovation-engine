@@ -36,7 +36,7 @@ window.CommandDashboard = (() => {
         people:        'Your People',
         projects:      'Your Projects',
         themes:        'Skills in the community',
-        organizations: 'Your Organizations',
+        organizations: 'Organizations',
         opportunities: 'Your Opportunities',
       },
       briefSections: ['your_pattern', 'opportunities_for_you'],
@@ -49,7 +49,7 @@ window.CommandDashboard = (() => {
         people:        'Nearby People',
         projects:      'Nearby Projects',
         themes:        'Skills in the community',
-        organizations: 'Nearby Organizations',
+        organizations: 'Organizations',
         opportunities: 'Nearby Opportunities',
       },
       briefSections: ['people_worth_knowing', 'signals_moving', 'opportunities_for_you'],
@@ -867,22 +867,14 @@ window.CommandDashboard = (() => {
     }
 
     // Projects: from Supabase (no longer in graph)
-    let projects;
-    if (tier === 1) {
-      projects = _enrichedData.myProjectIds ? _enrichedData.myProjectIds.size : 0;
-    } else {
-      projects = _enrichedData.activeProjectIds ? _enrichedData.activeProjectIds.size : 0;
-    }
+    const projects = _visibleProjects(tier).length;
 
     // Opportunities: from Supabase (no longer in graph)
     const opps = _enrichedData.opportunities ? _enrichedData.opportunities.length : 0;
 
-    // Organizations follow the same scope as the Explore resource list:
-    // members see their organizations in You, and the available directory in
-    // broader views.
-    const organizations = tier === 1
-      ? (_enrichedData.myOrgIds ? _enrichedData.myOrgIds.size : 0)
-      : (_enrichedData.organizations ? _enrichedData.organizations.length : 0);
+    // Organizations: the list shows the directory in every tier (each row
+    // says whether you're connected), so the count does too.
+    const organizations = _enrichedData.organizations ? _enrichedData.organizations.length : 0;
 
     const setResourceCount = (resource, value, label) => {
       const el = document.querySelector(`[data-count-for="${resource}"]`);
@@ -931,7 +923,7 @@ window.CommandDashboard = (() => {
 
     if (tier === 1) {
       // Projects from Supabase
-      const myProjectCount = _enrichedData.myProjectIds ? _enrichedData.myProjectIds.size : 0;
+      const myProjectCount = _visibleProjects(1).length;
 
       // "Weak ties" = pending connections or 2nd-hop persons not already direct
       const twohopIds = new Set();
@@ -967,7 +959,7 @@ window.CommandDashboard = (() => {
           label: 'Your Projects',
           value: myProjectCount || '–',
           action: 'focus-projects',
-          tooltip: 'Projects you\'re a member of',
+          tooltip: 'Projects you created or belong to',
         },
       ];
     }
@@ -1640,6 +1632,22 @@ window.CommandDashboard = (() => {
     });
   }
 
+  // The projects a tier lists. Counts use this too, so a tab's number always
+  // matches what its list can show.
+  function _visibleProjects(tier) {
+    const allProjects = _enrichedData.projects || [];
+    if (tier === 1) {
+      const myIds = _enrichedData.myProjectIds;
+      // Projects the user belongs to or created, excluding archived/deleted
+      return allProjects.filter(p =>
+        p.status !== 'archived' &&
+        ((myIds && myIds.has(p.id)) || p.creator_id === _userId)
+      );
+    }
+    const activeIds = _enrichedData.activeProjectIds;
+    return activeIds ? allProjects.filter(p => activeIds.has(p.id)) : allProjects;
+  }
+
   function _getResourceItems(tier, resourceType) {
     const { nodes, links } = _getGraphData();
     const userId = _userId;
@@ -1705,19 +1713,8 @@ window.CommandDashboard = (() => {
 
     } else if (resourceType === 'projects') {
       // Projects come from Supabase, not graph nodes
-      const allProjects = _enrichedData.projects;
-      if (!allProjects) return [];
-      if (tier === 1) {
-        const myIds = _enrichedData.myProjectIds;
-        // Show projects where user is a member OR the creator, excluding archived/deleted
-        filtered = allProjects.filter(p =>
-          p.status !== 'archived' &&
-          ((myIds && myIds.has(p.id)) || p.creator_id === _userId)
-        );
-      } else {
-        const activeIds = _enrichedData.activeProjectIds;
-        filtered = activeIds ? allProjects.filter(p => activeIds.has(p.id)) : allProjects;
-      }
+      if (!_enrichedData.projects) return [];
+      filtered = _visibleProjects(tier);
       // Sort first, then slice so the newest/alphabetically-first items survive truncation
       const openCounts = _enrichedData.openTaskCounts;
       return filtered
