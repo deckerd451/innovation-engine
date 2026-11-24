@@ -47,8 +47,13 @@ CREATE POLICY "Anyone can view project members" ON public.project_members FOR SE
 CREATE POLICY "Project members are viewable by everyone" ON public.project_members FOR SELECT USING (true);
 CREATE POLICY "Anyone can view endorsements" ON public.endorsements FOR SELECT USING (true);
 CREATE POLICY "Public read access to active themes" ON public.theme_circles FOR SELECT USING (status = 'active');
-CREATE POLICY "Public read access to participants" ON public.theme_participants FOR SELECT USING (true);
-CREATE POLICY "Users can view all theme participants" ON public.theme_participants FOR SELECT TO authenticated USING (true);
+-- theme_participants as live (2026-11-24). _my_theme_ids() exists only in production;
+-- this definition is an ASSUMPTION modelled on the policy's intent (themes the caller is in).
+CREATE FUNCTION public._my_theme_ids() RETURNS SETOF uuid LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public' AS $$
+  SELECT tp.theme_id FROM theme_participants tp JOIN community c ON c.id = tp.community_id WHERE c.user_id = auth.uid() $$;
+CREATE FUNCTION public.is_admin(uid uuid) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public' AS $$ SELECT false $$;
+CREATE POLICY "Members can see who is in their circles" ON public.theme_participants FOR SELECT TO authenticated
+  USING ((theme_id IN (SELECT _my_theme_ids())) OR is_admin(auth.uid()));
 CREATE POLICY "Organizations are viewable by everyone" ON public.organizations FOR SELECT USING (status = 'active');
 CREATE POLICY "Organization members are viewable by everyone" ON public.organization_members FOR SELECT USING (status = 'active');
 CREATE POLICY allow_select ON public.organization_members FOR SELECT USING (true);

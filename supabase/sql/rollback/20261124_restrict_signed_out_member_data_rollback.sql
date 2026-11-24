@@ -10,8 +10,6 @@ create policy "Project members are viewable by everyone" on public.project_membe
 drop policy if exists "Signed-in members can view open/active projects" on public.projects;
 create policy "Anyone can view open/active projects" on public.projects for select
   using (status = any (array['open', 'active', 'completed']));
-drop policy if exists "Signed-in members can view theme participants" on public.theme_participants;
-create policy "Public read access to participants" on public.theme_participants for select using (true);
 drop policy if exists "Signed-in members can view organization followers" on public.organization_followers;
 create policy "Users can view followers" on public.organization_followers for select using (true);
 drop policy if exists "Signed-in members can view team members" on public.team_members;

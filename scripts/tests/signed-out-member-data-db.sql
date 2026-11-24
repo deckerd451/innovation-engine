@@ -22,11 +22,15 @@ SELECT set_config('request.jwt.claim.sub', 'a1000000-0000-0000-0000-000000000002
 SELECT pg_temp.ok((SELECT count(*) FROM public.endorsements) = 1, 'member: endorsements');
 SELECT pg_temp.ok((SELECT count(*) FROM public.project_members) = 1, 'member: project members');
 SELECT pg_temp.ok((SELECT count(*) FROM public.projects) = 1, 'member: projects');
-SELECT pg_temp.ok((SELECT count(*) FROM public.theme_participants) = 1, 'member: theme participants');
+SELECT pg_temp.ok((SELECT count(*) FROM public.theme_participants) = 1, 'member in a circle: sees its participants');
 SELECT pg_temp.ok((SELECT count(*) FROM public.organization_followers) = 1, 'member: organization followers');
 SELECT pg_temp.ok((SELECT count(*) FROM public.team_members) = 1, 'member: team members');
 SELECT pg_temp.ok((SELECT count(*) FROM public.organization_members WHERE status = 'active') = 2, 'member: active organization members');
 SELECT pg_temp.ok((SELECT count(*) FROM public.organization_members WHERE status = 'pending') = 0, 'member: cannot see other people''s pending requests');
+
+-- Outsider: not in any circle, sees no participants (live rule unchanged, not widened)
+SELECT set_config('request.jwt.claim.sub', 'a1000000-0000-0000-0000-000000000004', false);
+SELECT pg_temp.ok((SELECT count(*) FROM public.theme_participants) = 0, 'non-participant: no theme participants');
 
 -- Applicant (Pat) still sees their own pending request
 SELECT set_config('request.jwt.claim.sub', 'a1000000-0000-0000-0000-000000000003', false);

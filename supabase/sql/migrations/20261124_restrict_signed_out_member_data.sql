@@ -11,15 +11,17 @@
 --
 -- What this does: the same rows stay readable to signed-in members, exactly
 -- as today. Only signed-out access is removed.
---   * endorsements, project_members, projects, theme_participants,
---     organization_followers, team_members: public read -> signed-in read
+--   * endorsements, project_members, projects, organization_followers,
+--     team_members: public read -> signed-in read
 --   * organization_members: removes "allow_select" (USING true for everyone),
 --     which overrode the narrower rules. Signed-in members keep reading active
 --     members; members keep seeing their own rows; organization owners/admins
 --     explicitly keep seeing pending requests for their own organizations
 --     (previously they only could because of allow_select).
 --
--- NOT changed: organizations and theme_circles (organization-level public
+-- NOT changed: theme_participants (live policy, verified 2026-11-24, already
+-- limits members to their own circles; this migration must not widen it),
+-- organizations and theme_circles (organization-level public
 -- information), zork_saves (guest game saves, needs an app change; see
 -- docs/community-capability-profile in the CharlestonHacks repo).
 --
@@ -56,12 +58,6 @@ drop policy if exists "Signed-in members can view open/active projects" on publi
 create policy "Signed-in members can view open/active projects"
   on public.projects for select to authenticated
   using (status = any (array['open', 'active', 'completed']));
-
--- theme_participants (appears already closed live; kept for repo/live parity)
-drop policy if exists "Public read access to participants" on public.theme_participants;
-drop policy if exists "Signed-in members can view theme participants" on public.theme_participants;
-create policy "Signed-in members can view theme participants"
-  on public.theme_participants for select to authenticated using (true);
 
 -- organization_followers
 drop policy if exists "Users can view followers" on public.organization_followers;
