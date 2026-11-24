@@ -23,6 +23,7 @@ import {
   followOrganization,
   unfollowOrganization,
   isFollowing,
+  getCurrentUserCommunityId,
 } from "./organization-manager.js";
 
 // ========================
@@ -126,6 +127,8 @@ function renderOrganizations() {
 }
 
 function renderOrganizationCard(org) {
+  // Member-derived counts are shown to signed-in members only.
+  const signedIn = Boolean(getCurrentUserCommunityId());
   if (viewMode === "grid") {
     return `
       <div class="organization-card" data-id="${org.id}">
@@ -142,7 +145,7 @@ function renderOrganizationCard(org) {
             ${org.industry ? org.industry.slice(0, 2).map(ind => `<span class="industry-tag-sm">${ind}</span>`).join('') : ''}
           </div>
           <div class="org-card-stats">
-            <span><i class="fas fa-users"></i> ${org.follower_count || 0}</span>
+            ${signedIn ? `<span><i class="fas fa-users"></i> ${org.follower_count || 0}</span>` : ''}
             <span><i class="fas fa-briefcase"></i> ${org.opportunity_count || 0}</span>
             ${org.location ? `<span><i class="fas fa-map-marker-alt"></i> ${truncate(org.location, 20)}</span>` : ''}
           </div>
@@ -175,18 +178,18 @@ function renderOrganizationCard(org) {
           </div>
         </div>
         <div class="org-list-stats">
-          <div class="stat-item">
+          ${signedIn ? `<div class="stat-item">
             <strong>${org.follower_count || 0}</strong>
             <span>Followers</span>
-          </div>
+          </div>` : ''}
           <div class="stat-item">
             <strong>${org.opportunity_count || 0}</strong>
             <span>Opportunities</span>
           </div>
-          <div class="stat-item">
+          ${signedIn ? `<div class="stat-item">
             <strong>${org.member_count || 0}</strong>
             <span>Members</span>
-          </div>
+          </div>` : ''}
         </div>
         <div class="org-list-actions">
           <a href="/organization-profile.html?slug=${org.slug}" class="btn btn-secondary">View Profile</a>

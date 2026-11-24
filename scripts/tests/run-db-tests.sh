@@ -129,4 +129,24 @@ for f in \
   "${PSQL[@]}" -d ie_campaigns -f "$ROOT/$f" >/dev/null
 done
 echo "   ok (suppression records retained on rollback)"
+echo "Signed-out access to member data"
+"${PSQL[@]}" -d postgres -c "CREATE DATABASE ie_signed_out" >/dev/null
+for f in \
+  scripts/tests/fixtures/signed-out-member-data-bootstrap.sql \
+  supabase/sql/migrations/20261124_restrict_signed_out_member_data.sql \
+  scripts/tests/signed-out-member-data-db.sql \
+  supabase/sql/rollback/20261124_restrict_signed_out_member_data_rollback.sql; do
+  "${PSQL[@]}" -d ie_signed_out -f "$ROOT/$f" >/dev/null
+done
+echo "   ok (including rollback)"
+echo "Signed-out access to community content"
+"${PSQL[@]}" -d postgres -c "CREATE DATABASE ie_signed_out_content" >/dev/null
+for f in \
+  scripts/tests/fixtures/signed-out-community-content-bootstrap.sql \
+  supabase/sql/migrations/20261124b_restrict_signed_out_community_content.sql \
+  scripts/tests/signed-out-community-content-db.sql \
+  supabase/sql/rollback/20261124b_restrict_signed_out_community_content_rollback.sql; do
+  "${PSQL[@]}" -d ie_signed_out_content -f "$ROOT/$f" >/dev/null
+done
+echo "   ok (including rollback)"
 echo "database checks passed"
