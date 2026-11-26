@@ -10,7 +10,11 @@
       "deadline": "2026-12-03T00:00:00Z",
       "deadlineMeaning": "review expiry, not provider deadline",
       "availability": "provider confirmation required",
-      "kind": "recurring_program"
+      "kind": "recurring_program",
+      "topics": [
+        "food",
+        "community service"
+      ]
     },
     {
       "title": "Help care for community gardens",
@@ -21,7 +25,12 @@
       "deadline": "2026-12-03T00:00:00Z",
       "deadlineMeaning": "review expiry, not provider deadline",
       "availability": "provider confirmation required",
-      "kind": "recurring_program"
+      "kind": "recurring_program",
+      "topics": [
+        "gardening",
+        "environment",
+        "community service"
+      ]
     },
     {
       "title": "Help build homes or support ReStore",
@@ -32,7 +41,12 @@
       "deadline": "2026-12-03T00:00:00Z",
       "deadlineMeaning": "review expiry, not provider deadline",
       "availability": "provider confirmation required",
-      "kind": "recurring_program"
+      "kind": "recurring_program",
+      "topics": [
+        "construction",
+        "housing",
+        "community service"
+      ]
     },
     {
       "title": "Support county park programs",
@@ -43,7 +57,12 @@
       "deadline": "2026-12-03T00:00:00Z",
       "deadlineMeaning": "review expiry, not provider deadline",
       "availability": "provider confirmation required",
-      "kind": "recurring_program"
+      "kind": "recurring_program",
+      "topics": [
+        "parks",
+        "environment",
+        "community service"
+      ]
     },
     {
       "title": "Help run community farmers markets",
@@ -54,7 +73,11 @@
       "deadline": "2026-12-03T00:00:00Z",
       "deadlineMeaning": "review expiry, not provider deadline",
       "availability": "provider confirmation required",
-      "kind": "recurring_program"
+      "kind": "recurring_program",
+      "topics": [
+        "farmers markets",
+        "community service"
+      ]
     }
   ]
 }
