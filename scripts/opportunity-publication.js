@@ -6,9 +6,15 @@ function proposeInventory(reviews, now = Date.now()) {
     typeof row.evidenceNote === 'string' && row.evidenceNote.trim() &&
     row.availability === 'provider_confirmation_required');
   const {accepted,rejected} = stageOpportunities(eligible,now);
+  const topicsBySource = new Map();
+  for (const row of eligible) {
+    const staged = stageOpportunities([row],now).accepted[0];
+    if (!staged || topicsBySource.has(staged.sourceUrl)) continue;
+    topicsBySource.set(staged.sourceUrl, Array.isArray(row.topics) ? [...new Set(row.topics.filter(t=>typeof t==='string').map(t=>t.trim().toLowerCase()).filter(t=>t && t.length<=64))].slice(0,12) : []);
+  }
   return {inventory:{schemaVersion:1,opportunities:accepted.map(row=>({...row,status:'published',
     deadline:new Date(Math.min(Date.parse(row.deadline),Date.parse(row.reviewedAt)+7*86400000)).toISOString(),
-    availability:'provider confirmation required'}))}, rejectedCount:rejected.length+reviews.length-eligible.length};
+    topics:topicsBySource.get(row.sourceUrl) || [], availability:'provider confirmation required'}))}, rejectedCount:rejected.length+reviews.length-eligible.length};
 }
 module.exports = {proposeInventory};
 if (require.main === module) {
