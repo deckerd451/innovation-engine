@@ -513,5 +513,105 @@
       "environment",
       "community service"
     ]
+  },
+  {
+    "title": "Assist aquarium animal care",
+    "organization": "South Carolina Aquarium",
+    "sourceUrl": "https://scaquarium.org/volunteer/",
+    "pathwayId": "aquarium-animal-care",
+    "reviewStatus": "verified",
+    "reviewedAt": "2026-11-26T17:00:00Z",
+    "deadline": "2026-12-03T17:00:00Z",
+    "reviewer": "Official provider page retrieved 2026-11-26",
+    "evidenceNote": "Prior animal-care experience; weekly morning shift. Adult applicants eligible; application, orientation and screening required; openings unconfirmed.",
+    "availability": "provider_confirmation_required",
+    "participationType": "contribution",
+    "geographicRelevance": "charleston-sc",
+    "eligibility": "adult_public",
+    "kind": "recurring_program",
+    "topics": [
+      "education",
+      "animals"
+    ]
+  },
+  {
+    "title": "Volunteer as aquarium diver",
+    "organization": "South Carolina Aquarium",
+    "sourceUrl": "https://scaquarium.org/volunteer/",
+    "pathwayId": "aquarium-diver",
+    "reviewStatus": "verified",
+    "reviewedAt": "2026-11-26T17:00:00Z",
+    "deadline": "2026-12-03T17:00:00Z",
+    "reviewer": "Official provider page retrieved 2026-11-26",
+    "evidenceNote": "Advanced Open Water certification or equivalent, physical and skills screening; 16 hours monthly. Adult applicants eligible; application, orientation and screening required; openings unconfirmed.",
+    "availability": "provider_confirmation_required",
+    "participationType": "contribution",
+    "geographicRelevance": "charleston-sc",
+    "eligibility": "adult_public",
+    "kind": "recurring_program",
+    "topics": [
+      "education",
+      "animals"
+    ]
+  },
+  {
+    "title": "Assist sea turtle care",
+    "organization": "South Carolina Aquarium",
+    "sourceUrl": "https://scaquarium.org/volunteer/",
+    "pathwayId": "aquarium-turtle",
+    "reviewStatus": "verified",
+    "reviewedAt": "2026-11-26T17:00:00Z",
+    "deadline": "2026-12-03T17:00:00Z",
+    "reviewer": "Official provider page retrieved 2026-11-26",
+    "evidenceNote": "Weekly four-hour shift; lengthy waitlist. Adult applicants eligible; application, orientation and screening required; openings unconfirmed.",
+    "availability": "provider_confirmation_required",
+    "participationType": "contribution",
+    "geographicRelevance": "charleston-sc",
+    "eligibility": "adult_public",
+    "kind": "recurring_program",
+    "topics": [
+      "education",
+      "animals"
+    ]
+  },
+  {
+    "title": "Lead aquarium conservation volunteering",
+    "organization": "South Carolina Aquarium",
+    "sourceUrl": "https://scaquarium.org/volunteer/",
+    "pathwayId": "aquarium-conservation-lead",
+    "reviewStatus": "verified",
+    "reviewedAt": "2026-11-26T17:00:00Z",
+    "deadline": "2026-12-03T17:00:00Z",
+    "reviewer": "Official provider page retrieved 2026-11-26",
+    "evidenceNote": "Four hours weekly, citizen science and litter cleanup leadership. Adult applicants eligible; application, orientation and screening required; openings unconfirmed.",
+    "availability": "provider_confirmation_required",
+    "participationType": "contribution",
+    "geographicRelevance": "charleston-sc",
+    "eligibility": "adult_public",
+    "kind": "recurring_program",
+    "topics": [
+      "education",
+      "animals"
+    ]
+  },
+  {
+    "title": "Explore animal fostering",
+    "organization": "Charleston Animal Society",
+    "sourceUrl": "https://charlestonanimalsociety.org/volunteer/",
+    "pathwayId": "animal-foster",
+    "reviewStatus": "needs_review",
+    "reviewedAt": "2026-11-26T17:00:00Z",
+    "deadline": "2026-12-03T17:00:00Z",
+    "reviewer": "Official provider page retrieved 2026-11-26",
+    "evidenceNote": "Official volunteer page links separate foster program; requirements not yet checked.",
+    "availability": "provider_confirmation_required",
+    "participationType": "contribution",
+    "geographicRelevance": "charleston-sc",
+    "eligibility": "adult_public",
+    "kind": "recurring_program",
+    "topics": [
+      "animals",
+      "volunteering"
+    ]
   }
 ]
