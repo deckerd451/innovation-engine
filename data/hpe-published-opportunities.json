@@ -6,133 +6,494 @@
       "organization": "Charleston Animal Society",
       "sourceUrl": "https://charlestonanimalsociety.org/volunteer/",
       "pathwayId": "dog-enrichment",
-      "topics": [
-        "animals",
-        "volunteering"
-      ],
-      "reviewedAt": "2026-11-26T17:00:00Z",
-      "deadline": "2026-12-03T17:00:00Z",
-      "availability": "provider confirmation required",
+      "deadline": "2026-12-03T18:22:43.000Z",
+      "reviewedAt": "2026-11-26T18:22:43.000Z",
+      "status": "published",
       "participationType": "contribution",
       "geographicRelevance": "charleston-sc",
       "eligibility": "adult_public",
       "kind": "recurring_program",
-      "status": "published",
-      "deadlineMeaning": "review expiry or earlier opportunity cutoff"
+      "deadlineMeaning": "review expiry or earlier opportunity cutoff",
+      "topics": [
+        "animals",
+        "volunteering"
+      ],
+      "availability": "provider confirmation required"
     },
     {
       "title": "Cat care",
       "organization": "Charleston Animal Society",
       "sourceUrl": "https://charlestonanimalsociety.org/volunteer/",
       "pathwayId": "cat-care",
-      "topics": [
-        "animals",
-        "volunteering"
-      ],
-      "reviewedAt": "2026-11-26T17:00:00Z",
-      "deadline": "2026-12-03T17:00:00Z",
-      "availability": "provider confirmation required",
+      "deadline": "2026-12-03T18:22:43.000Z",
+      "reviewedAt": "2026-11-26T18:22:43.000Z",
+      "status": "published",
       "participationType": "contribution",
       "geographicRelevance": "charleston-sc",
       "eligibility": "adult_public",
       "kind": "recurring_program",
-      "status": "published",
-      "deadlineMeaning": "review expiry or earlier opportunity cutoff"
+      "deadlineMeaning": "review expiry or earlier opportunity cutoff",
+      "topics": [
+        "animals",
+        "volunteering"
+      ],
+      "availability": "provider confirmation required"
     },
     {
-      "title": "Clinic volunteer support",
+      "title": "Spay and neuter clinic support",
       "organization": "Charleston Animal Society",
       "sourceUrl": "https://charlestonanimalsociety.org/volunteer/",
       "pathwayId": "clinic-support",
-      "topics": [
-        "animals",
-        "volunteering"
-      ],
-      "reviewedAt": "2026-11-26T17:00:00Z",
-      "deadline": "2026-12-03T17:00:00Z",
-      "availability": "provider confirmation required",
+      "deadline": "2026-12-03T18:22:43.000Z",
+      "reviewedAt": "2026-11-26T18:22:43.000Z",
+      "status": "published",
       "participationType": "contribution",
       "geographicRelevance": "charleston-sc",
       "eligibility": "adult_public",
       "kind": "recurring_program",
-      "status": "published",
-      "deadlineMeaning": "review expiry or earlier opportunity cutoff"
+      "deadlineMeaning": "review expiry or earlier opportunity cutoff",
+      "topics": [
+        "animals",
+        "volunteering"
+      ],
+      "availability": "provider confirmation required"
     },
     {
       "title": "Shelter cleaning and laundry",
       "organization": "Charleston Animal Society",
       "sourceUrl": "https://charlestonanimalsociety.org/volunteer/",
       "pathwayId": "shelter-cleaning",
-      "topics": [
-        "animals",
-        "volunteering"
-      ],
-      "reviewedAt": "2026-11-26T17:00:00Z",
-      "deadline": "2026-12-03T17:00:00Z",
-      "availability": "provider confirmation required",
+      "deadline": "2026-12-03T18:22:43.000Z",
+      "reviewedAt": "2026-11-26T18:22:43.000Z",
+      "status": "published",
       "participationType": "contribution",
       "geographicRelevance": "charleston-sc",
       "eligibility": "adult_public",
       "kind": "recurring_program",
-      "status": "published",
-      "deadlineMeaning": "review expiry or earlier opportunity cutoff"
+      "deadlineMeaning": "review expiry or earlier opportunity cutoff",
+      "topics": [
+        "animals",
+        "volunteering"
+      ],
+      "availability": "provider confirmation required"
     },
     {
-      "title": "Adoption event support",
+      "title": "Adoption and special events",
       "organization": "Charleston Animal Society",
       "sourceUrl": "https://charlestonanimalsociety.org/volunteer/",
       "pathwayId": "adoption-events",
-      "topics": [
-        "animals",
-        "volunteering"
-      ],
-      "reviewedAt": "2026-11-26T17:00:00Z",
-      "deadline": "2026-12-03T17:00:00Z",
-      "availability": "provider confirmation required",
+      "deadline": "2026-12-03T18:22:43.000Z",
+      "reviewedAt": "2026-11-26T18:22:43.000Z",
+      "status": "published",
       "participationType": "contribution",
       "geographicRelevance": "charleston-sc",
       "eligibility": "adult_public",
       "kind": "recurring_program",
-      "status": "published",
-      "deadlineMeaning": "review expiry or earlier opportunity cutoff"
+      "deadlineMeaning": "review expiry or earlier opportunity cutoff",
+      "topics": [
+        "events",
+        "volunteering"
+      ],
+      "availability": "provider confirmation required"
     },
     {
-      "title": "Help transport animals during emergency response",
+      "title": "Emergency animal transport",
       "organization": "Charleston Animal Society",
       "sourceUrl": "https://charlestonanimalsociety.org/volunteer/",
       "pathwayId": "emergency-transport",
-      "topics": [
-        "animals",
-        "volunteering"
-      ],
-      "reviewedAt": "2026-11-26T17:00:00Z",
-      "deadline": "2026-12-03T17:00:00Z",
-      "availability": "provider confirmation required",
+      "deadline": "2026-12-03T18:22:43.000Z",
+      "reviewedAt": "2026-11-26T18:22:43.000Z",
+      "status": "published",
       "participationType": "contribution",
       "geographicRelevance": "charleston-sc",
       "eligibility": "adult_public",
       "kind": "recurring_program",
-      "status": "published",
-      "deadlineMeaning": "review expiry or earlier opportunity cutoff"
+      "deadlineMeaning": "review expiry or earlier opportunity cutoff",
+      "topics": [
+        "animals",
+        "volunteering"
+      ],
+      "availability": "provider confirmation required"
     },
     {
-      "title": "Sort and pack donated food",
+      "title": "Warehouse food sorting and packing",
       "organization": "Lowcountry Food Bank",
       "sourceUrl": "https://lowcountryfoodbank.org/get-involved/volunteer/",
-      "pathwayId": "food-packing",
+      "pathwayId": "warehouse-food",
+      "deadline": "2026-12-03T18:22:43.000Z",
+      "reviewedAt": "2026-11-26T18:22:43.000Z",
+      "status": "published",
+      "participationType": "contribution",
+      "geographicRelevance": "charleston-sc",
+      "eligibility": "adult_public",
+      "kind": "recurring_program",
+      "deadlineMeaning": "review expiry or earlier opportunity cutoff",
       "topics": [
         "food",
         "volunteering"
       ],
-      "reviewedAt": "2026-11-26T17:00:00Z",
-      "deadline": "2026-12-03T17:00:00Z",
-      "availability": "provider confirmation required",
+      "availability": "provider confirmation required"
+    },
+    {
+      "title": "Breakfast service",
+      "organization": "One80 Place",
+      "sourceUrl": "https://www.one80place.org/volunteer",
+      "pathwayId": "breakfast-service",
+      "deadline": "2026-12-03T18:22:43.000Z",
+      "reviewedAt": "2026-11-26T18:22:43.000Z",
+      "status": "published",
       "participationType": "contribution",
       "geographicRelevance": "charleston-sc",
       "eligibility": "adult_public",
       "kind": "recurring_program",
+      "deadlineMeaning": "review expiry or earlier opportunity cutoff",
+      "topics": [
+        "food",
+        "volunteering"
+      ],
+      "availability": "provider confirmation required"
+    },
+    {
+      "title": "Community lunch service",
+      "organization": "One80 Place",
+      "sourceUrl": "https://www.one80place.org/volunteer",
+      "pathwayId": "community-lunch",
+      "deadline": "2026-12-03T18:22:43.000Z",
+      "reviewedAt": "2026-11-26T18:22:43.000Z",
       "status": "published",
-      "deadlineMeaning": "review expiry or earlier opportunity cutoff"
+      "participationType": "contribution",
+      "geographicRelevance": "charleston-sc",
+      "eligibility": "adult_public",
+      "kind": "recurring_program",
+      "deadlineMeaning": "review expiry or earlier opportunity cutoff",
+      "topics": [
+        "food",
+        "volunteering"
+      ],
+      "availability": "provider confirmation required"
+    },
+    {
+      "title": "Client lunch service",
+      "organization": "One80 Place",
+      "sourceUrl": "https://www.one80place.org/volunteer",
+      "pathwayId": "client-lunch",
+      "deadline": "2026-12-03T18:22:43.000Z",
+      "reviewedAt": "2026-11-26T18:22:43.000Z",
+      "status": "published",
+      "participationType": "contribution",
+      "geographicRelevance": "charleston-sc",
+      "eligibility": "adult_public",
+      "kind": "recurring_program",
+      "deadlineMeaning": "review expiry or earlier opportunity cutoff",
+      "topics": [
+        "food",
+        "volunteering"
+      ],
+      "availability": "provider confirmation required"
+    },
+    {
+      "title": "Dinner service",
+      "organization": "One80 Place",
+      "sourceUrl": "https://www.one80place.org/volunteer",
+      "pathwayId": "dinner-service",
+      "deadline": "2026-12-03T18:22:43.000Z",
+      "reviewedAt": "2026-11-26T18:22:43.000Z",
+      "status": "published",
+      "participationType": "contribution",
+      "geographicRelevance": "charleston-sc",
+      "eligibility": "adult_public",
+      "kind": "recurring_program",
+      "deadlineMeaning": "review expiry or earlier opportunity cutoff",
+      "topics": [
+        "food",
+        "volunteering"
+      ],
+      "availability": "provider confirmation required"
+    },
+    {
+      "title": "Market at 573 shopping assistant",
+      "organization": "One80 Place",
+      "sourceUrl": "https://www.one80place.org/volunteer",
+      "pathwayId": "market-assistant",
+      "deadline": "2026-12-03T18:22:43.000Z",
+      "reviewedAt": "2026-11-26T18:22:43.000Z",
+      "status": "published",
+      "participationType": "contribution",
+      "geographicRelevance": "charleston-sc",
+      "eligibility": "adult_public",
+      "kind": "recurring_program",
+      "deadlineMeaning": "review expiry or earlier opportunity cutoff",
+      "topics": [
+        "food",
+        "volunteering"
+      ],
+      "availability": "provider confirmation required"
+    },
+    {
+      "title": "Pantry helper",
+      "organization": "One80 Place",
+      "sourceUrl": "https://www.one80place.org/volunteer",
+      "pathwayId": "pantry-helper",
+      "deadline": "2026-12-03T18:22:43.000Z",
+      "reviewedAt": "2026-11-26T18:22:43.000Z",
+      "status": "published",
+      "participationType": "contribution",
+      "geographicRelevance": "charleston-sc",
+      "eligibility": "adult_public",
+      "kind": "recurring_program",
+      "deadlineMeaning": "review expiry or earlier opportunity cutoff",
+      "topics": [
+        "food",
+        "volunteering"
+      ],
+      "availability": "provider confirmation required"
+    },
+    {
+      "title": "Shelter facilities helper",
+      "organization": "One80 Place",
+      "sourceUrl": "https://www.one80place.org/volunteer",
+      "pathwayId": "facilities-helper",
+      "deadline": "2026-12-03T18:22:43.000Z",
+      "reviewedAt": "2026-11-26T18:22:43.000Z",
+      "status": "published",
+      "participationType": "contribution",
+      "geographicRelevance": "charleston-sc",
+      "eligibility": "adult_public",
+      "kind": "recurring_program",
+      "deadlineMeaning": "review expiry or earlier opportunity cutoff",
+      "topics": [
+        "community",
+        "volunteering"
+      ],
+      "availability": "provider confirmation required"
+    },
+    {
+      "title": "Construction volunteering",
+      "organization": "Charleston Habitat for Humanity",
+      "sourceUrl": "https://www.charlestonhabitat.org/get-involved/volunteer/",
+      "pathwayId": "construction",
+      "deadline": "2026-12-03T18:22:43.000Z",
+      "reviewedAt": "2026-11-26T18:22:43.000Z",
+      "status": "published",
+      "participationType": "contribution",
+      "geographicRelevance": "charleston-sc",
+      "eligibility": "adult_public",
+      "kind": "recurring_program",
+      "deadlineMeaning": "review expiry or earlier opportunity cutoff",
+      "topics": [
+        "construction",
+        "volunteering"
+      ],
+      "availability": "provider confirmation required"
+    },
+    {
+      "title": "ReStore volunteering",
+      "organization": "Charleston Habitat for Humanity",
+      "sourceUrl": "https://www.charlestonhabitat.org/get-involved/volunteer/",
+      "pathwayId": "restore",
+      "deadline": "2026-12-03T18:22:43.000Z",
+      "reviewedAt": "2026-11-26T18:22:43.000Z",
+      "status": "published",
+      "participationType": "contribution",
+      "geographicRelevance": "charleston-sc",
+      "eligibility": "adult_public",
+      "kind": "recurring_program",
+      "deadlineMeaning": "review expiry or earlier opportunity cutoff",
+      "topics": [
+        "retail",
+        "volunteering"
+      ],
+      "availability": "provider confirmation required"
+    },
+    {
+      "title": "Administrative support",
+      "organization": "Charleston Habitat for Humanity",
+      "sourceUrl": "https://www.charlestonhabitat.org/get-involved/volunteer/",
+      "pathwayId": "office",
+      "deadline": "2026-12-03T18:22:43.000Z",
+      "reviewedAt": "2026-11-26T18:22:43.000Z",
+      "status": "published",
+      "participationType": "contribution",
+      "geographicRelevance": "charleston-sc",
+      "eligibility": "adult_public",
+      "kind": "recurring_program",
+      "deadlineMeaning": "review expiry or earlier opportunity cutoff",
+      "topics": [
+        "administration",
+        "volunteering"
+      ],
+      "availability": "provider confirmation required"
+    },
+    {
+      "title": "CORE construction training",
+      "organization": "Charleston Habitat for Humanity",
+      "sourceUrl": "https://www.charlestonhabitat.org/get-involved/volunteer/",
+      "pathwayId": "core-training",
+      "deadline": "2026-12-03T18:22:43.000Z",
+      "reviewedAt": "2026-11-26T18:22:43.000Z",
+      "status": "published",
+      "participationType": "learning",
+      "geographicRelevance": "charleston-sc",
+      "eligibility": "adult_public",
+      "kind": "recurring_program",
+      "deadlineMeaning": "review expiry or earlier opportunity cutoff",
+      "topics": [
+        "construction",
+        "volunteering"
+      ],
+      "availability": "provider confirmation required"
+    },
+    {
+      "title": "Library book sale support",
+      "organization": "Charleston FRIENDS of the Library",
+      "sourceUrl": "https://www.charlestonlibraryfriends.org/volunteer",
+      "pathwayId": "book-sales",
+      "deadline": "2026-12-03T18:22:43.000Z",
+      "reviewedAt": "2026-11-26T18:22:43.000Z",
+      "status": "published",
+      "participationType": "contribution",
+      "geographicRelevance": "charleston-sc",
+      "eligibility": "adult_public",
+      "kind": "recurring_program",
+      "deadlineMeaning": "review expiry or earlier opportunity cutoff",
+      "topics": [
+        "literacy",
+        "volunteering"
+      ],
+      "availability": "provider confirmation required"
+    },
+    {
+      "title": "Book sorting room",
+      "organization": "Charleston FRIENDS of the Library",
+      "sourceUrl": "https://www.charlestonlibraryfriends.org/volunteer",
+      "pathwayId": "sorting-room",
+      "deadline": "2026-12-03T18:22:43.000Z",
+      "reviewedAt": "2026-11-26T18:22:43.000Z",
+      "status": "published",
+      "participationType": "contribution",
+      "geographicRelevance": "charleston-sc",
+      "eligibility": "adult_public",
+      "kind": "recurring_program",
+      "deadlineMeaning": "review expiry or earlier opportunity cutoff",
+      "topics": [
+        "literacy",
+        "volunteering"
+      ],
+      "availability": "provider confirmation required"
+    },
+    {
+      "title": "Literacy event support",
+      "organization": "Charleston FRIENDS of the Library",
+      "sourceUrl": "https://www.charlestonlibraryfriends.org/volunteer",
+      "pathwayId": "literacy-events",
+      "deadline": "2026-12-03T18:22:43.000Z",
+      "reviewedAt": "2026-11-26T18:22:43.000Z",
+      "status": "published",
+      "participationType": "contribution",
+      "geographicRelevance": "charleston-sc",
+      "eligibility": "adult_public",
+      "kind": "recurring_program",
+      "deadlineMeaning": "review expiry or earlier opportunity cutoff",
+      "topics": [
+        "events",
+        "volunteering"
+      ],
+      "availability": "provider confirmation required"
+    },
+    {
+      "title": "Volunteer-run bookstore",
+      "organization": "Charleston FRIENDS of the Library",
+      "sourceUrl": "https://www.charlestonlibraryfriends.org/volunteer",
+      "pathwayId": "bookstore",
+      "deadline": "2026-12-03T18:22:43.000Z",
+      "reviewedAt": "2026-11-26T18:22:43.000Z",
+      "status": "published",
+      "participationType": "contribution",
+      "geographicRelevance": "charleston-sc",
+      "eligibility": "adult_public",
+      "kind": "recurring_program",
+      "deadlineMeaning": "review expiry or earlier opportunity cutoff",
+      "topics": [
+        "literacy",
+        "volunteering"
+      ],
+      "availability": "provider confirmation required"
+    },
+    {
+      "title": "Museum education support",
+      "organization": "The Charleston Museum",
+      "sourceUrl": "https://www.charlestonmuseum.org/volunteers/",
+      "pathwayId": "museum-education",
+      "deadline": "2026-12-03T18:22:43.000Z",
+      "reviewedAt": "2026-11-26T18:22:43.000Z",
+      "status": "published",
+      "participationType": "contribution",
+      "geographicRelevance": "charleston-sc",
+      "eligibility": "adult_public",
+      "kind": "recurring_program",
+      "deadlineMeaning": "review expiry or earlier opportunity cutoff",
+      "topics": [
+        "education",
+        "volunteering"
+      ],
+      "availability": "provider confirmation required"
+    },
+    {
+      "title": "Historic house museum support",
+      "organization": "The Charleston Museum",
+      "sourceUrl": "https://www.charlestonmuseum.org/volunteers/",
+      "pathwayId": "historic-houses",
+      "deadline": "2026-12-03T18:22:43.000Z",
+      "reviewedAt": "2026-11-26T18:22:43.000Z",
+      "status": "published",
+      "participationType": "contribution",
+      "geographicRelevance": "charleston-sc",
+      "eligibility": "adult_public",
+      "kind": "recurring_program",
+      "deadlineMeaning": "review expiry or earlier opportunity cutoff",
+      "topics": [
+        "history",
+        "volunteering"
+      ],
+      "availability": "provider confirmation required"
+    },
+    {
+      "title": "Museum curatorial support",
+      "organization": "The Charleston Museum",
+      "sourceUrl": "https://www.charlestonmuseum.org/volunteers/",
+      "pathwayId": "curatorial",
+      "deadline": "2026-12-03T18:22:43.000Z",
+      "reviewedAt": "2026-11-26T18:22:43.000Z",
+      "status": "published",
+      "participationType": "contribution",
+      "geographicRelevance": "charleston-sc",
+      "eligibility": "adult_public",
+      "kind": "recurring_program",
+      "deadlineMeaning": "review expiry or earlier opportunity cutoff",
+      "topics": [
+        "history",
+        "volunteering"
+      ],
+      "availability": "provider confirmation required"
+    },
+    {
+      "title": "Distribution center and care kits",
+      "organization": "Lowcountry Orphan Relief",
+      "sourceUrl": "https://www.lowcountryorphanrelief.org/volunteer/volunteer-with-us",
+      "pathwayId": "distribution-center",
+      "deadline": "2026-12-03T18:22:43.000Z",
+      "reviewedAt": "2026-11-26T18:22:43.000Z",
+      "status": "published",
+      "participationType": "contribution",
+      "geographicRelevance": "charleston-sc",
+      "eligibility": "adult_public",
+      "kind": "recurring_program",
+      "deadlineMeaning": "review expiry or earlier opportunity cutoff",
+      "topics": [
+        "community",
+        "volunteering"
+      ],
+      "availability": "provider confirmation required"
     }
   ]
 }

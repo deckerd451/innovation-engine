@@ -21,6 +21,7 @@ on:
       - 'data/opportunity-sources-charleston.json'
       - 'scripts/tests/test-opportunity-renewal.js'
       - 'data/hpe-published-opportunities.json'
+      - 'data/hpe-release-reviewed-evidence.json'
       - '.github/workflows/hpe-opportunity-audit.yml'
 permissions:
   contents: read
@@ -33,7 +34,13 @@ jobs:
         with:
           node-version: '22'
       - run: node scripts/tests/test-opportunity-renewal.js
-      - run: node scripts/opportunity-renewal.js | tee opportunity-review.json
+      - name: Verify published inventory against reviewed evidence
+        run: node scripts/opportunity-publication.js data/hpe-release-reviewed-evidence.json --check
+      - name: Prepare the renewal queue and current inventory
+        run: |
+          node scripts/opportunity-renewal.js > opportunity-review.json
+          node scripts/opportunity-renewal.js --current-inventory > current-inventory.json
+          node -e 'const rows = require("./opportunity-review.json"); const pending = rows.filter(row => row.status !== "current"); console.log(pending.length + " pathways due for review, expired or invalid"); if (pending.length) console.log("::warning::Download the opportunity-review artifact and recheck pending pathways.")'
       - run: node scripts/tests/test-opportunity-publication.js
       - run: node scripts/tests/test-opportunity-intake.js
       - run: node scripts/opportunity-intake.js | tee provider-candidates.json
@@ -55,6 +62,7 @@ jobs:
           name: opportunity-review
           path: |
             opportunity-review.json
+            current-inventory.json
             provider-candidates.json
             provider-evidence.json
             nearify-candidates.json
