@@ -177,7 +177,7 @@ echo "HPE private consent and outcome authorization"
 "${PSQL[@]}" -d postgres -c "CREATE DATABASE ie_hpe" >/dev/null
 "${PSQL[@]}" -d ie_hpe -f "$ROOT/scripts/tests/fixtures/supabase-minimal-bootstrap.sql" >/dev/null
 "${PSQL[@]}" -d ie_hpe -c "CREATE TABLE auth.users(id uuid PRIMARY KEY)" >/dev/null
-for f in supabase/sql/migrations/20261126_hpe_private_consent.sql supabase/sql/migrations/20261127_hpe_explicit_consent_identity.sql scripts/tests/hpe-private-consent-db.sql supabase/sql/rollback/20261126_hpe_private_consent_rollback.sql; do
+for f in supabase/sql/migrations/20261126_hpe_private_consent.sql supabase/sql/migrations/20261127_hpe_explicit_consent_identity.sql scripts/tests/hpe-private-consent-db.sql supabase/sql/rollback/20261127_hpe_explicit_consent_identity_rollback.sql supabase/sql/rollback/20261126_hpe_private_consent_rollback.sql; do
   "${PSQL[@]}" -d ie_hpe -f "$ROOT/$f" >/dev/null
 done
 echo "   ok (including rollback)"
