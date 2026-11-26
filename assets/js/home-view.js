@@ -310,7 +310,7 @@
     const items = (suggestions.joinIn || []).slice(0, 1);
     const member = profile()?.id;
     if (externalMember !== member) { externalDismissed.clear(); externalMember = member; }
-    const external = member && window.HPEParticipationPilot === true && suggestions.status === 'ready' && !items.length
+    const external = member && window.HPEParticipationPilot === true && suggestions.status !== 'loading' && !items.length
       ? externalPick(externalInventory, externalDismissed) : null;
     if (external) {
       setSection('join', `<ul class="home-picks"><li class="home-pick"><span class="home-kind">External opportunity</span><strong>${esc(external.title)}</strong><p class="home-muted">${esc(external.organization)} · Check availability with provider</p><div class="home-pick-actions"><a class="home-action" href="${esc(external.url)}" target="_blank" rel="noopener noreferrer">Visit provider (new tab)</a><button type="button" class="home-dismiss" data-external-skip>Not now</button></div></li></ul>`);
