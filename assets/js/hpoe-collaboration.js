@@ -88,6 +88,8 @@
     updateAvailability().catch(() => {});
 
     let busy = false;
+    let pageOffset = 0;
+    const pageSize = 20;
 
     function paragraph(text) {
       const element = document.createElement('p');
@@ -122,12 +124,12 @@
       return element;
     }
 
-    async function write(query) {
+    async function write(query, offset = pageOffset) {
       const result = await query;
       if (result.error) throw result.error;
       if (current()) {
         await updateAvailability();
-        await refresh();
+        await refresh(offset);
         if (current() && !details.hidden) label.focus();
       }
     }
@@ -173,7 +175,7 @@
       button('Remove for both members', () => advance('remove'));
     }
 
-    async function refresh() {
+    async function refresh(offset = pageOffset) {
       if (!current()) return;
       status.textContent = 'Checking collaboration options…';
       const opt = await client.from('hpoe_opt_in').select('user_id').eq('user_id', accountId).maybeSingle();
@@ -182,14 +184,33 @@
       content.replaceChildren();
       status.textContent = '';
       if (!opt.data) {
+        pageOffset = 0;
         paragraph('Opt in to explore ideas with connections who also opt in. Your listed skills can help suggest a collaborator. Joining is optional and your draft stays in this tab. Leaving deletes shared collaboration records for both members.');
         if (eligible) button('Opt in to collaboration', () => write(client.from('hpoe_opt_in').insert({ user_id: accountId })));
         return;
       }
-      const cases = await client.rpc('hpoe_my_collaborations', { p_actor: accountId });
+      const cases = await client.rpc('hpoe_my_collaborations', { p_actor: accountId, p_offset: offset });
       if (!current()) return;
       if (cases.error) throw cases.error;
-      for (const row of cases.data || []) renderCase(row);
+      const rows = cases.data || [];
+      if (!rows.length && offset > 0) return refresh(Math.max(0, offset - pageSize));
+      pageOffset = offset;
+      for (const row of rows.slice(0, pageSize)) renderCase(row);
+      if (offset || rows.length > pageSize) {
+        const controls = document.createElement('div');
+        controls.setAttribute('role', 'group');
+        controls.setAttribute('aria-label', 'Collaboration pages');
+        content.append(controls);
+        const go = async next => {
+          await refresh(next);
+          if (current()) {
+            status.textContent = 'Collaboration page ' + (Math.floor(pageOffset / pageSize) + 1);
+            label.focus();
+          }
+        };
+        if (offset) button('Previous collaborations', () => go(offset - pageSize), controls);
+        if (rows.length > pageSize) button('More collaborations', () => go(offset + pageSize), controls);
+      }
       if (!eligible) {
         paragraph('New collaboration actions are paused for this account.');
         button('Leave collaboration pilot and delete my records', () =>
@@ -226,7 +247,7 @@
         button('Invite ' + match.peer.name + ' to explore', () =>
           write(client.rpc('hpoe_invite', {
             p_actor: accountId, p_profile_id: match.peer.profile_id, p_recipe: match.key
-          })), proposal);
+          }), 0), proposal);
       });
       content.append(proposal);
       button('Leave collaboration pilot and delete my records', () =>

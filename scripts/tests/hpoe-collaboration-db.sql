@@ -118,6 +118,21 @@ BEGIN
   END IF;
 END $$;
 RESET ROLE;
+INSERT INTO public.hpoe_collaboration (initiator,invitee,recipe,phase,created_at)
+SELECT '00000000-0000-4000-8000-000000000001',
+  '00000000-0000-4000-8000-000000000002','workshop','declined',now()+make_interval(secs => n)
+FROM generate_series(1,21) AS n;
+SET LOCAL ROLE authenticated;
+DO $$
+DECLARE a uuid := auth.uid();
+BEGIN
+  IF (SELECT count(*) FROM public.hpoe_my_collaborations(a,0)) <> 21 OR
+     EXISTS (SELECT FROM public.hpoe_my_collaborations(a,0) WHERE jointly_confirmed) OR
+     NOT EXISTS (SELECT FROM public.hpoe_my_collaborations(a,20) WHERE jointly_confirmed) THEN
+    RAISE EXCEPTION 'Older collaboration cannot be retrieved';
+  END IF;
+END $$;
+RESET ROLE;
 DELETE FROM public.hpoe_audience WHERE user_id = '00000000-0000-4000-8000-000000000001';
 SET LOCAL ROLE authenticated;
 DO $$ BEGIN

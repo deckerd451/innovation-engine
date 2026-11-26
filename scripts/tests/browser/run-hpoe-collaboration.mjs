@@ -54,12 +54,18 @@ try {
           invite = {id:'test-invite',recipe:'garden',phase:'invited',confirmed:new Set()};
           return {};
         }
-        if (name === 'hpoe_my_collaborations') return {data:invite ? [{
-          id:invite.id, recipe:invite.recipe, phase:invite.phase,
-          incoming:args.p_actor==='b', own_confirmed:invite.confirmed.has(args.p_actor),
-          jointly_confirmed:invite.confirmed.size===2,
-          peer_profile_id:invite.phase==='invited' ? null : 'peer'
-        }] : []};
+        if (name === 'hpoe_my_collaborations') {
+          const rows = window.__test.history ? Array.from({length:21}, (_, i) => ({
+            id:'history-'+i, recipe:'workshop', phase:'declined'
+          })) : [];
+          if (invite) rows.push({
+            id:invite.id, recipe:invite.recipe, phase:invite.phase,
+            incoming:args.p_actor==='b', own_confirmed:invite.confirmed.has(args.p_actor),
+            jointly_confirmed:invite.confirmed.size===2,
+            peer_profile_id:invite.phase==='invited' ? null : 'peer'
+          });
+          return {data:rows.slice(args.p_offset, args.p_offset+21)};
+        }
         if (name === 'hpoe_advance') {
           switch (args.p_action) {
             case 'accept': invite.phase='accepted'; break;
@@ -118,6 +124,14 @@ try {
     await waitText('Confirm we completed the first action');
     await click('Confirm we completed the first action');
     await waitText('Both members confirmed the first action');
+    await run(`window.__test.history=true;${panel}.open=false;true`);
+    await app.sleep(100);
+    await open();
+    await waitText('More collaborations');
+    assert.equal(await run(`${panel}.textContent.includes('Both members confirmed the first action')`), false);
+    await click('More collaborations');
+    await waitText('Both members confirmed the first action');
+    await waitText('Previous collaborations');
     await run(fs.readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8') + ';true');
     const violations = await run(`axe.run(${panel}, {runOnly:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}).then(r=>r.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)})))`);
     assert.deepEqual(violations, []);

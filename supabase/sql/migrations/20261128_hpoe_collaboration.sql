@@ -158,7 +158,7 @@ BEGIN
 END;
 $$;
 
-CREATE FUNCTION public.hpoe_my_collaborations(p_actor uuid)
+CREATE FUNCTION public.hpoe_my_collaborations(p_actor uuid, p_offset integer DEFAULT 0)
 RETURNS TABLE (id uuid, incoming boolean, recipe text, phase text,
   own_confirmed boolean, jointly_confirmed boolean, peer_profile_id uuid)
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''
@@ -183,12 +183,12 @@ AS $$
     )
   WHERE p_actor = auth.uid() AND p_actor IN (c.initiator, c.invitee)
   ORDER BY (c.phase = 'invited') DESC, c.created_at DESC, c.id
-  LIMIT 20;
+  LIMIT 21 OFFSET greatest(coalesce(p_offset, 0), 0);
 $$;
 
 REVOKE ALL ON FUNCTION public.hpoe_status(uuid), public.hpoe_candidates(uuid), public.hpoe_invite(uuid, uuid, text),
-  public.hpoe_advance(uuid, uuid, text), public.hpoe_my_collaborations(uuid) FROM PUBLIC, anon, authenticated;
+  public.hpoe_advance(uuid, uuid, text), public.hpoe_my_collaborations(uuid, integer) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.hpoe_status(uuid), public.hpoe_candidates(uuid), public.hpoe_invite(uuid, uuid, text),
-  public.hpoe_advance(uuid, uuid, text), public.hpoe_my_collaborations(uuid) TO authenticated;
+  public.hpoe_advance(uuid, uuid, text), public.hpoe_my_collaborations(uuid, integer) TO authenticated;
 
 COMMIT;
