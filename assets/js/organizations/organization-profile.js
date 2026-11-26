@@ -353,54 +353,69 @@ function renderThemesTab() {
 }
 
 async function loadOpportunities() {
+  const org = currentOrganization;
+  const container = document.getElementById("opportunities-list");
+  if (!org || !container) return;
   try {
-    // Import opportunities module dynamically
-    const { getOpportunitiesByOrganization } = await import("./opportunities.js");
-
-    const opportunities = await getOpportunitiesByOrganization(currentOrganization.id);
-
-    const container = document.getElementById("opportunities-list");
-    if (!container) return;
-
-    if (opportunities.length === 0) {
-      container.innerHTML = `
-        <p class="empty-state">No open opportunities at this time.</p>
-        ${userCanEdit ? `
-          <button class="btn btn-primary" id="post-opportunity-btn">
-            <i class="fas fa-plus"></i> Post an Opportunity
-          </button>
-        ` : ''}
-      `;
-      return;
-    }
-
-    container.innerHTML = `
-      <div class="opportunities-grid">
-        ${opportunities.map(opp => renderOpportunityCard(opp)).join('')}
-      </div>
-      ${userCanEdit ? `
-        <button class="btn btn-primary" id="post-opportunity-btn">
-          <i class="fas fa-plus"></i> Post an Opportunity
-        </button>
-      ` : ''}
-    `;
+    const manager = await import("./opportunities.js");
+    const opportunities = await manager.getOpportunitiesByOrganization(org.id);
+    if (!container.isConnected || currentOrganization?.id !== org.id) return;
+    const canPost = !!_communityId && (org.organization_members || []).some(m =>
+      m.community_id === _communityId && m.status === "active" && m.can_post_opportunities === true);
+    container.innerHTML = opportunities.length
+      ? `<div class="opportunities-grid">${opportunities.map(opp => renderOpportunityCard(opp)).join('')}</div>`
+      : '<p class="empty-state">No open opportunities at this time.</p>';
+    if (!canPost) return;
+    const form = document.createElement("form");
+    form.innerHTML = `<details><summary>Post a community opportunity</summary>
+      <p>Describe a real need and what someone can do. Do not include private contact details.</p>
+      <p><label>Title <input name="title" required minlength="3" maxlength="120"></label></p>
+      <p><label>What help is needed, and what should participants expect? <textarea name="description" required minlength="20" maxlength="2000" rows="4"></textarea></label></p>
+      <p><label>Type <select name="type"><option value="volunteer">Volunteer</option><option value="mentorship">Mentorship</option></select></label></p>
+      <p><label>Location <input name="location" required maxlength="120" placeholder="City or remote"></label></p>
+      <p><label>Commitment <select name="commitment"><option value="one-time">One time</option><option value="flexible">Flexible</option><option value="part-time">Part time</option></select></label></p>
+      <p><label><input type="checkbox" name="confirmed" required> I am authorized to post this genuine opportunity publicly and will close it when unavailable.</label></p>
+      <button type="submit" class="btn btn-primary">Post opportunity</button>
+      <p role="status" aria-live="polite"></p></details>`;
+    container.appendChild(form);
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      if (!form.reportValidity() || currentOrganization?.id !== org.id || !form.isConnected) return;
+      const button = form.querySelector('button[type="submit"]');
+      if (button.disabled) return;
+      button.disabled = true;
+      const status = form.querySelector('[role="status"]');
+      const fields = new FormData(form);
+      try {
+        await manager.refreshCurrentUser();
+        if (!form.isConnected || currentOrganization?.id !== org.id) return;
+        await manager.createOpportunity({
+          organization_id: org.id, title: String(fields.get("title")).trim(),
+          description: String(fields.get("description")).trim(), type: fields.get("type"),
+          location: String(fields.get("location")).trim(), commitment: fields.get("commitment"),
+          is_public: true, status: "open"
+        });
+        if (form.isConnected && currentOrganization?.id === org.id) await loadOpportunities();
+      } catch (_) {
+        status.textContent = "Could not post the opportunity. Check your posting permission and try again.";
+      } finally { button.disabled = false; }
+    });
   } catch (error) {
     console.error("Error loading opportunities:", error);
-    document.getElementById("opportunities-list").innerHTML =
-      '<p class="error-state">Failed to load opportunities.</p>';
+    if (container.isConnected && currentOrganization?.id === org.id) container.textContent = "Failed to load opportunities.";
   }
 }
 
 function renderOpportunityCard(opportunity) {
   return `
-    <div class="opportunity-card" data-id="${opportunity.id}">
+    <div class="opportunity-card" data-id="${escapeAttr(opportunity.id)}">
       <div class="opp-header">
-        <h4>${opportunity.title}</h4>
+        <h4>${escapeHtml(opportunity.title)}</h4>
         <span class="opp-type-badge">${formatOpportunityType(opportunity.type)}</span>
       </div>
-      <p class="opp-description">${truncate(opportunity.description, 150)}</p>
+      <p class="opp-description">${escapeHtml(truncate(String(opportunity.description || ""), 150))}</p>
       <div class="opp-details">
-        ${opportunity.location ? `<span><i class="fas fa-map-marker-alt"></i> ${opportunity.location}</span>` : ''}
+        ${opportunity.location ? `<span><i class="fas fa-map-marker-alt"></i> ${escapeHtml(opportunity.location)}</span>` : ''}
         ${opportunity.remote_ok ? `<span><i class="fas fa-home"></i> Remote OK</span>` : ''}
         ${opportunity.compensation_range ? `<span><i class="fas fa-dollar-sign"></i> ${opportunity.compensation_range}</span>` : ''}
       </div>
