@@ -46,6 +46,38 @@
       "status": "source_discovered",
       "availability": "confirm_with_provider",
       "cadence": "weekly_review"
+    },
+    {
+      "organization": "City of Charleston Recreation",
+      "sourceUrl": "https://www.charleston-sc.gov/1753/Volunteer-With-Us",
+      "summary": "Tutoring, sports and community events",
+      "status": "source_discovered",
+      "availability": "confirm_with_provider",
+      "cadence": "weekly_review"
+    },
+    {
+      "organization": "South Carolina Aquarium",
+      "sourceUrl": "https://scaquarium.org/volunteer/",
+      "summary": "Aquarium volunteer pathway; investigate eligibility",
+      "status": "source_discovered",
+      "availability": "confirm_with_provider",
+      "cadence": "weekly_review"
+    },
+    {
+      "organization": "MUSC Children's Health",
+      "sourceUrl": "https://musckids.org/about-us/volunteer",
+      "summary": "Volunteer program; investigate requirements",
+      "status": "source_discovered",
+      "availability": "confirm_with_provider",
+      "cadence": "weekly_review"
+    },
+    {
+      "organization": "ICNA Relief Shifa Clinic",
+      "sourceUrl": "https://www.icnarelief.org/shifaclinics/volunteer/",
+      "summary": "Clinic volunteer pathway; investigate requirements",
+      "status": "source_discovered",
+      "availability": "confirm_with_provider",
+      "cadence": "weekly_review"
     }
   ]
 }
