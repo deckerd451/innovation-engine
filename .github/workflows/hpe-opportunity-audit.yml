@@ -7,6 +7,8 @@ on:
     paths:
       - 'scripts/opportunity-renewal.js'
       - 'scripts/opportunity-intake.js'
+      - 'scripts/opportunity-evidence.js'
+      - 'scripts/tests/test-opportunity-evidence.js'
       - 'scripts/tests/test-opportunity-intake.js'
       - 'data/opportunity-sources-charleston.json'
       - 'scripts/tests/test-opportunity-renewal.js'
@@ -26,9 +28,13 @@ jobs:
       - run: node scripts/opportunity-renewal.js | tee opportunity-review.json
       - run: node scripts/tests/test-opportunity-intake.js
       - run: node scripts/opportunity-intake.js | tee provider-candidates.json
+      - run: node scripts/tests/test-opportunity-evidence.js
+      - if: github.event_name != 'pull_request'
+        run: node scripts/opportunity-evidence.js > provider-evidence.json
       - uses: actions/upload-artifact@v4
         with:
           name: opportunity-review
           path: |
             opportunity-review.json
             provider-candidates.json
+            provider-evidence.json
