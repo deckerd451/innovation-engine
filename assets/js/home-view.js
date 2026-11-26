@@ -504,6 +504,13 @@
   }
 
   // Built once per Home: typing here survives every other update.
+  // Explicit learning intent uses the existing search, not a new profile field.
+  // No inferred aspirations, persistence, or new telemetry.
+  function learningQuery(text) {
+    const match = String(text || '').trim().match(/^(?:i want to learn|i would like to learn|help me learn|learn)\s+(.+)$/i);
+    return match ? match[1].trim() : null;
+  }
+
   function mountGoal() {
     const el = part('goal');
     if (!el || el.dataset.mounted === 'true') return;
@@ -539,7 +546,7 @@
       const slot = el.querySelector('.home-idea-results');
       slot.innerHTML = '<p class="home-muted" role="status">Looking…</p>';
       let result;
-      try { result = await findForIdea(idea); } catch (error) { console.warn('[Home] idea search unavailable:', error?.message || error); result = 'error'; }
+      try { result = await findForIdea(window.HPEParticipationPilot === true ? (learningQuery(idea) || idea) : idea); } catch (error) { console.warn('[Home] idea search unavailable:', error?.message || error); result = 'error'; }
       if (search === searchRequest && el.isConnected && part('goal') === el && state.memberId === memberId && input.value.trim() === idea) paintIdeaResults(idea, result);
     });
   }
@@ -681,7 +688,7 @@
   // chooseNextTask: the rule a project's own overview uses for its next step
   // (node-panel.js); Home itself no longer picks a task.
   window.HomeView = { show, clear, focusGoal, chooseNextTask };
-  window.HomeViewTesting = { taskScore, chooseNextTask, loadMine, wantsCuriosityPrompt, matchIdea, preferParticipation };
+  window.HomeViewTesting = { taskScore, chooseNextTask, loadMine, wantsCuriosityPrompt, matchIdea, preferParticipation, learningQuery };
 
   window.addEventListener('daily-brief-updated', () => { if (host) calmly(paintSuggestions); });
   window.addEventListener('total-unread-messages-updated', (event) => {
