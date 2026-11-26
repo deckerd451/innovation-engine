@@ -602,29 +602,167 @@
     return match ? match[1].trim() : null;
   }
 
+  // Persistent mode is separately gated until the migration is deployed.
+  let pilotStorageGeneration = 0;
+  let pilotStorageBusy = false;
+  let pilotStorageLoaded = false;
+  let pilotStorageError = false;
+  async function pilotStorage(action) {
+    if (window.HPEPersistentConsent !== true || window.HPEParticipationPilot !== true || pilotStorageBusy) return;
+    const member = profile()?.id, client = window.supabase;
+    if (!member || !client) return;
+    const generation = pilotStorageGeneration;
+    const current = () => generation === pilotStorageGeneration && profile()?.id === member && window.HPEPersistentConsent === true && window.HPEParticipationPilot === true;
+    pilotStorageBusy = true;
+    pilotStorageError = false;
+    try {
+      const auth = await client.auth.getUser();
+      if (!current()) return;
+      if (auth.error || !auth.data?.user?.id) throw new Error('Authentication unavailable');
+      const uid = auth.data.user.id;
+      // Verify the authenticated account owns the currently displayed profile.
+      if (profile()?.user_id !== uid) throw new Error('Profile identity unavailable');
+      const table = client.from('hpe_participation_consent');
+      const result = action === 'join'
+        ? await table.insert({consent_version:1,adult_confirmed:true,scope:'charleston-sc'})
+        : action === 'leave'
+          ? await table.delete().eq('user_id',uid)
+          : await table.select('consent_version,adult_confirmed,scope').eq('user_id',uid).maybeSingle();
+      if (!current()) return;
+      if (result.error) throw result.error;
+      if (action === 'leave' || (action === 'load' && !result.data)) withdrawPilot();
+      else enrollPilot(action === 'join' ? {adultConfirmed:true,scope:'charleston-sc',consentVersion:1}
+        : {adultConfirmed:result.data.adult_confirmed,scope:result.data.scope,consentVersion:result.data.consent_version});
+      pilotStorageLoaded = true;
+    } catch {
+      if (current()) pilotStorageError = true;
+    } finally {
+      if (current()) {
+        pilotStorageBusy = false;
+        const slot = part('goal')?.querySelector('[data-pilot-control]');
+        if (slot) delete slot.dataset.mode;
+        paintPilotControl();
+      }
+    }
+  }
+  async function paintResearchControl(slot) {
+    const generation = pilotStorageGeneration, member = profile()?.id;
+    const client = window.supabase;
+    const current = () => slot.isConnected && generation === pilotStorageGeneration &&
+      profile()?.id === member && pilotActive() && window.HPEPersistentConsent === true;
+    const status = document.createElement('p');
+    status.setAttribute('role','status');
+    slot.append(status);
+    status.textContent = 'Checking optional research enrollment…';
+    try {
+      const auth = await client.auth.getUser();
+      if (!current()) return;
+      const uid = auth.data?.user?.id;
+      if (auth.error || !uid || profile()?.user_id !== uid) throw new Error('Identity unavailable');
+      const [windowResult, consentResult, responseResult] = await Promise.all([
+        client.from('hpe_research_window').select('starts_at,ends_at,response_until').eq('id',1).maybeSingle(),
+        client.from('hpe_research_consent').select('consent_version').eq('user_id',uid).maybeSingle(),
+        client.from('hpe_outcome_response').select('response').eq('user_id',uid).maybeSingle()
+      ]);
+      if (!current()) return;
+      if ([windowResult,consentResult,responseResult].some(r=>r.error)) throw new Error('Research unavailable');
+      const w = windowResult.data, consent = consentResult.data, now = Date.now();
+      status.textContent = consent ? 'Optional research enrollment active.' : 'Research participation is optional.';
+      const button = (label, action) => {
+        const el = document.createElement('button');
+        el.type = 'button'; el.className = 'home-link'; el.textContent = label;
+        el.onclick = async () => {
+          if (!current()) return;
+          for (const control of slot.querySelectorAll('button,select')) control.disabled = true;
+          try {
+            const fresh = await client.auth.getUser();
+            if (!current()) return;
+            if (fresh.error || fresh.data?.user?.id !== uid) throw new Error('Identity changed');
+            const result = await action();
+            if (!current()) return;
+            if (result.error) throw result.error;
+            slot.replaceChildren();
+            await paintResearchControl(slot);
+          } catch {
+            if (current()) { status.textContent = 'Unable to save. Please retry.'; for (const control of slot.querySelectorAll('button,select')) control.disabled = false; }
+          }
+        };
+        slot.append(el);
+      };
+      if (!consent && w && now < Date.parse(w.starts_at)) {
+        const explanation = document.createElement('p');
+        explanation.textContent = 'Optional study: report whether you made a meaningful contribution during the study window. Your response is private, not used for recommendations, and can be deleted by withdrawing. Declining does not affect access.';
+        slot.append(explanation);
+        button('Agree and join research',()=>client.from('hpe_research_consent').insert({consent_version:1}));
+      }
+      if (consent) {
+        button('Withdraw research and delete response',()=>client.from('hpe_research_consent').delete().eq('user_id',uid));
+        if (w && now >= Date.parse(w.ends_at) && now < Date.parse(w.response_until)) {
+          const label = document.createElement('label');
+          label.textContent = 'During '+new Date(w.starts_at).toISOString().slice(0,10)+' through '+new Date(w.ends_at).toISOString().slice(0,10)+' (UTC, end exclusive), did you make a contribution you personally consider meaningful? ';
+          const select = document.createElement('select');
+          for (const [value,text] of [['','Choose a response'],['yes','Yes'],['no','No'],['prefer_not_to_answer','Prefer not to answer']]) {
+            const option = document.createElement('option'); option.value=value; option.textContent=text; select.append(option);
+          }
+          select.value = responseResult.data?.response || '';
+          label.append(select); slot.append(label);
+          button('Save private response',()=> {
+            if (!select.value) throw new Error('Choose a response');
+            const table = client.from('hpe_outcome_response');
+            return responseResult.data ? table.update({response:select.value}).eq('user_id',uid) : table.insert({response:select.value});
+          });
+        }
+      }
+    } catch {
+      if (current()) status.textContent = 'Research controls unavailable. Participation is unaffected.';
+    }
+  }
+
   function paintPilotControl() {
     const slot = part('goal')?.querySelector('[data-pilot-control]');
     if (!slot) return;
     const enabled = window.HPEParticipationPilot === true && !!profile()?.id;
     slot.hidden = !enabled;
-    const mode = !enabled ? 'off' : pilotActive() ? 'joined' : 'invite';
+    const persistent = window.HPEPersistentConsent === true;
+    const mode = !enabled ? 'off' : persistent && !pilotStorageLoaded ? 'loading' : pilotActive() ? 'joined' : 'invite';
     if (slot.dataset.mode === mode) return;
     slot.dataset.mode = mode;
     if (!enabled) { slot.innerHTML = ''; return; }
+    if (mode === 'loading') {
+      slot.textContent = pilotStorageError ? 'Unable to load pilot enrollment.' : 'Checking pilot enrollment…';
+      if (pilotStorageError) { const retry = document.createElement('button'); retry.textContent = 'Retry'; retry.type = 'button'; retry.onclick = () => pilotStorage('load'); slot.append(retry); }
+      return;
+    }
     slot.innerHTML = mode === 'joined'
       ? '<p class="home-muted">Participation pilot active for this session.</p><button type="button" class="home-link" data-pilot-leave>Leave pilot</button>'
       : '<details><summary>Try the local participation pilot (optional)</summary><p>Get suggestions for contributing, learning or connecting in the Charleston area. Your existing interests may help match suggestions. Enrollment lasts for this session; leaving restores the usual experience. Joining is not required to use the community.</p><label><input type="checkbox" data-pilot-confirm> I am 18 or older, want Charleston-area suggestions, and agree to try this pilot.</label><p><button type="button" class="home-action" data-pilot-join disabled>Join pilot</button></p></details>';
+    if (persistent) {
+      slot.innerHTML = slot.innerHTML.replace('active for this session','active').replace('Enrollment lasts for this session; leaving restores the usual experience.','Enrollment is saved to your account; leaving deletes pilot consent and associated research responses.');
+      if (pilotStorageError) { const notice = document.createElement('p'); notice.setAttribute('role','status'); notice.textContent = 'Unable to save your change. Please retry.'; slot.append(notice); }
+    }
+    if (persistent && mode === 'joined' && window.HPEResearchPilot === true) {
+      const research = document.createElement('details');
+      const summary = document.createElement('summary');
+      summary.textContent = 'Optional research';
+      const body = document.createElement('div');
+      research.append(summary,body); slot.append(research);
+      research.addEventListener('toggle',()=> {
+        if (research.open && !body.hasChildNodes()) paintResearchControl(body);
+      });
+    }
     const confirm = slot.querySelector('[data-pilot-confirm]');
     const join = slot.querySelector('[data-pilot-join]');
     confirm?.addEventListener('change', () => { join.disabled = !confirm.checked; });
     join?.addEventListener('click', () => {
       if (!confirm.checked) return;
+      if (persistent) { join.disabled = true; pilotStorage('join'); return; }
       if (enrollPilot({adultConfirmed:true,scope:'charleston-sc',consentVersion:1})) {
         paintPilotControl();
         slot.querySelector('[data-pilot-leave]')?.focus();
       }
     });
     slot.querySelector('[data-pilot-leave]')?.addEventListener('click', () => {
+      if (persistent) { slot.querySelector('[data-pilot-leave]').disabled = true; pilotStorage('leave'); return; }
       withdrawPilot();
       paintPilotControl();
       slot.querySelector('summary')?.focus();
@@ -761,6 +899,10 @@
   }
 
   function clear() {
+    pilotStorageGeneration += 1;
+    pilotStorageBusy = false;
+    pilotStorageLoaded = false;
+    pilotStorageError = false;
     pilotEnrollment = null;
     request += 1;
     externalGeneration += 1;
@@ -801,6 +943,7 @@
       avatarNode.innerHTML = photo ? `<img src="${esc(photo)}" alt="">` : esc((displayName(p) || 'M').slice(0, 1).toUpperCase());
     }
     paintPilotControl();
+    if (!pilotStorageLoaded && !pilotStorageError) pilotStorage('load');
     paintProfilePrompt();
     paintAttention();
     paintMine();
