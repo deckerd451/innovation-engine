@@ -48,9 +48,13 @@ try {
         };
         return from(table);
       };
+      // Exercise URL resolution under the GitHub Pages project path.
+      history.replaceState(null, '', '/innovation-engine/index.html');
       const fetch = window.fetch.bind(window);
       window.fetch = (url, options) => {
-        if (url !== '/data/hpe-published-opportunities.json') return fetch(url, options);
+        const pathname = new URL(url, document.baseURI).pathname;
+        if (!pathname.endsWith('/hpe-published-opportunities.json')) return fetch(url, options);
+        if (pathname !== '/innovation-engine/data/hpe-published-opportunities.json') throw Error('Inventory URL escaped the project path');
         if (options.credentials !== 'omit') throw Error('Inventory request sent credentials');
         return Promise.resolve({ok:true,json:async()=>({schemaVersion:1,opportunities:
           ['one', 'two'].map(pathwayId => ({

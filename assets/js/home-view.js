@@ -319,7 +319,7 @@
     externalLoading = true;
     const generation = externalGeneration;
     try {
-      const response = await fetch('/data/hpe-published-opportunities.json', { credentials: 'omit', cache: 'no-store' });
+      const response = await fetch('./data/hpe-published-opportunities.json', { credentials: 'omit', cache: 'no-store' });
       if (!response.ok) throw new Error('Inventory unavailable');
       const data = await response.json();
       if (generation !== externalGeneration) return;
