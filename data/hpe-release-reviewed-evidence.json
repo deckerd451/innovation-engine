@@ -355,5 +355,45 @@
     "topics": [
       "community service"
     ]
+  },
+  {
+    "title": "Assist food distribution",
+    "organization": "Lowcountry Food Bank",
+    "sourceUrl": "https://lowcountryfoodbank.org/get-involved/volunteer/",
+    "pathwayId": "food-distribution",
+    "reviewStatus": "verified",
+    "reviewedAt": "2026-11-26T17:00:00Z",
+    "deadline": "2026-12-03T17:00:00Z",
+    "reviewer": "Official provider page inspected 2026-11-26",
+    "evidenceNote": "Official volunteer page lists program and distribution assistance, Charleston Golden registration, adult eligibility; specific assignment and shifts unconfirmed.",
+    "availability": "provider_confirmation_required",
+    "participationType": "contribution",
+    "geographicRelevance": "charleston-sc",
+    "eligibility": "adult_public",
+    "kind": "recurring_program",
+    "topics": [
+      "food",
+      "volunteering"
+    ]
+  },
+  {
+    "title": "Support food bank programs",
+    "organization": "Lowcountry Food Bank",
+    "sourceUrl": "https://lowcountryfoodbank.org/get-involved/volunteer/",
+    "pathwayId": "food-programs",
+    "reviewStatus": "verified",
+    "reviewedAt": "2026-11-26T17:00:00Z",
+    "deadline": "2026-12-03T17:00:00Z",
+    "reviewer": "Official provider page inspected 2026-11-26",
+    "evidenceNote": "Official volunteer page lists program and distribution assistance, Charleston Golden registration, adult eligibility; specific assignment and shifts unconfirmed.",
+    "availability": "provider_confirmation_required",
+    "participationType": "contribution",
+    "geographicRelevance": "charleston-sc",
+    "eligibility": "adult_public",
+    "kind": "recurring_program",
+    "topics": [
+      "food",
+      "volunteering"
+    ]
   }
 ]
