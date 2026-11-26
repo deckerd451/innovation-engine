@@ -52,7 +52,12 @@ jobs:
       - if: github.event_name != 'pull_request'
         env:
           NEARIFY_PUBLISHABLE_KEY: ${{ vars.NEARIFY_PUBLISHABLE_KEY }}
-        run: node scripts/nearify-public-feed.js > nearify-candidates.json
+        run: |
+          if [[ -n "$NEARIFY_PUBLISHABLE_KEY" ]] && node scripts/nearify-public-feed.js > nearify-candidates.json; then
+            exit 0
+          fi
+          printf '[]\n' > nearify-candidates.json
+          echo "::notice::Nearify candidates unavailable. Provider renewal can continue."
       - run: node scripts/tests/test-opportunity-review-queue.js
       - if: github.event_name != 'pull_request'
         run: node scripts/opportunity-review-queue.js provider-candidates.json nearify-candidates.json > unified-review-queue.json

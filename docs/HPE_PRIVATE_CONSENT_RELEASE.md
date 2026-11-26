@@ -15,7 +15,14 @@ psql "$HPE_RELEASE_DATABASE_URL" -X -v ON_ERROR_STOP=1 -f supabase/sql/migration
 psql "$HPE_RELEASE_DATABASE_URL" -X -v ON_ERROR_STOP=1 -f supabase/sql/migrations/20261127_hpe_explicit_consent_identity.sql
 ```
 
-Deploy the reviewed static-site revision with all three flags off and check ordinary signed-in and signed-out Home. Use the existing deployment configuration to set `window.HPEPersistentConsent = true` and `window.HPEParticipationPilot = true` before Home initializes once the gates pass. Leave `window.HPEResearchPilot` unset. Enrollment is voluntary and separate for each account. The flag is a client feature control. Database row policies enforce account ownership.
+Deploy the reviewed static-site revision with all three flags off and check ordinary signed-in and signed-out Home. Once the gates pass, add this script in the deployment revision of `index.html` immediately before the deferred `assets/js/home-view.js` script, then deploy that revision through the normal release process.
+
+```html
+<script>
+  window.HPEPersistentConsent = true;
+  window.HPEParticipationPilot = true;
+</script>
+``` Leave `window.HPEResearchPilot` unset. Enrollment is voluntary and separate for each account. The flag is a client feature control. Database row policies enforce account ownership.
 
 ## Research and retention
 
