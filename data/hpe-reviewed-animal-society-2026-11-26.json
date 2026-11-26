@@ -1,0 +1,102 @@
+[
+  {
+    "title": "Dog enrichment",
+    "organization": "Charleston Animal Society",
+    "sourceUrl": "https://charlestonanimalsociety.org/volunteer/",
+    "pathwayId": "dog-enrichment",
+    "reviewStatus": "verified",
+    "reviewedAt": "2026-11-26T17:00:00Z",
+    "deadline": "2026-12-03T17:00:00Z",
+    "reviewer": "Official provider page review",
+    "evidenceNote": "Charleston campus application and orientation; main program age 18+, role training may apply; shifts require provider confirmation.",
+    "availability": "provider_confirmation_required",
+    "participationType": "contribution",
+    "geographicRelevance": "charleston-sc",
+    "eligibility": "adult_public",
+    "kind": "recurring_program",
+    "topics": [
+      "animals",
+      "volunteering"
+    ]
+  },
+  {
+    "title": "Cat care",
+    "organization": "Charleston Animal Society",
+    "sourceUrl": "https://charlestonanimalsociety.org/volunteer/",
+    "pathwayId": "cat-care",
+    "reviewStatus": "verified",
+    "reviewedAt": "2026-11-26T17:00:00Z",
+    "deadline": "2026-12-03T17:00:00Z",
+    "reviewer": "Official provider page review",
+    "evidenceNote": "Charleston campus application and orientation; main program age 18+, role training may apply; shifts require provider confirmation.",
+    "availability": "provider_confirmation_required",
+    "participationType": "contribution",
+    "geographicRelevance": "charleston-sc",
+    "eligibility": "adult_public",
+    "kind": "recurring_program",
+    "topics": [
+      "animals",
+      "volunteering"
+    ]
+  },
+  {
+    "title": "Clinic volunteer support",
+    "organization": "Charleston Animal Society",
+    "sourceUrl": "https://charlestonanimalsociety.org/volunteer/",
+    "pathwayId": "clinic-support",
+    "reviewStatus": "verified",
+    "reviewedAt": "2026-11-26T17:00:00Z",
+    "deadline": "2026-12-03T17:00:00Z",
+    "reviewer": "Official provider page review",
+    "evidenceNote": "Charleston campus application and orientation; main program age 18+, role training may apply; shifts require provider confirmation.",
+    "availability": "provider_confirmation_required",
+    "participationType": "contribution",
+    "geographicRelevance": "charleston-sc",
+    "eligibility": "adult_public",
+    "kind": "recurring_program",
+    "topics": [
+      "animals",
+      "volunteering"
+    ]
+  },
+  {
+    "title": "Shelter cleaning and laundry",
+    "organization": "Charleston Animal Society",
+    "sourceUrl": "https://charlestonanimalsociety.org/volunteer/",
+    "pathwayId": "shelter-cleaning",
+    "reviewStatus": "verified",
+    "reviewedAt": "2026-11-26T17:00:00Z",
+    "deadline": "2026-12-03T17:00:00Z",
+    "reviewer": "Official provider page review",
+    "evidenceNote": "Charleston campus application and orientation; main program age 18+, role training may apply; shifts require provider confirmation.",
+    "availability": "provider_confirmation_required",
+    "participationType": "contribution",
+    "geographicRelevance": "charleston-sc",
+    "eligibility": "adult_public",
+    "kind": "recurring_program",
+    "topics": [
+      "animals",
+      "volunteering"
+    ]
+  },
+  {
+    "title": "Adoption event support",
+    "organization": "Charleston Animal Society",
+    "sourceUrl": "https://charlestonanimalsociety.org/volunteer/",
+    "pathwayId": "adoption-events",
+    "reviewStatus": "verified",
+    "reviewedAt": "2026-11-26T17:00:00Z",
+    "deadline": "2026-12-03T17:00:00Z",
+    "reviewer": "Official provider page review",
+    "evidenceNote": "Charleston campus application and orientation; main program age 18+, role training may apply; shifts require provider confirmation.",
+    "availability": "provider_confirmation_required",
+    "participationType": "contribution",
+    "geographicRelevance": "charleston-sc",
+    "eligibility": "adult_public",
+    "kind": "recurring_program",
+    "topics": [
+      "animals",
+      "volunteering"
+    ]
+  }
+]
