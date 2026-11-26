@@ -7,6 +7,9 @@ on:
     paths:
       - 'scripts/opportunity-renewal.js'
       - 'scripts/opportunity-intake.js'
+      - 'scripts/opportunity-publication.js'
+      - 'scripts/opportunity-supply.js'
+      - 'scripts/tests/test-opportunity-publication.js'
       - 'scripts/opportunity-evidence.js'
       - 'scripts/tests/test-opportunity-evidence.js'
       - 'scripts/tests/test-opportunity-intake.js'
@@ -26,6 +29,7 @@ jobs:
           node-version: '22'
       - run: node scripts/tests/test-opportunity-renewal.js
       - run: node scripts/opportunity-renewal.js | tee opportunity-review.json
+      - run: node scripts/tests/test-opportunity-publication.js
       - run: node scripts/tests/test-opportunity-intake.js
       - run: node scripts/opportunity-intake.js | tee provider-candidates.json
       - run: node scripts/tests/test-opportunity-evidence.js
