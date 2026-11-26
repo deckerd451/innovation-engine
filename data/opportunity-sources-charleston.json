@@ -78,6 +78,24 @@
       "status": "source_discovered",
       "availability": "confirm_with_provider",
       "cadence": "weekly_review"
+    },
+    {
+      "organization": "City of Charleston Farmers Markets",
+      "sourceUrl": "https://www.charleston-sc.gov/3305/Farmers-Market",
+      "summary": "Official volunteer contact for market operations; confirm holiday season openings",
+      "sourceCheckedOn": "2026-11-26",
+      "status": "source_discovered",
+      "availability": "confirm_with_provider",
+      "cadence": "weekly_review"
+    },
+    {
+      "organization": "South Carolina State Parks",
+      "sourceUrl": "https://southcarolinaparks.com/volunteer",
+      "summary": "Official application pathway; Charles Towne Landing host program listed; verify local requirements",
+      "sourceCheckedOn": "2026-11-26",
+      "status": "source_discovered",
+      "availability": "confirm_with_provider",
+      "cadence": "weekly_review"
     }
   ]
 }
