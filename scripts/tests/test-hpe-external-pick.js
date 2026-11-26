@@ -30,3 +30,11 @@ assert.equal(pick([row,garden],new Set(),now,[' GARDEN ']).title,'Garden');
 assert.equal(pick([row,garden],new Set(),now,[]).url,row.sourceUrl);
 assert.equal(pick([row,garden],new Set([garden.sourceUrl]),now,['garden']).url,row.sourceUrl);
 assert.equal(pick([row,{...garden,deadline:'2026-11-25'}],new Set(),now,['garden']).url,row.sourceUrl);
+
+const eligible=page.HomeViewTesting.pilotEligible;
+const consent={memberId:'a',adultConfirmed:true,scope:'charleston-sc',consentVersion:1};
+assert.equal(eligible(true,consent,'a'),true);
+for(const args of [[false,consent,'a'],[true,null,'a'],[true,consent,'b'],[true,{...consent,adultConfirmed:false},'a'],[true,{...consent,scope:'other'},'a']]) assert.equal(eligible(...args),false);
+assert.equal(pick([row],new Set(),now,[],'charleston-sc'),null);
+assert.equal(pick([{...row,geographicRelevance:'charleston-sc',eligibility:'adult_public',participationType:'contribution'}],new Set(),now,[],'charleston-sc').url,row.sourceUrl);
+assert.ok(clear.includes('pilotEnrollment = null'));
