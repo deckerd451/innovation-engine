@@ -16,6 +16,31 @@
   const state = { memberId: null, mine: null, attention: null, personId: null, unread: null };
 
   const profile = () => window.currentUserProfile || window.CHProfile?.state?.profile || null;
+  // Session-only explicit enrollment; no inferred age or location.
+  let pilotEnrollment = null;
+  function pilotEligible(enabled, enrollment, memberId) {
+    return enabled === true && !!memberId && enrollment?.memberId === memberId &&
+      enrollment.adultConfirmed === true && enrollment.scope === 'charleston-sc' &&
+      enrollment.consentVersion === 1;
+  }
+  const pilotActive = () => pilotEligible(window.HPEParticipationPilot, pilotEnrollment, profile()?.id);
+  function enrollPilot(consent) {
+    const memberId = profile()?.id;
+    const candidate = {memberId, adultConfirmed:consent?.adultConfirmed, scope:consent?.scope, consentVersion:consent?.consentVersion};
+    if (!pilotEligible(window.HPEParticipationPilot,candidate,memberId)) return false;
+    pilotEnrollment = candidate;
+    if (host) { calmly(paintSuggestions); refreshExternalInventory(); }
+    return true;
+  }
+  function withdrawPilot() {
+    pilotEnrollment = null;
+    externalGeneration += 1;
+    externalInventory = [];
+    externalLoadedAt = 0;
+    externalLoading = false;
+    externalDismissed.clear();
+    if (host) calmly(paintSuggestions);
+  }
   const displayName = (p) => String(p?.name || p?.full_name || p?.username || '').trim();
   const part = (name) => host?.querySelector(`[data-home="${name}"]`) || null;
   const showing = () => document.body.dataset.destination === 'home' && !!host && document.contains(host);
@@ -223,7 +248,7 @@
     if (!picked) return;
     const hasMeet = !!meet?.innerHTML;
     const hasInvitation = !!join?.innerHTML;
-    const selected = preferParticipation(window.HPEParticipationPilot === true, hasInvitation, hasMeet);
+    const selected = preferParticipation(pilotActive(), hasInvitation, hasMeet);
     if (meet) meet.hidden = selected !== 'meet';
     if (join) join.hidden = selected !== 'join';
     picked.hidden = part('attention')?.hidden === false || !selected;
@@ -257,13 +282,14 @@
 
   // Invitations only: never a project the member already created or joined.
   // External inventory is supplied by a reviewed publisher, never by inferred matches.
-  function externalPick(rows, dismissed, now = Date.now(), topics = []) {
+  function externalPick(rows, dismissed, now = Date.now(), topics = [], scope = null) {
     if (!Array.isArray(rows)) return null;
     const wanted = new Set((Array.isArray(topics) ? topics : []).filter(t => typeof t === 'string').map(t => t.trim().toLowerCase()).filter(Boolean));
     let best = null, bestScore = -1;
     for (const row of rows) {
       if (!row || row.status !== 'published' || typeof row.title !== 'string' || !row.title.trim() ||
           typeof row.organization !== 'string' || !row.organization.trim() || typeof row.sourceUrl !== 'string') continue;
+      if (scope && (row.geographicRelevance !== scope || row.eligibility !== 'adult_public' || !['contribution','learning','social'].includes(row.participationType))) continue;
       const reviewed = Date.parse(row.reviewedAt), expires = Date.parse(row.deadline);
       if (!Number.isFinite(reviewed) || reviewed > now || now - reviewed > 7 * 86400000 ||
           !Number.isFinite(expires) || expires <= now) continue;
@@ -284,7 +310,7 @@
   let externalGeneration = 0;
 
   async function refreshExternalInventory() {
-    if (window.HPEParticipationPilot !== true || !state.memberId || externalLoading ||
+    if (!pilotActive() || !state.memberId || externalLoading ||
         Date.now() - externalLoadedAt < 300000) return;
     externalLoading = true;
     const generation = externalGeneration;
@@ -313,8 +339,8 @@
     const items = (suggestions.joinIn || []).slice(0, 1);
     const member = profile()?.id;
     if (externalMember !== member) { externalDismissed.clear(); externalMember = member; }
-    const external = member && window.HPEParticipationPilot === true && suggestions.status !== 'loading' && !items.length
-      ? externalPick(externalInventory, externalDismissed, Date.now(), listedTerms(profile()?.interests)) : null;
+    const external = member && pilotActive() && suggestions.status !== 'loading' && !items.length
+      ? externalPick(externalInventory, externalDismissed, Date.now(), listedTerms(profile()?.interests), 'charleston-sc') : null;
     if (external) {
       setSection('join', `<ul class="home-picks"><li class="home-pick"><span class="home-kind">External opportunity</span><strong>${esc(external.title)}</strong><p class="home-muted">${esc(external.organization)} · Check availability with provider</p><div class="home-pick-actions"><a class="home-action" href="${esc(external.url)}" target="_blank" rel="noopener noreferrer">Visit provider (new tab)</a><button type="button" class="home-dismiss" data-external-skip>Not now</button></div></li></ul>`);
       part('join')?.querySelector('[data-external-skip]')?.addEventListener('click', () => {
@@ -611,7 +637,7 @@
       const slot = el.querySelector('.home-idea-results');
       slot.innerHTML = '<p class="home-muted" role="status">Looking…</p>';
       let result;
-      const learning = window.HPEParticipationPilot === true ? learningQuery(idea) : null;
+      const learning = pilotActive() ? learningQuery(idea) : null;
       try { result = await findForIdea(learning || idea); } catch (error) { console.warn('[Home] idea search unavailable:', error?.message || error); result = 'error'; }
       if (search === searchRequest && el.isConnected && part('goal') === el && state.memberId === memberId && input.value.trim() === idea) paintIdeaResults(idea, result, !!learning);
     });
@@ -706,6 +732,7 @@
   }
 
   function clear() {
+    pilotEnrollment = null;
     request += 1;
     externalGeneration += 1;
     externalInventory = [];
@@ -760,8 +787,8 @@
 
   // chooseNextTask: the rule a project's own overview uses for its next step
   // (node-panel.js); Home itself no longer picks a task.
-  window.HomeView = { show, clear, focusGoal, chooseNextTask };
-  window.HomeViewTesting = { taskScore, chooseNextTask, loadMine, wantsCuriosityPrompt, matchIdea, preferParticipation, learningQuery, externalPick };
+  window.HomeView = { show, clear, focusGoal, chooseNextTask, enrollPilot, withdrawPilot };
+  window.HomeViewTesting = { taskScore, chooseNextTask, loadMine, wantsCuriosityPrompt, matchIdea, preferParticipation, learningQuery, externalPick, pilotEligible };
 
   window.addEventListener('daily-brief-updated', () => { if (host) calmly(paintSuggestions); });
   window.addEventListener('total-unread-messages-updated', (event) => {
