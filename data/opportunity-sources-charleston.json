@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "scope": "Charleston, SC",
+  "sources": [
+    {
+      "organization": "Charleston Parks Conservancy",
+      "sourceUrl": "https://www.charlestonparksconservancy.org/volunteer/",
+      "summary": "Garden stewardship and community events",
+      "sourceCheckedOn": "2026-11-26",
+      "status": "source_discovered",
+      "availability": "confirm_with_provider",
+      "cadence": "weekly_review"
+    },
+    {
+      "organization": "Lowcountry Food Bank",
+      "sourceUrl": "https://lowcountryfoodbank.org/get-involved/volunteer/",
+      "summary": "Food sorting and distribution",
+      "sourceCheckedOn": "2026-11-26",
+      "status": "source_discovered",
+      "availability": "confirm_with_provider",
+      "cadence": "weekly_review"
+    },
+    {
+      "organization": "Charleston Habitat for Humanity",
+      "sourceUrl": "https://www.charlestonhabitat.org/get-involved/volunteer/",
+      "summary": "Construction, ReStore and administrative support",
+      "sourceCheckedOn": "2026-11-26",
+      "status": "source_discovered",
+      "availability": "confirm_with_provider",
+      "cadence": "weekly_review"
+    },
+    {
+      "organization": "Charleston County Parks",
+      "sourceUrl": "https://www.ccprc.com/volunteer/",
+      "summary": "Park programs and stewardship",
+      "sourceCheckedOn": "2026-11-26",
+      "status": "source_discovered",
+      "availability": "confirm_with_provider",
+      "cadence": "weekly_review"
+    },
+    {
+      "organization": "Charleston FRIENDS of the Library",
+      "sourceUrl": "https://www.charlestonlibraryfriends.org/volunteer",
+      "summary": "Book sorting, sales and literacy events",
+      "sourceCheckedOn": "2026-11-26",
+      "status": "source_discovered",
+      "availability": "confirm_with_provider",
+      "cadence": "weekly_review"
+    }
+  ]
+}
