@@ -627,7 +627,7 @@
       if (profile()?.user_id !== uid) throw new Error('Profile identity unavailable');
       const table = client.from('hpe_participation_consent');
       const result = action === 'join'
-        ? await table.insert({consent_version:1,adult_confirmed:true,scope:'charleston-sc'})
+        ? await table.insert({user_id:uid,consent_version:1,adult_confirmed:true,scope:'charleston-sc'})
         : action === 'leave'
           ? await table.delete().eq('user_id',uid)
           : await table.select('consent_version,adult_confirmed,scope').eq('user_id',uid).maybeSingle();
@@ -696,7 +696,7 @@
         const explanation = document.createElement('p');
         explanation.textContent = 'Optional study: report whether you made a meaningful contribution during the study window. Your response is private, not used for recommendations, and can be deleted by withdrawing. Declining does not affect access.';
         slot.append(explanation);
-        button('Agree and join research',()=>client.from('hpe_research_consent').insert({consent_version:1}));
+        button('Agree and join research',()=>client.from('hpe_research_consent').insert({user_id:uid,consent_version:1}));
       }
       if (consent) {
         button('Withdraw research and delete response',()=>client.from('hpe_research_consent').delete().eq('user_id',uid));
@@ -712,7 +712,7 @@
           button('Save private response',()=> {
             if (!select.value) throw new Error('Choose a response');
             const table = client.from('hpe_outcome_response');
-            return responseResult.data ? table.update({response:select.value}).eq('user_id',uid) : table.insert({response:select.value});
+            return responseResult.data ? table.update({response:select.value}).eq('user_id',uid) : table.insert({user_id:uid,response:select.value});
           });
         }
       }
