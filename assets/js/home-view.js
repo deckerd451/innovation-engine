@@ -256,10 +256,44 @@
   }
 
   // Invitations only: never a project the member already created or joined.
+  // External inventory is supplied by a reviewed publisher, never by inferred matches.
+  function externalPick(rows, dismissed, now = Date.now()) {
+    if (!Array.isArray(rows)) return null;
+    for (const row of rows) {
+      if (!row || row.status !== 'published' || typeof row.title !== 'string' || !row.title.trim() ||
+          typeof row.organization !== 'string' || !row.organization.trim() || typeof row.sourceUrl !== 'string') continue;
+      const reviewed = Date.parse(row.reviewedAt), expires = Date.parse(row.deadline);
+      if (!Number.isFinite(reviewed) || reviewed > now || now - reviewed > 7 * 86400000 ||
+          !Number.isFinite(expires) || expires <= now) continue;
+      let url;
+      try { url = new URL(row.sourceUrl); } catch (_) { continue; }
+      if (url.protocol !== 'https:' || url.username || url.password || dismissed.has(url.href)) continue;
+      return { title: row.title, organization: row.organization, url: url.href };
+    }
+    return null;
+  }
+
+  const externalDismissed = new Set();
+  let externalMember = null;
+
   function paintJoin() {
     const ownProjectIds = state.mine && state.mine !== 'error' ? state.mine.projects.map(project => project.id) : [];
     const suggestions = digest().homeSuggestions?.({ ownProjectIds }) || { joinIn: [] };
     const items = (suggestions.joinIn || []).slice(0, 1);
+    const member = profile()?.id;
+    if (externalMember !== member) { externalDismissed.clear(); externalMember = member; }
+    const external = member && window.HPEParticipationPilot === true && suggestions.status === 'ready' && !items.length
+      ? externalPick(window.HPEPublishedOpportunities, externalDismissed) : null;
+    if (external) {
+      setSection('join', `<ul class="home-picks"><li class="home-pick"><span class="home-kind">External opportunity</span><strong>${esc(external.title)}</strong><p class="home-muted">${esc(external.organization)} · Check availability with provider</p><div class="home-pick-actions"><a class="home-action" href="${esc(external.url)}" target="_blank" rel="noopener noreferrer">Visit provider (new tab)</a><button type="button" class="home-dismiss" data-external-skip>Not now</button></div></li></ul>`);
+      part('join')?.querySelector('[data-external-skip]')?.addEventListener('click', () => {
+        externalDismissed.add(external.url);
+        paintJoin();
+        paintHappening();
+      });
+      paintPicked();
+      return;
+    }
     const kind = (type) => ({ project: 'Project you could join', opportunity: 'Opportunity' }[type] || '');
     setSection('join', items.length ? `<ul class="home-picks">${items.map((item, index) => {
       const reasons = String(item.reason || '').split(' · ').filter(Boolean);
@@ -689,7 +723,7 @@
   // chooseNextTask: the rule a project's own overview uses for its next step
   // (node-panel.js); Home itself no longer picks a task.
   window.HomeView = { show, clear, focusGoal, chooseNextTask };
-  window.HomeViewTesting = { taskScore, chooseNextTask, loadMine, wantsCuriosityPrompt, matchIdea, preferParticipation, learningQuery };
+  window.HomeViewTesting = { taskScore, chooseNextTask, loadMine, wantsCuriosityPrompt, matchIdea, preferParticipation, learningQuery, externalPick };
 
   window.addEventListener('daily-brief-updated', () => { if (host) calmly(paintSuggestions); });
   window.addEventListener('total-unread-messages-updated', (event) => {
