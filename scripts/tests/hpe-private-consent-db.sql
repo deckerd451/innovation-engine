@@ -1,7 +1,7 @@
 \set ON_ERROR_STOP on
 BEGIN;
 INSERT INTO auth.users(id) VALUES ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'), ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
-INSERT INTO public.hpe_research_window VALUES (1,now()+interval '1 day',now()+interval '721 hours',now()+interval '745 hours');
+INSERT INTO public.hpe_research_window VALUES (1,now()+interval '24 hours',now()+interval '744 hours',now()+interval '768 hours');
 SELECT set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',true);
 SET LOCAL ROLE authenticated;
 INSERT INTO public.hpe_participation_consent(consent_version,adult_confirmed,scope) VALUES (1,true,'charleston-sc');
