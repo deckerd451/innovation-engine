@@ -1,0 +1,8 @@
+BEGIN;
+DROP FUNCTION public.hpoe_my_collaborations(uuid);
+DROP FUNCTION public.hpoe_advance(uuid, uuid, text);
+DROP FUNCTION public.hpoe_invite(uuid, uuid, text);
+DROP FUNCTION public.hpoe_candidates(uuid);
+DROP TABLE public.hpoe_collaboration;
+DROP TABLE public.hpoe_opt_in;
+COMMIT;

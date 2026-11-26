@@ -181,3 +181,10 @@ for f in supabase/sql/migrations/20261126_hpe_private_consent.sql supabase/sql/m
   "${PSQL[@]}" -d ie_hpe -f "$ROOT/$f" >/dev/null
 done
 echo "   ok (including rollback)"
+
+echo "HPOE voluntary collaboration authorization"
+"${PSQL[@]}" -d postgres -c "CREATE DATABASE ie_hpoe" >/dev/null
+for f in scripts/tests/fixtures/supabase-minimal-bootstrap.sql scripts/tests/hpoe-collaboration-bootstrap.sql supabase/sql/migrations/20261128_hpoe_collaboration.sql scripts/tests/hpoe-collaboration-db.sql supabase/sql/rollback/20261128_hpoe_collaboration_rollback.sql; do
+  "${PSQL[@]}" -d ie_hpoe -f "$ROOT/$f" >/dev/null
+done
+echo "   ok (including rollback)"
