@@ -2,70 +2,130 @@
   "schemaVersion": 1,
   "opportunities": [
     {
-      "title": "Sort and pack food",
+      "title": "Dog enrichment",
+      "organization": "Charleston Animal Society",
+      "sourceUrl": "https://charlestonanimalsociety.org/volunteer/",
+      "pathwayId": "dog-enrichment",
+      "topics": [
+        "animals",
+        "volunteering"
+      ],
+      "reviewedAt": "2026-11-26T17:00:00Z",
+      "deadline": "2026-12-03T17:00:00Z",
+      "availability": "provider confirmation required",
+      "participationType": "contribution",
+      "geographicRelevance": "charleston-sc",
+      "eligibility": "adult_public",
+      "kind": "recurring_program",
+      "status": "published",
+      "deadlineMeaning": "review expiry or earlier opportunity cutoff"
+    },
+    {
+      "title": "Cat care",
+      "organization": "Charleston Animal Society",
+      "sourceUrl": "https://charlestonanimalsociety.org/volunteer/",
+      "pathwayId": "cat-care",
+      "topics": [
+        "animals",
+        "volunteering"
+      ],
+      "reviewedAt": "2026-11-26T17:00:00Z",
+      "deadline": "2026-12-03T17:00:00Z",
+      "availability": "provider confirmation required",
+      "participationType": "contribution",
+      "geographicRelevance": "charleston-sc",
+      "eligibility": "adult_public",
+      "kind": "recurring_program",
+      "status": "published",
+      "deadlineMeaning": "review expiry or earlier opportunity cutoff"
+    },
+    {
+      "title": "Clinic volunteer support",
+      "organization": "Charleston Animal Society",
+      "sourceUrl": "https://charlestonanimalsociety.org/volunteer/",
+      "pathwayId": "clinic-support",
+      "topics": [
+        "animals",
+        "volunteering"
+      ],
+      "reviewedAt": "2026-11-26T17:00:00Z",
+      "deadline": "2026-12-03T17:00:00Z",
+      "availability": "provider confirmation required",
+      "participationType": "contribution",
+      "geographicRelevance": "charleston-sc",
+      "eligibility": "adult_public",
+      "kind": "recurring_program",
+      "status": "published",
+      "deadlineMeaning": "review expiry or earlier opportunity cutoff"
+    },
+    {
+      "title": "Shelter cleaning and laundry",
+      "organization": "Charleston Animal Society",
+      "sourceUrl": "https://charlestonanimalsociety.org/volunteer/",
+      "pathwayId": "shelter-cleaning",
+      "topics": [
+        "animals",
+        "volunteering"
+      ],
+      "reviewedAt": "2026-11-26T17:00:00Z",
+      "deadline": "2026-12-03T17:00:00Z",
+      "availability": "provider confirmation required",
+      "participationType": "contribution",
+      "geographicRelevance": "charleston-sc",
+      "eligibility": "adult_public",
+      "kind": "recurring_program",
+      "status": "published",
+      "deadlineMeaning": "review expiry or earlier opportunity cutoff"
+    },
+    {
+      "title": "Adoption event support",
+      "organization": "Charleston Animal Society",
+      "sourceUrl": "https://charlestonanimalsociety.org/volunteer/",
+      "pathwayId": "adoption-events",
+      "topics": [
+        "animals",
+        "volunteering"
+      ],
+      "reviewedAt": "2026-11-26T17:00:00Z",
+      "deadline": "2026-12-03T17:00:00Z",
+      "availability": "provider confirmation required",
+      "participationType": "contribution",
+      "geographicRelevance": "charleston-sc",
+      "eligibility": "adult_public",
+      "kind": "recurring_program",
+      "status": "published",
+      "deadlineMeaning": "review expiry or earlier opportunity cutoff"
+    },
+    {
+      "title": "Help transport animals during emergency response",
+      "organization": "Charleston Animal Society",
+      "sourceUrl": "https://charlestonanimalsociety.org/volunteer/",
+      "pathwayId": "emergency-transport",
+      "topics": [
+        "animals",
+        "volunteering"
+      ],
+      "reviewedAt": "2026-11-26T17:00:00Z",
+      "deadline": "2026-12-03T17:00:00Z",
+      "availability": "provider confirmation required",
+      "participationType": "contribution",
+      "geographicRelevance": "charleston-sc",
+      "eligibility": "adult_public",
+      "kind": "recurring_program",
+      "status": "published",
+      "deadlineMeaning": "review expiry or earlier opportunity cutoff"
+    },
+    {
+      "title": "Sort and pack donated food",
       "organization": "Lowcountry Food Bank",
       "sourceUrl": "https://lowcountryfoodbank.org/get-involved/volunteer/",
+      "pathwayId": "food-packing",
       "topics": [
         "food",
-        "community service"
+        "volunteering"
       ],
-      "reviewedAt": "2026-11-26T16:54:00Z",
-      "deadline": "2026-12-03T16:54:00Z",
-      "availability": "provider confirmation required",
-      "participationType": "contribution",
-      "geographicRelevance": "charleston-sc",
-      "eligibility": "adult_public",
-      "kind": "recurring_program",
-      "status": "published",
-      "deadlineMeaning": "review expiry or earlier opportunity cutoff"
-    },
-    {
-      "title": "Explore garden stewardship volunteering",
-      "organization": "Charleston Parks Conservancy",
-      "sourceUrl": "https://www.charlestonparksconservancy.org/volunteer/",
-      "topics": [
-        "gardening",
-        "environment"
-      ],
-      "reviewedAt": "2026-11-26T16:54:00Z",
-      "deadline": "2026-12-03T16:54:00Z",
-      "availability": "provider confirmation required",
-      "participationType": "contribution",
-      "geographicRelevance": "charleston-sc",
-      "eligibility": "adult_public",
-      "kind": "recurring_program",
-      "status": "published",
-      "deadlineMeaning": "review expiry or earlier opportunity cutoff"
-    },
-    {
-      "title": "Explore county park volunteering",
-      "organization": "Charleston County Parks",
-      "sourceUrl": "https://www.ccprc.com/volunteer/",
-      "topics": [
-        "parks",
-        "environment"
-      ],
-      "reviewedAt": "2026-11-26T16:54:00Z",
-      "deadline": "2026-12-03T16:54:00Z",
-      "availability": "provider confirmation required",
-      "participationType": "contribution",
-      "geographicRelevance": "charleston-sc",
-      "eligibility": "adult_public",
-      "kind": "recurring_program",
-      "status": "published",
-      "deadlineMeaning": "review expiry or earlier opportunity cutoff"
-    },
-    {
-      "title": "Apply for ongoing aquarium volunteering",
-      "organization": "South Carolina Aquarium",
-      "sourceUrl": "https://scaquarium.org/volunteer/",
-      "topics": [
-        "conservation",
-        "education",
-        "animals"
-      ],
-      "reviewedAt": "2026-11-26T16:54:00Z",
-      "deadline": "2026-12-03T16:54:00Z",
+      "reviewedAt": "2026-11-26T17:00:00Z",
+      "deadline": "2026-12-03T17:00:00Z",
       "availability": "provider confirmation required",
       "participationType": "contribution",
       "geographicRelevance": "charleston-sc",
