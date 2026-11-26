@@ -295,9 +295,12 @@
           !Number.isFinite(expires) || expires <= now) continue;
       let url;
       try { url = new URL(row.sourceUrl); } catch (_) { continue; }
-      if (url.protocol !== 'https:' || url.username || url.password || dismissed.has(url.href)) continue;
+      if (url.protocol !== 'https:' || url.username || url.password) continue;
+      if (row.pathwayId != null && (typeof row.pathwayId !== 'string' || !/^[a-z0-9][a-z0-9-]{0,79}$/.test(row.pathwayId))) continue;
+      const dismissalKey = row.pathwayId ? JSON.stringify([url.href, row.pathwayId]) : url.href;
+      if (dismissed.has(dismissalKey)) continue;
       const matched = [...new Set((Array.isArray(row.topics) ? row.topics : []).filter(t => typeof t === 'string').map(t => t.trim().toLowerCase()).filter(t => wanted.has(t)))];
-      if (matched.length > bestScore) { bestScore = matched.length; best = { title: row.title, organization: row.organization, url: url.href }; }
+      if (matched.length > bestScore) { bestScore = matched.length; best = { title: row.title, organization: row.organization, url: url.href, ...(row.pathwayId ? { dismissalKey } : {}) }; }
     }
     return best;
   }
@@ -344,7 +347,7 @@
     if (external) {
       setSection('join', `<ul class="home-picks"><li class="home-pick"><span class="home-kind">External opportunity</span><strong>${esc(external.title)}</strong><p class="home-muted">${esc(external.organization)} · Check availability with provider</p><div class="home-pick-actions"><a class="home-action" href="${esc(external.url)}" target="_blank" rel="noopener noreferrer">Visit provider (new tab)</a><button type="button" class="home-dismiss" data-external-skip>Not now</button></div></li></ul>`);
       part('join')?.querySelector('[data-external-skip]')?.addEventListener('click', () => {
-        externalDismissed.add(external.url);
+        externalDismissed.add(external.dismissalKey || external.url);
         paintJoin();
         paintHappening();
       });
