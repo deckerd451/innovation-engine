@@ -13,3 +13,14 @@ for (const patch of [{status:'staged'},{sourceUrl:'javascript:alert(1)'},{source
 assert.equal(pick([row],new Set([row.sourceUrl]),now),null);
 assert.equal(pick(null,new Set(),now),null);
 console.log('External opportunity fallback checks passed');
+
+// Guard against moving session resets back into the deferred paint handler.
+const source = fs.readFileSync('assets/js/home-view.js','utf8');
+const deferred = source.slice(source.indexOf('function calmly('),source.indexOf('function paintSuggestions('));
+const clear = source.slice(source.indexOf('function clear()'),source.indexOf('function show()'));
+assert.ok(deferred.includes('paints.forEach'), 'deferred paint handler found');
+for (const reset of ['externalGeneration += 1','externalInventory = []','externalLoadedAt = 0','externalLoading = false','externalDismissed.clear()','externalMember = null']) {
+  assert.ok(!deferred.includes(reset), 'deferred paint must preserve: '+reset);
+  assert.ok(clear.includes(reset), 'session clear must reset: '+reset);
+}
+console.log('External inventory lifecycle guard passed');
