@@ -138,5 +138,65 @@
       "food",
       "volunteering"
     ]
+  },
+  {
+    "title": "Help build affordable homes",
+    "organization": "Charleston Habitat for Humanity",
+    "sourceUrl": "https://charlestonhabitat.charityproud.org/VolunteerRegistration/Calendar/10145",
+    "pathwayId": "construction",
+    "reviewStatus": "verified",
+    "reviewedAt": "2026-11-26T17:00:00Z",
+    "deadline": "2026-12-03T17:00:00Z",
+    "reviewer": "Official provider pages retrieved 2026-11-26",
+    "evidenceNote": "Registration page explicitly permits adults, requires waiver and describes weekly construction schedules; confirm current shifts.",
+    "availability": "provider_confirmation_required",
+    "participationType": "contribution",
+    "geographicRelevance": "charleston-sc",
+    "eligibility": "adult_public",
+    "kind": "recurring_program",
+    "topics": [
+      "construction",
+      "housing"
+    ]
+  },
+  {
+    "title": "Help operate the ReStore",
+    "organization": "Charleston Habitat for Humanity",
+    "sourceUrl": "https://www.charlestonhabitat.org/restore/",
+    "pathwayId": "restore",
+    "reviewStatus": "verified",
+    "reviewedAt": "2026-11-26T17:00:00Z",
+    "deadline": "2026-12-03T17:00:00Z",
+    "reviewer": "Official provider pages retrieved 2026-11-26",
+    "evidenceNote": "Current official store page invites individuals including retirees to register for volunteer shifts; confirm current schedule and orientation with provider.",
+    "availability": "provider_confirmation_required",
+    "participationType": "contribution",
+    "geographicRelevance": "charleston-sc",
+    "eligibility": "adult_public",
+    "kind": "recurring_program",
+    "topics": [
+      "retail",
+      "housing"
+    ]
+  },
+  {
+    "title": "Support administrative office work",
+    "organization": "Charleston Habitat for Humanity",
+    "sourceUrl": "https://www.charlestonhabitat.org/get-involved/volunteer/",
+    "pathwayId": "office",
+    "reviewStatus": "verified",
+    "reviewedAt": "2026-11-26T17:00:00Z",
+    "deadline": "2026-12-03T17:00:00Z",
+    "reviewer": "Official provider pages retrieved 2026-11-26",
+    "evidenceNote": "Official public volunteer page welcomes individuals including retirees and provides office contact pathway for administrative work; assignments subject to confirmation.",
+    "availability": "provider_confirmation_required",
+    "participationType": "contribution",
+    "geographicRelevance": "charleston-sc",
+    "eligibility": "adult_public",
+    "kind": "recurring_program",
+    "topics": [
+      "administration",
+      "housing"
+    ]
   }
 ]
