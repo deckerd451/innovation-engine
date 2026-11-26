@@ -1,4 +1,49 @@
 {
   "schemaVersion": 1,
-  "opportunities": []
+  "opportunities": [
+    {
+      "title": "Sort and pack food",
+      "organization": "Lowcountry Food Bank",
+      "sourceUrl": "https://lowcountryfoodbank.org/get-involved/volunteer/",
+      "status": "published",
+      "reviewedAt": "2026-11-26T00:00:00Z",
+      "deadline": "2026-12-03T00:00:00Z",
+      "deadlineMeaning": "review expiry, not provider deadline",
+      "availability": "provider confirmation required",
+      "kind": "recurring_program"
+    },
+    {
+      "title": "Help care for community gardens",
+      "organization": "Charleston Parks Conservancy",
+      "sourceUrl": "https://www.charlestonparksconservancy.org/volunteer/",
+      "status": "published",
+      "reviewedAt": "2026-11-26T00:00:00Z",
+      "deadline": "2026-12-03T00:00:00Z",
+      "deadlineMeaning": "review expiry, not provider deadline",
+      "availability": "provider confirmation required",
+      "kind": "recurring_program"
+    },
+    {
+      "title": "Help build homes or support ReStore",
+      "organization": "Charleston Habitat for Humanity",
+      "sourceUrl": "https://www.charlestonhabitat.org/get-involved/volunteer/",
+      "status": "published",
+      "reviewedAt": "2026-11-26T00:00:00Z",
+      "deadline": "2026-12-03T00:00:00Z",
+      "deadlineMeaning": "review expiry, not provider deadline",
+      "availability": "provider confirmation required",
+      "kind": "recurring_program"
+    },
+    {
+      "title": "Support county park programs",
+      "organization": "Charleston County Parks",
+      "sourceUrl": "https://www.ccprc.com/volunteer/",
+      "status": "published",
+      "reviewedAt": "2026-11-26T00:00:00Z",
+      "deadline": "2026-12-03T00:00:00Z",
+      "deadlineMeaning": "review expiry, not provider deadline",
+      "availability": "provider confirmation required",
+      "kind": "recurring_program"
+    }
+  ]
 }
