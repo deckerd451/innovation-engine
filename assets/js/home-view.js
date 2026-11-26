@@ -797,6 +797,9 @@
       </form>
       <p class="home-idea-example">Try: <button type="button" class="home-link" data-idea-example="I'm looking for help with community building">Community building</button></p>
       <div class="home-idea-results" aria-live="polite"></div><div data-pilot-control hidden></div>`;
+    if (window.HPOECollaborationPilot === true && profile()?.user_id && window.supabase) {
+      window.HPOECollaboration?.mount(el, window.supabase, profile().user_id, profile);
+    }
     // The example fills the field to edit or send; it never searches by itself.
     el.querySelector('[data-idea-example]').addEventListener('click', (event) => {
       const input = el.querySelector('#home-idea-input');

@@ -202,3 +202,8 @@
 .home-invite-action{color:#9eefff;font-size:.82rem;font-weight:700;margin-top:.25rem}
 
 .home-idea [data-pilot-control] summary{min-block-size:2rem;cursor:pointer}
+
+.home-collaboration { margin-block-start: .5rem; }
+.home-collaboration summary { min-block-size: 2rem; cursor: pointer; }
+.home-collaboration button { min-block-size: 2rem; margin-inline-end: .75rem; }
+.home-collaboration input { max-inline-size: 100%; }

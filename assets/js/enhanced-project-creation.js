@@ -126,7 +126,7 @@ export function initEnhancedProjectCreation() {
 }
 
 // Show enhanced project creation modal
-export async function showEnhancedProjectCreation() {
+export async function showEnhancedProjectCreation(draft) {
   console.log('🚀 Opening enhanced project creation modal');
 
   // Remove existing modal if present
@@ -454,6 +454,12 @@ export async function showEnhancedProjectCreation() {
   `;
   document.head.appendChild(style);
 
+  if (typeof draft?.title === 'string') {
+    modal.querySelector('#enhanced-project-name').value = draft.title;
+  }
+  if (typeof draft?.description === 'string') {
+    modal.querySelector('#enhanced-project-description').value = draft.description;
+  }
   document.body.appendChild(modal);
 
   // Initialize the modal
