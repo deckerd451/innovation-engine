@@ -1,0 +1,38 @@
+{
+  "reviewedOn": "2026-11-26",
+  "status": "needs_review",
+  "providers": [
+    {
+      "organization": "Charleston Habitat for Humanity",
+      "sourceUrl": "https://www.charlestonhabitat.org/get-involved/volunteer/",
+      "pathways": [
+        "Construction volunteering",
+        "ReStore volunteering",
+        "Administrative support",
+        "CORE construction training"
+      ],
+      "evidence": "Public calendar, office contact and CORE interest form; retirees explicitly welcomed. Confirm role requirements and available shifts."
+    },
+    {
+      "organization": "Charleston FRIENDS of the Library",
+      "sourceUrl": "https://www.charlestonlibraryfriends.org/volunteer",
+      "pathways": [
+        "Book sales",
+        "Sorting room",
+        "Literacy events",
+        "Bookstore volunteering"
+      ],
+      "evidence": "Public interest survey, local venues and recurring shifts described; confirm eligibility and assignments."
+    },
+    {
+      "organization": "Charleston Parks Conservancy",
+      "sourceUrl": "https://www.charlestonparksconservancy.org/volunteer/",
+      "pathways": [
+        "Garden in the Parks",
+        "Gather & Garden",
+        "Events and stewardship days"
+      ],
+      "evidence": "Public steward application and event signup; confirm role eligibility and dates."
+    }
+  ]
+}
