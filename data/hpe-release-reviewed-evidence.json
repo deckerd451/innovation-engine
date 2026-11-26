@@ -198,5 +198,65 @@
       "administration",
       "housing"
     ]
+  },
+  {
+    "title": "Garden in the Parks",
+    "organization": "Charleston Parks Conservancy",
+    "sourceUrl": "https://www.charlestonparksconservancy.org/volunteer/",
+    "pathwayId": "garden-in-parks",
+    "reviewStatus": "verified",
+    "reviewedAt": "2026-11-26T17:00:00Z",
+    "deadline": "2026-12-03T17:00:00Z",
+    "reviewer": "Official provider and school district directory review",
+    "evidenceNote": "Provider lists recurring stewardship sessions and event signup; school district directory states age 16 or accompanied by adult: https://resources.finalsite.net/images/v1748378138/ccsdschoolscom/qnoxrf6igr0uejpqmco7/25-26SOADisadvantagedPopulationList.pdf ; confirm current assignments.",
+    "availability": "provider_confirmation_required",
+    "participationType": "contribution",
+    "geographicRelevance": "charleston-sc",
+    "eligibility": "adult_public",
+    "kind": "recurring_program",
+    "topics": [
+      "gardening",
+      "environment"
+    ]
+  },
+  {
+    "title": "Gather and Garden",
+    "organization": "Charleston Parks Conservancy",
+    "sourceUrl": "https://www.charlestonparksconservancy.org/volunteer/",
+    "pathwayId": "gather-garden",
+    "reviewStatus": "verified",
+    "reviewedAt": "2026-11-26T17:00:00Z",
+    "deadline": "2026-12-03T17:00:00Z",
+    "reviewer": "Official provider and school district directory review",
+    "evidenceNote": "Provider lists recurring stewardship sessions and event signup; school district directory states age 16 or accompanied by adult: https://resources.finalsite.net/images/v1748378138/ccsdschoolscom/qnoxrf6igr0uejpqmco7/25-26SOADisadvantagedPopulationList.pdf ; confirm current assignments.",
+    "availability": "provider_confirmation_required",
+    "participationType": "contribution",
+    "geographicRelevance": "charleston-sc",
+    "eligibility": "adult_public",
+    "kind": "recurring_program",
+    "topics": [
+      "gardening",
+      "environment"
+    ]
+  },
+  {
+    "title": "Support park events and stewardship days",
+    "organization": "Charleston Parks Conservancy",
+    "sourceUrl": "https://www.charlestonparksconservancy.org/volunteer/",
+    "pathwayId": "park-events",
+    "reviewStatus": "verified",
+    "reviewedAt": "2026-11-26T17:00:00Z",
+    "deadline": "2026-12-03T17:00:00Z",
+    "reviewer": "Official provider and school district directory review",
+    "evidenceNote": "Provider lists recurring stewardship sessions and event signup; school district directory states age 16 or accompanied by adult: https://resources.finalsite.net/images/v1748378138/ccsdschoolscom/qnoxrf6igr0uejpqmco7/25-26SOADisadvantagedPopulationList.pdf ; confirm current assignments.",
+    "availability": "provider_confirmation_required",
+    "participationType": "contribution",
+    "geographicRelevance": "charleston-sc",
+    "eligibility": "adult_public",
+    "kind": "recurring_program",
+    "topics": [
+      "gardening",
+      "environment"
+    ]
   }
 ]
