@@ -13,3 +13,5 @@ for(const patch of [{reviewer:''},{evidenceNote:''},{reviewStatus:'reachable'},{
  assert.equal(rejected.rejectedCount,1);
 }
 console.log('Publication proposal checks passed');
+
+assert.deepEqual(proposeInventory([{...row,topics:[' Garden ','garden',null,'x'.repeat(65)]}],now).inventory.opportunities[0].topics,['garden']);
