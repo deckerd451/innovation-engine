@@ -8,6 +8,8 @@ on:
       - 'scripts/nearify-*.js'
       - 'scripts/tests/test-nearify-public-feed.js'
       - 'scripts/tests/test-nearify-opportunity-intake.js'
+      - 'scripts/opportunity-review-queue.js'
+      - 'scripts/tests/test-opportunity-review-queue.js'
       - 'scripts/opportunity-renewal.js'
       - 'scripts/opportunity-intake.js'
       - 'scripts/opportunity-publication.js'
@@ -44,6 +46,9 @@ jobs:
         env:
           NEARIFY_PUBLISHABLE_KEY: ${{ vars.NEARIFY_PUBLISHABLE_KEY }}
         run: node scripts/nearify-public-feed.js > nearify-candidates.json
+      - run: node scripts/tests/test-opportunity-review-queue.js
+      - if: github.event_name != 'pull_request'
+        run: node scripts/opportunity-review-queue.js provider-candidates.json nearify-candidates.json > unified-review-queue.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -53,3 +58,4 @@ jobs:
             provider-candidates.json
             provider-evidence.json
             nearify-candidates.json
+            unified-review-queue.json
