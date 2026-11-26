@@ -211,13 +211,22 @@
     return Number.isFinite(date.getTime()) ? date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
   };
 
+  // Pilot: reuse the existing next-step slot, never add a second card.
+  // Explicit opt-in is session-local; no new tracking or persistence.
+  function preferParticipation(enabled, hasInvitation, hasPerson) {
+    return enabled === true && hasInvitation ? 'join' : hasPerson ? 'meet' : hasInvitation ? 'join' : null;
+  }
+
   // One next step: inbound attention, otherwise one person or reasoned invitation.
   function paintPicked() {
     const meet = part('meet'), join = part('join'), picked = part('picked');
     if (!picked) return;
-    const hasMeet = !!meet?.innerHTML && !meet.hidden;
-    if (join) join.hidden = hasMeet || !join.innerHTML;
-    picked.hidden = part('attention')?.hidden === false || !(hasMeet || (join && !join.hidden));
+    const hasMeet = !!meet?.innerHTML;
+    const hasInvitation = !!join?.innerHTML;
+    const selected = preferParticipation(window.HPEParticipationPilot === true, hasInvitation, hasMeet);
+    if (meet) meet.hidden = selected !== 'meet';
+    if (join) join.hidden = selected !== 'join';
+    picked.hidden = part('attention')?.hidden === false || !selected;
   }
 
   function paintMeet() {
@@ -672,7 +681,7 @@
   // chooseNextTask: the rule a project's own overview uses for its next step
   // (node-panel.js); Home itself no longer picks a task.
   window.HomeView = { show, clear, focusGoal, chooseNextTask };
-  window.HomeViewTesting = { taskScore, chooseNextTask, loadMine, wantsCuriosityPrompt, matchIdea };
+  window.HomeViewTesting = { taskScore, chooseNextTask, loadMine, wantsCuriosityPrompt, matchIdea, preferParticipation };
 
   window.addEventListener('daily-brief-updated', () => { if (host) calmly(paintSuggestions); });
   window.addEventListener('total-unread-messages-updated', (event) => {
