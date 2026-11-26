@@ -71,7 +71,10 @@ assert.match(panel, /const canViewTasks = rel\.isCreator \|\| rel\.state === 'me
 // Overview: one next step for members, from real tasks; joining for others.
 assert.match(panel, /<section class="pd-next" id="pd-next" aria-live="polite" \$\{canViewTasks \? 'hidden' : ''\}>/);
 assert.match(panel, /if \(typeof window\.HomeView\?\.chooseNextTask === 'function'\) return window\.HomeView\.chooseNextTask\(open\);/, 'the same rule as Home’s Next');
-assert.match(read('assets/js/home-view.js'), /window\.HomeView = \{ show, clear, focusGoal, chooseNextTask \};/);
+const homePage = { addEventListener() {} };
+homePage.window = homePage;
+vm.runInNewContext(read('assets/js/home-view.js'), homePage);
+for (const name of ['show', 'clear', 'focusGoal', 'chooseNextTask']) assert.equal(typeof homePage.HomeView[name], 'function', `Home retains ${name}`);
 assert.match(panel, /const progress = all\.length \? `\$\{done\.length\} of \$\{all\.length\} task/, 'progress is counted from the tasks');
 assert.match(panel, /joinProjectFromPanel\('\$\{project\.id\}'\)">Request to Join<\/button>/, 'anyone not in the project can ask to join from the top');
 assert.match(panel, /rel\.hasPendingRequest \? `[\s\S]{0,200}Waiting for/, 'a pending request says so instead');
