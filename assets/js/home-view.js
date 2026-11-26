@@ -602,29 +602,84 @@
     return match ? match[1].trim() : null;
   }
 
+  // Persistent mode is separately gated until the migration is deployed.
+  let pilotStorageGeneration = 0;
+  let pilotStorageBusy = false;
+  let pilotStorageLoaded = false;
+  let pilotStorageError = false;
+  async function pilotStorage(action) {
+    if (window.HPEPersistentConsent !== true || window.HPEParticipationPilot !== true || pilotStorageBusy) return;
+    const member = profile()?.id, client = window.supabase;
+    if (!member || !client) return;
+    const generation = pilotStorageGeneration;
+    const current = () => generation === pilotStorageGeneration && profile()?.id === member;
+    pilotStorageBusy = true;
+    pilotStorageError = false;
+    try {
+      const auth = await client.auth.getUser();
+      if (!current()) return;
+      if (auth.error || !auth.data?.user?.id) throw new Error('Authentication unavailable');
+      const uid = auth.data.user.id;
+      // Verify the authenticated account owns the currently displayed profile.
+      if (profile()?.user_id !== uid) throw new Error('Profile identity unavailable');
+      const table = client.from('hpe_participation_consent');
+      const result = action === 'join'
+        ? await table.insert({consent_version:1,adult_confirmed:true,scope:'charleston-sc'})
+        : action === 'leave'
+          ? await table.delete().eq('user_id',uid)
+          : await table.select('consent_version,adult_confirmed,scope').eq('user_id',uid).maybeSingle();
+      if (!current()) return;
+      if (result.error) throw result.error;
+      if (action === 'leave' || (action === 'load' && !result.data)) withdrawPilot();
+      else enrollPilot(action === 'join' ? {adultConfirmed:true,scope:'charleston-sc',consentVersion:1}
+        : {adultConfirmed:result.data.adult_confirmed,scope:result.data.scope,consentVersion:result.data.consent_version});
+      pilotStorageLoaded = true;
+    } catch {
+      if (current()) pilotStorageError = true;
+    } finally {
+      if (current()) {
+        pilotStorageBusy = false;
+        const slot = part('goal')?.querySelector('[data-pilot-control]');
+        if (slot) delete slot.dataset.mode;
+        paintPilotControl();
+      }
+    }
+  }
   function paintPilotControl() {
     const slot = part('goal')?.querySelector('[data-pilot-control]');
     if (!slot) return;
     const enabled = window.HPEParticipationPilot === true && !!profile()?.id;
     slot.hidden = !enabled;
-    const mode = !enabled ? 'off' : pilotActive() ? 'joined' : 'invite';
+    const persistent = window.HPEPersistentConsent === true;
+    const mode = !enabled ? 'off' : persistent && !pilotStorageLoaded ? 'loading' : pilotActive() ? 'joined' : 'invite';
     if (slot.dataset.mode === mode) return;
     slot.dataset.mode = mode;
     if (!enabled) { slot.innerHTML = ''; return; }
+    if (mode === 'loading') {
+      slot.textContent = pilotStorageError ? 'Unable to load pilot enrollment.' : 'Checking pilot enrollment…';
+      if (pilotStorageError) { const retry = document.createElement('button'); retry.textContent = 'Retry'; retry.type = 'button'; retry.onclick = () => pilotStorage('load'); slot.append(retry); }
+      return;
+    }
     slot.innerHTML = mode === 'joined'
       ? '<p class="home-muted">Participation pilot active for this session.</p><button type="button" class="home-link" data-pilot-leave>Leave pilot</button>'
       : '<details><summary>Try the local participation pilot (optional)</summary><p>Get suggestions for contributing, learning or connecting in the Charleston area. Your existing interests may help match suggestions. Enrollment lasts for this session; leaving restores the usual experience. Joining is not required to use the community.</p><label><input type="checkbox" data-pilot-confirm> I am 18 or older, want Charleston-area suggestions, and agree to try this pilot.</label><p><button type="button" class="home-action" data-pilot-join disabled>Join pilot</button></p></details>';
+    if (persistent) {
+      slot.innerHTML = slot.innerHTML.replace('active for this session','active').replace('Enrollment lasts for this session; leaving restores the usual experience.','Enrollment is saved to your account; leaving deletes pilot consent and associated research responses.');
+      if (pilotStorageError) { const notice = document.createElement('p'); notice.setAttribute('role','status'); notice.textContent = 'Unable to save your change. Please retry.'; slot.append(notice); }
+    }
     const confirm = slot.querySelector('[data-pilot-confirm]');
     const join = slot.querySelector('[data-pilot-join]');
     confirm?.addEventListener('change', () => { join.disabled = !confirm.checked; });
     join?.addEventListener('click', () => {
       if (!confirm.checked) return;
+      if (persistent) { join.disabled = true; pilotStorage('join'); return; }
       if (enrollPilot({adultConfirmed:true,scope:'charleston-sc',consentVersion:1})) {
         paintPilotControl();
         slot.querySelector('[data-pilot-leave]')?.focus();
       }
     });
     slot.querySelector('[data-pilot-leave]')?.addEventListener('click', () => {
+      if (persistent) { pilotStorage('leave'); return; }
       withdrawPilot();
       paintPilotControl();
       slot.querySelector('summary')?.focus();
@@ -761,6 +816,10 @@
   }
 
   function clear() {
+    pilotStorageGeneration += 1;
+    pilotStorageBusy = false;
+    pilotStorageLoaded = false;
+    pilotStorageError = false;
     pilotEnrollment = null;
     request += 1;
     externalGeneration += 1;
@@ -801,6 +860,7 @@
       avatarNode.innerHTML = photo ? `<img src="${esc(photo)}" alt="">` : esc((displayName(p) || 'M').slice(0, 1).toUpperCase());
     }
     paintPilotControl();
+    if (!pilotStorageLoaded && !pilotStorageError) pilotStorage('load');
     paintProfilePrompt();
     paintAttention();
     paintMine();
