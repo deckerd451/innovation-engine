@@ -258,5 +258,102 @@
       "gardening",
       "environment"
     ]
+  },
+  {
+    "title": "Prepare meals for seniors",
+    "organization": "Charleston Area Seniors",
+    "sourceUrl": "https://charlestonareaseniors.org/volunteer/",
+    "pathwayId": "meal-prep",
+    "reviewStatus": "verified",
+    "reviewedAt": "2026-11-26T17:00:00Z",
+    "deadline": "2026-12-03T17:00:00Z",
+    "reviewer": "Official provider page inspected 2026-11-26",
+    "evidenceNote": "Provider welcomes all ages and backgrounds, lists this role and online application; minimum six hours per month; assignment and screening subject to provider confirmation.",
+    "availability": "provider_confirmation_required",
+    "participationType": "contribution",
+    "geographicRelevance": "charleston-sc",
+    "eligibility": "adult_public",
+    "kind": "recurring_program",
+    "topics": [
+      "food",
+      "community service"
+    ]
+  },
+  {
+    "title": "Assist meal delivery",
+    "organization": "Charleston Area Seniors",
+    "sourceUrl": "https://charlestonareaseniors.org/volunteer/",
+    "pathwayId": "delivery-helper",
+    "reviewStatus": "verified",
+    "reviewedAt": "2026-11-26T17:00:00Z",
+    "deadline": "2026-12-03T17:00:00Z",
+    "reviewer": "Official provider page inspected 2026-11-26",
+    "evidenceNote": "Provider welcomes all ages and backgrounds, lists this role and online application; minimum six hours per month; assignment and screening subject to provider confirmation.",
+    "availability": "provider_confirmation_required",
+    "participationType": "contribution",
+    "geographicRelevance": "charleston-sc",
+    "eligibility": "adult_public",
+    "kind": "recurring_program",
+    "topics": [
+      "community service"
+    ]
+  },
+  {
+    "title": "Help with senior center activities",
+    "organization": "Charleston Area Seniors",
+    "sourceUrl": "https://charlestonareaseniors.org/volunteer/",
+    "pathwayId": "senior-activities",
+    "reviewStatus": "verified",
+    "reviewedAt": "2026-11-26T17:00:00Z",
+    "deadline": "2026-12-03T17:00:00Z",
+    "reviewer": "Official provider page inspected 2026-11-26",
+    "evidenceNote": "Provider welcomes all ages and backgrounds, lists this role and online application; minimum six hours per month; assignment and screening subject to provider confirmation.",
+    "availability": "provider_confirmation_required",
+    "participationType": "contribution",
+    "geographicRelevance": "charleston-sc",
+    "eligibility": "adult_public",
+    "kind": "recurring_program",
+    "topics": [
+      "community service"
+    ]
+  },
+  {
+    "title": "Teach a skill at the senior center",
+    "organization": "Charleston Area Seniors",
+    "sourceUrl": "https://charlestonareaseniors.org/volunteer/",
+    "pathwayId": "skills",
+    "reviewStatus": "verified",
+    "reviewedAt": "2026-11-26T17:00:00Z",
+    "deadline": "2026-12-03T17:00:00Z",
+    "reviewer": "Official provider page inspected 2026-11-26",
+    "evidenceNote": "Provider welcomes all ages and backgrounds, lists this role and online application; minimum six hours per month; assignment and screening subject to provider confirmation.",
+    "availability": "provider_confirmation_required",
+    "participationType": "contribution",
+    "geographicRelevance": "charleston-sc",
+    "eligibility": "adult_public",
+    "kind": "recurring_program",
+    "topics": [
+      "learning",
+      "community service"
+    ]
+  },
+  {
+    "title": "Assist with center maintenance",
+    "organization": "Charleston Area Seniors",
+    "sourceUrl": "https://charlestonareaseniors.org/volunteer/",
+    "pathwayId": "maintenance",
+    "reviewStatus": "verified",
+    "reviewedAt": "2026-11-26T17:00:00Z",
+    "deadline": "2026-12-03T17:00:00Z",
+    "reviewer": "Official provider page inspected 2026-11-26",
+    "evidenceNote": "Provider welcomes all ages and backgrounds, lists this role and online application; minimum six hours per month; assignment and screening subject to provider confirmation.",
+    "availability": "provider_confirmation_required",
+    "participationType": "contribution",
+    "geographicRelevance": "charleston-sc",
+    "eligibility": "adult_public",
+    "kind": "recurring_program",
+    "topics": [
+      "community service"
+    ]
   }
 ]
