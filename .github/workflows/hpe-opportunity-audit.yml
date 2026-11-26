@@ -6,6 +6,9 @@ on:
   pull_request:
     paths:
       - 'scripts/opportunity-renewal.js'
+      - 'scripts/opportunity-intake.js'
+      - 'scripts/tests/test-opportunity-intake.js'
+      - 'data/opportunity-sources-charleston.json'
       - 'scripts/tests/test-opportunity-renewal.js'
       - 'data/hpe-published-opportunities.json'
       - '.github/workflows/hpe-opportunity-audit.yml'
@@ -21,7 +24,11 @@ jobs:
           node-version: '22'
       - run: node scripts/tests/test-opportunity-renewal.js
       - run: node scripts/opportunity-renewal.js | tee opportunity-review.json
+      - run: node scripts/tests/test-opportunity-intake.js
+      - run: node scripts/opportunity-intake.js | tee provider-candidates.json
       - uses: actions/upload-artifact@v4
         with:
           name: opportunity-review
-          path: opportunity-review.json
+          path: |
+            opportunity-review.json
+            provider-candidates.json
