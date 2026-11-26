@@ -49,3 +49,20 @@ assert.equal(page.HomeView.enrollPilot({adultConfirmed:true,scope:'charleston-sc
 page.HomeView.withdrawPilot();
 page.HPEParticipationPilot=false;
 assert.equal(page.HomeView.enrollPilot({adultConfirmed:true,scope:'charleston-sc',consentVersion:1}),false);
+
+
+const firstPath = {...row, pathwayId:'dog-care', title:'Dog care'};
+const secondPath = {...row, pathwayId:'cat-care', title:'Cat care'};
+const firstPick = pick([firstPath,secondPath],new Set(),now);
+assert.equal(firstPick.title,'Dog care');
+assert.equal(firstPick.dismissalKey,JSON.stringify([row.sourceUrl,'dog-care']));
+const skipped = new Set([firstPick.dismissalKey]);
+const secondPick = pick([firstPath,secondPath],skipped,now);
+assert.equal(secondPick.title,'Cat care');
+skipped.add(secondPick.dismissalKey);
+assert.equal(pick([firstPath,secondPath],skipped,now),null);
+for (const pathwayId of ['', 'UPPER', 'bad/path', 123, 'a'.repeat(81)]) {
+  assert.equal(pick([{...row,pathwayId}],new Set(),now),null);
+}
+assert.equal(pick([row],new Set([row.sourceUrl]),now),null);
+console.log('Independent pathway dismissal checks passed');
