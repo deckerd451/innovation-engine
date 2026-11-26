@@ -612,7 +612,7 @@
     const member = profile()?.id, client = window.supabase;
     if (!member || !client) return;
     const generation = pilotStorageGeneration;
-    const current = () => generation === pilotStorageGeneration && profile()?.id === member;
+    const current = () => generation === pilotStorageGeneration && profile()?.id === member && window.HPEPersistentConsent === true && window.HPEParticipationPilot === true;
     pilotStorageBusy = true;
     pilotStorageError = false;
     try {
@@ -762,7 +762,7 @@
       }
     });
     slot.querySelector('[data-pilot-leave]')?.addEventListener('click', () => {
-      if (persistent) { pilotStorage('leave'); return; }
+      if (persistent) { slot.querySelector('[data-pilot-leave]').disabled = true; pilotStorage('leave'); return; }
       withdrawPilot();
       paintPilotControl();
       slot.querySelector('summary')?.focus();
