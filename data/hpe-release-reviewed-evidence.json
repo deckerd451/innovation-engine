@@ -1,0 +1,142 @@
+[
+  {
+    "title": "Dog enrichment",
+    "organization": "Charleston Animal Society",
+    "sourceUrl": "https://charlestonanimalsociety.org/volunteer/",
+    "pathwayId": "dog-enrichment",
+    "reviewStatus": "verified",
+    "reviewedAt": "2026-11-26T17:00:00Z",
+    "deadline": "2026-12-03T17:00:00Z",
+    "reviewer": "Official public provider page retrieved 2026-11-26",
+    "evidenceNote": "Official volunteer page lists this activity, Charleston campus application, online orientation, age 18+ and possible role training. Court-ordered service excluded; individual shifts unconfirmed.",
+    "availability": "provider_confirmation_required",
+    "participationType": "contribution",
+    "geographicRelevance": "charleston-sc",
+    "eligibility": "adult_public",
+    "kind": "recurring_program",
+    "topics": [
+      "animals",
+      "volunteering"
+    ]
+  },
+  {
+    "title": "Cat care",
+    "organization": "Charleston Animal Society",
+    "sourceUrl": "https://charlestonanimalsociety.org/volunteer/",
+    "pathwayId": "cat-care",
+    "reviewStatus": "verified",
+    "reviewedAt": "2026-11-26T17:00:00Z",
+    "deadline": "2026-12-03T17:00:00Z",
+    "reviewer": "Official public provider page retrieved 2026-11-26",
+    "evidenceNote": "Official volunteer page lists this activity, Charleston campus application, online orientation, age 18+ and possible role training. Court-ordered service excluded; individual shifts unconfirmed.",
+    "availability": "provider_confirmation_required",
+    "participationType": "contribution",
+    "geographicRelevance": "charleston-sc",
+    "eligibility": "adult_public",
+    "kind": "recurring_program",
+    "topics": [
+      "animals",
+      "volunteering"
+    ]
+  },
+  {
+    "title": "Clinic volunteer support",
+    "organization": "Charleston Animal Society",
+    "sourceUrl": "https://charlestonanimalsociety.org/volunteer/",
+    "pathwayId": "clinic-support",
+    "reviewStatus": "verified",
+    "reviewedAt": "2026-11-26T17:00:00Z",
+    "deadline": "2026-12-03T17:00:00Z",
+    "reviewer": "Official public provider page retrieved 2026-11-26",
+    "evidenceNote": "Official volunteer page lists this activity, Charleston campus application, online orientation, age 18+ and possible role training. Court-ordered service excluded; individual shifts unconfirmed.",
+    "availability": "provider_confirmation_required",
+    "participationType": "contribution",
+    "geographicRelevance": "charleston-sc",
+    "eligibility": "adult_public",
+    "kind": "recurring_program",
+    "topics": [
+      "animals",
+      "volunteering"
+    ]
+  },
+  {
+    "title": "Shelter cleaning and laundry",
+    "organization": "Charleston Animal Society",
+    "sourceUrl": "https://charlestonanimalsociety.org/volunteer/",
+    "pathwayId": "shelter-cleaning",
+    "reviewStatus": "verified",
+    "reviewedAt": "2026-11-26T17:00:00Z",
+    "deadline": "2026-12-03T17:00:00Z",
+    "reviewer": "Official public provider page retrieved 2026-11-26",
+    "evidenceNote": "Official volunteer page lists this activity, Charleston campus application, online orientation, age 18+ and possible role training. Court-ordered service excluded; individual shifts unconfirmed.",
+    "availability": "provider_confirmation_required",
+    "participationType": "contribution",
+    "geographicRelevance": "charleston-sc",
+    "eligibility": "adult_public",
+    "kind": "recurring_program",
+    "topics": [
+      "animals",
+      "volunteering"
+    ]
+  },
+  {
+    "title": "Adoption event support",
+    "organization": "Charleston Animal Society",
+    "sourceUrl": "https://charlestonanimalsociety.org/volunteer/",
+    "pathwayId": "adoption-events",
+    "reviewStatus": "verified",
+    "reviewedAt": "2026-11-26T17:00:00Z",
+    "deadline": "2026-12-03T17:00:00Z",
+    "reviewer": "Official public provider page retrieved 2026-11-26",
+    "evidenceNote": "Official volunteer page lists this activity, Charleston campus application, online orientation, age 18+ and possible role training. Court-ordered service excluded; individual shifts unconfirmed.",
+    "availability": "provider_confirmation_required",
+    "participationType": "contribution",
+    "geographicRelevance": "charleston-sc",
+    "eligibility": "adult_public",
+    "kind": "recurring_program",
+    "topics": [
+      "animals",
+      "volunteering"
+    ]
+  },
+  {
+    "title": "Help transport animals during emergency response",
+    "organization": "Charleston Animal Society",
+    "sourceUrl": "https://charlestonanimalsociety.org/volunteer/",
+    "pathwayId": "emergency-transport",
+    "reviewStatus": "verified",
+    "reviewedAt": "2026-11-26T17:00:00Z",
+    "deadline": "2026-12-03T17:00:00Z",
+    "reviewer": "Official public provider page retrieved 2026-11-26",
+    "evidenceNote": "Main adult volunteer page explicitly lists emergency animal transport; provider orientation and applicable training required.",
+    "availability": "provider_confirmation_required",
+    "participationType": "contribution",
+    "geographicRelevance": "charleston-sc",
+    "eligibility": "adult_public",
+    "kind": "recurring_program",
+    "topics": [
+      "animals",
+      "volunteering"
+    ]
+  },
+  {
+    "title": "Sort and pack donated food",
+    "organization": "Lowcountry Food Bank",
+    "sourceUrl": "https://lowcountryfoodbank.org/get-involved/volunteer/",
+    "pathwayId": "food-packing",
+    "reviewStatus": "verified",
+    "reviewedAt": "2026-11-26T17:00:00Z",
+    "deadline": "2026-12-03T17:00:00Z",
+    "reviewer": "Official public provider page retrieved 2026-11-26",
+    "evidenceNote": "Official volunteer page lists Charleston regional center shifts, age over 12, and individual registration via Golden; actual shifts visible after sign-in.",
+    "availability": "provider_confirmation_required",
+    "participationType": "contribution",
+    "geographicRelevance": "charleston-sc",
+    "eligibility": "adult_public",
+    "kind": "recurring_program",
+    "topics": [
+      "food",
+      "volunteering"
+    ]
+  }
+]
