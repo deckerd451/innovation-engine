@@ -391,7 +391,7 @@ async function loadOpportunities() {
         if (!form.isConnected || currentOrganization?.id !== org.id) return;
         await manager.createOpportunity({
           organization_id: org.id, title: String(fields.get("title")).trim(),
-          description: String(fields.get("description")).trim(), type: fields.get("type"),
+          description: String(fields.get("description")).trim(), opportunity_type: fields.get("type"),
           location: String(fields.get("location")).trim(), commitment: fields.get("commitment"),
           is_public: true, status: "open"
         });
@@ -411,7 +411,7 @@ function renderOpportunityCard(opportunity) {
     <div class="opportunity-card" data-id="${escapeAttr(opportunity.id)}">
       <div class="opp-header">
         <h4>${escapeHtml(opportunity.title)}</h4>
-        <span class="opp-type-badge">${formatOpportunityType(opportunity.type)}</span>
+        <span class="opp-type-badge">${formatOpportunityType(opportunity.opportunity_type ?? opportunity.type)}</span>
       </div>
       <p class="opp-description">${escapeHtml(truncate(String(opportunity.description || ""), 150))}</p>
       <div class="opp-details">
