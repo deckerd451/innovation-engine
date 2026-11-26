@@ -19,3 +19,8 @@ assert.deepEqual(proposeInventory([{...row,topics:[' Garden ','garden',null,'x'.
 for(const patch of [{participationType:null},{geographicRelevance:'unknown'},{eligibility:null},{kind:'scheduled_event'},{kind:'scheduled_event',startsAt:'2026-12-01'}]) assert.equal(proposeInventory([{...row,...patch}],now).rejectedCount,1);
 assert.equal(proposeInventory([row],now).inventory.opportunities[0].geographicRelevance,'charleston-sc');
 assert.equal(proposeInventory([{...row,kind:'scheduled_event',startsAt:'2026-12-31'}],now).rejectedCount,0);
+
+const shared = proposeInventory([{...row,pathwayId:'garden',topics:['garden']},{...row,pathwayId:'events',topics:['events']},{...row,pathwayId:'garden',sourceUrl:row.sourceUrl+'?utm_source=test'}],now);
+assert.equal(shared.rejectedCount,1);
+assert.deepEqual(shared.inventory.opportunities.map(x=>[x.pathwayId,x.topics]),[['garden',['garden']],['events',['events']]]);
+assert.equal(proposeInventory([{...row,pathwayId:'invalid id'}],now).rejectedCount,1);

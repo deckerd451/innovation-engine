@@ -10,16 +10,17 @@ function proposeInventory(reviews, now = Date.now()) {
     ['recurring_program','scheduled_event'].includes(row.kind) &&
     (row.kind !== 'scheduled_event' || (Date.parse(row.startsAt)>now && Date.parse(row.deadline)<=Date.parse(row.startsAt))));
   const {accepted,rejected} = stageOpportunities(eligible,now);
+  const identity = row => JSON.stringify([row.sourceUrl,row.pathwayId || null]);
   const topicsBySource = new Map(), detailsBySource = new Map();
   for (const row of eligible) {
     const staged = stageOpportunities([row],now).accepted[0];
-    if (!staged || topicsBySource.has(staged.sourceUrl)) continue;
-    detailsBySource.set(staged.sourceUrl,{participationType:row.participationType,geographicRelevance:row.geographicRelevance,eligibility:row.eligibility,kind:row.kind, ...(row.kind==='scheduled_event'?{startsAt:new Date(row.startsAt).toISOString()}:{}),deadlineMeaning:'review expiry or earlier opportunity cutoff'});
-    topicsBySource.set(staged.sourceUrl, Array.isArray(row.topics) ? [...new Set(row.topics.filter(t=>typeof t==='string').map(t=>t.trim().toLowerCase()).filter(t=>t && t.length<=64))].slice(0,12) : []);
+    if (!staged || topicsBySource.has(identity(staged))) continue;
+    detailsBySource.set(identity(staged),{participationType:row.participationType,geographicRelevance:row.geographicRelevance,eligibility:row.eligibility,kind:row.kind, ...(row.kind==='scheduled_event'?{startsAt:new Date(row.startsAt).toISOString()}:{}),deadlineMeaning:'review expiry or earlier opportunity cutoff'});
+    topicsBySource.set(identity(staged), Array.isArray(row.topics) ? [...new Set(row.topics.filter(t=>typeof t==='string').map(t=>t.trim().toLowerCase()).filter(t=>t && t.length<=64))].slice(0,12) : []);
   }
-  return {inventory:{schemaVersion:1,opportunities:accepted.map(row=>({...row,...detailsBySource.get(row.sourceUrl),status:'published',
+  return {inventory:{schemaVersion:1,opportunities:accepted.map(row=>({...row,...detailsBySource.get(identity(row)),status:'published',
     deadline:new Date(Math.min(Date.parse(row.deadline),Date.parse(row.reviewedAt)+7*86400000)).toISOString(),
-    topics:topicsBySource.get(row.sourceUrl) || [], availability:'provider confirmation required'}))}, rejectedCount:rejected.length+reviews.length-eligible.length};
+    topics:topicsBySource.get(identity(row)) || [], availability:'provider confirmation required'}))}, rejectedCount:rejected.length+reviews.length-eligible.length};
 }
 module.exports = {proposeInventory};
 if (require.main === module) {

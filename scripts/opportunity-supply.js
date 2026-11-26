@@ -18,10 +18,13 @@ function stageOpportunities(rows, now = Date.now()) {
     url.hash = '';
     for (const key of [...url.searchParams.keys()]) if (/^utm_/i.test(key)) url.searchParams.delete(key);
     url.searchParams.sort();
-    const key = url.href;
+    const sourceUrl = url.href;
+    const pathway = row.pathwayId;
+    if (pathway !== undefined && (typeof pathway !== 'string' || !/^[a-z0-9][a-z0-9-]{0,79}$/.test(pathway))) { rejected.push({reason:'invalid pathway identifier'}); continue; }
+    const key = JSON.stringify([sourceUrl,pathway || null]);
     if (seen.has(key)) { rejected.push({ reason: 'duplicate source' }); continue; }
     seen.add(key);
-    accepted.push({ title: row.title.trim(), organization: row.organization.trim(), sourceUrl: key,
+    accepted.push({ title: row.title.trim(), organization: row.organization.trim(), sourceUrl, ...(pathway ? {pathwayId:pathway} : {}),
       deadline: new Date(deadline).toISOString(), reviewedAt: new Date(reviewed).toISOString(), status: 'staged' });
   }
   return { accepted, rejected };
