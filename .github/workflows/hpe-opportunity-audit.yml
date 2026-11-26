@@ -5,6 +5,9 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
+      - 'scripts/nearify-*.js'
+      - 'scripts/tests/test-nearify-public-feed.js'
+      - 'scripts/tests/test-nearify-opportunity-intake.js'
       - 'scripts/opportunity-renewal.js'
       - 'scripts/opportunity-intake.js'
       - 'scripts/opportunity-publication.js'
@@ -35,10 +38,18 @@ jobs:
       - run: node scripts/tests/test-opportunity-evidence.js
       - if: github.event_name != 'pull_request'
         run: node scripts/opportunity-evidence.js > provider-evidence.json
+      - run: node scripts/tests/test-nearify-public-feed.js
+      - run: node scripts/tests/test-nearify-opportunity-intake.js
+      - if: github.event_name != 'pull_request'
+        env:
+          NEARIFY_PUBLISHABLE_KEY: ${{ vars.NEARIFY_PUBLISHABLE_KEY }}
+        run: node scripts/nearify-public-feed.js > nearify-candidates.json
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: opportunity-review
           path: |
             opportunity-review.json
             provider-candidates.json
             provider-evidence.json
+            nearify-candidates.json
