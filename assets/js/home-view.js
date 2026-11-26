@@ -635,12 +635,6 @@
         target.removeEventListener('blur', later, true);
         const paints = [...waiting];
         waiting.clear();
-    externalGeneration += 1;
-    externalInventory = [];
-    externalLoadedAt = 0;
-    externalLoading = false;
-    externalDismissed.clear();
-    externalMember = null;
         if (host !== target) return;
         paints.forEach(fn => fn());
       }, 0);
@@ -710,6 +704,12 @@
 
   function clear() {
     request += 1;
+    externalGeneration += 1;
+    externalInventory = [];
+    externalLoadedAt = 0;
+    externalLoading = false;
+    externalDismissed.clear();
+    externalMember = null;
     if (host) host.innerHTML = '';
     host = null;
     state.memberId = null;
