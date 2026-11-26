@@ -13,7 +13,7 @@ function stageOpportunities(rows, now = Date.now()) {
       typeof row?.title === 'string' && row.title.trim() &&
       typeof row?.organization === 'string' && row.organization.trim() &&
       row.reviewStatus === 'verified' && Number.isFinite(reviewed) && reviewed <= now &&
-      now - reviewed <= 7 * 86400000 && Number.isFinite(deadline) && deadline > now;
+      now - reviewed < 7 * 86400000 && Number.isFinite(deadline) && deadline > now;
     if (!valid) { rejected.push({ reason: 'missing, stale or invalid evidence' }); continue; }
     url.hash = '';
     for (const key of [...url.searchParams.keys()]) if (/^utm_/i.test(key)) url.searchParams.delete(key);

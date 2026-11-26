@@ -13,7 +13,7 @@
   let request = 0;
   // unread: the live count (as the Inbox badge shows it); the report's own
   // count can be minutes old, so it is only used until the first update.
-  const state = { memberId: null, mine: null, attention: null, personId: null, unread: null };
+  const state = { memberId: null, accountId: null, mine: null, attention: null, personId: null, unread: null };
 
   const profile = () => window.currentUserProfile || window.CHProfile?.state?.profile || null;
   // Session-only explicit enrollment; no inferred age or location.
@@ -23,10 +23,11 @@
       enrollment.adultConfirmed === true && enrollment.scope === 'charleston-sc' &&
       enrollment.consentVersion === 1;
   }
-  const pilotActive = () => pilotEligible(window.HPEParticipationPilot, pilotEnrollment, profile()?.id);
+  const pilotActive = () => pilotEligible(window.HPEParticipationPilot, pilotEnrollment, profile()?.id) &&
+    pilotEnrollment.accountId === profile()?.user_id;
   function enrollPilot(consent) {
     const memberId = profile()?.id;
-    const candidate = {memberId, adultConfirmed:consent?.adultConfirmed, scope:consent?.scope, consentVersion:consent?.consentVersion};
+    const candidate = {memberId, accountId:profile()?.user_id, adultConfirmed:consent?.adultConfirmed, scope:consent?.scope, consentVersion:consent?.consentVersion};
     if (!pilotEligible(window.HPEParticipationPilot,candidate,memberId)) return false;
     pilotEnrollment = candidate;
     if (host) { calmly(paintSuggestions); refreshExternalInventory(); }
@@ -291,13 +292,16 @@
           typeof row.organization !== 'string' || !row.organization.trim() || typeof row.sourceUrl !== 'string') continue;
       if (scope && (row.geographicRelevance !== scope || row.eligibility !== 'adult_public' || !['contribution','learning','social'].includes(row.participationType))) continue;
       const reviewed = Date.parse(row.reviewedAt), expires = Date.parse(row.deadline);
-      if (!Number.isFinite(reviewed) || reviewed > now || now - reviewed > 7 * 86400000 ||
+      if (!Number.isFinite(reviewed) || reviewed > now || now - reviewed >= 7 * 86400000 ||
           !Number.isFinite(expires) || expires <= now) continue;
       let url;
       try { url = new URL(row.sourceUrl); } catch (_) { continue; }
-      if (url.protocol !== 'https:' || url.username || url.password || dismissed.has(url.href)) continue;
+      if (url.protocol !== 'https:' || url.username || url.password) continue;
+      if (row.pathwayId != null && (typeof row.pathwayId !== 'string' || !/^[a-z0-9][a-z0-9-]{0,79}$/.test(row.pathwayId))) continue;
+      const dismissalKey = row.pathwayId ? JSON.stringify([url.href, row.pathwayId]) : url.href;
+      if (dismissed.has(dismissalKey)) continue;
       const matched = [...new Set((Array.isArray(row.topics) ? row.topics : []).filter(t => typeof t === 'string').map(t => t.trim().toLowerCase()).filter(t => wanted.has(t)))];
-      if (matched.length > bestScore) { bestScore = matched.length; best = { title: row.title, organization: row.organization, url: url.href }; }
+      if (matched.length > bestScore) { bestScore = matched.length; best = { title: row.title, organization: row.organization, url: url.href, ...(row.pathwayId ? { dismissalKey } : {}) }; }
     }
     return best;
   }
@@ -343,8 +347,15 @@
       ? externalPick(externalInventory, externalDismissed, Date.now(), listedTerms(profile()?.interests), 'charleston-sc') : null;
     if (external) {
       setSection('join', `<ul class="home-picks"><li class="home-pick"><span class="home-kind">External opportunity</span><strong>${esc(external.title)}</strong><p class="home-muted">${esc(external.organization)} · Check availability with provider</p><div class="home-pick-actions"><a class="home-action" href="${esc(external.url)}" target="_blank" rel="noopener noreferrer">Visit provider (new tab)</a><button type="button" class="home-dismiss" data-external-skip>Not now</button></div></li></ul>`);
+      part('join')?.querySelector('a')?.addEventListener('click', event => {
+        const current = pilotActive() && externalPick(externalInventory, externalDismissed,
+          Date.now(), listedTerms(profile()?.interests), 'charleston-sc');
+        if (current?.url === external.url && current?.dismissalKey === external.dismissalKey) return;
+        event.preventDefault();
+        paintJoin();
+      });
       part('join')?.querySelector('[data-external-skip]')?.addEventListener('click', () => {
-        externalDismissed.add(external.url);
+        externalDismissed.add(external.dismissalKey || external.url);
         paintJoin();
         paintHappening();
       });
@@ -609,22 +620,23 @@
   let pilotStorageError = false;
   async function pilotStorage(action) {
     if (window.HPEPersistentConsent !== true || window.HPEParticipationPilot !== true || pilotStorageBusy) return;
-    const member = profile()?.id, client = window.supabase;
-    if (!member || !client) return;
+    const member = profile()?.id, account = profile()?.user_id, client = window.supabase;
+    if (!member) return;
     const generation = pilotStorageGeneration;
-    const current = () => generation === pilotStorageGeneration && profile()?.id === member && window.HPEPersistentConsent === true && window.HPEParticipationPilot === true;
+    const current = () => generation === pilotStorageGeneration && profile()?.id === member && profile()?.user_id === account && window.HPEPersistentConsent === true && window.HPEParticipationPilot === true;
     pilotStorageBusy = true;
     pilotStorageError = false;
     try {
+      if (!account || !client) throw new Error('Profile identity unavailable');
       const auth = await client.auth.getUser();
       if (!current()) return;
       if (auth.error || !auth.data?.user?.id) throw new Error('Authentication unavailable');
       const uid = auth.data.user.id;
       // Verify the authenticated account owns the currently displayed profile.
-      if (profile()?.user_id !== uid) throw new Error('Profile identity unavailable');
+      if (account !== uid) throw new Error('Profile identity unavailable');
       const table = client.from('hpe_participation_consent');
       const result = action === 'join'
-        ? await table.insert({consent_version:1,adult_confirmed:true,scope:'charleston-sc'})
+        ? await table.upsert({user_id:uid,consent_version:1,adult_confirmed:true,scope:'charleston-sc'}, {onConflict:'user_id',ignoreDuplicates:true})
         : action === 'leave'
           ? await table.delete().eq('user_id',uid)
           : await table.select('consent_version,adult_confirmed,scope').eq('user_id',uid).maybeSingle();
@@ -640,8 +652,11 @@
       if (current()) {
         pilotStorageBusy = false;
         const slot = part('goal')?.querySelector('[data-pilot-control]');
+        const restoreFocus = slot?.contains(document.activeElement) ||
+          document.activeElement === document.body && action !== 'load';
         if (slot) delete slot.dataset.mode;
         paintPilotControl();
+        if (restoreFocus) slot?.querySelector('[data-pilot-leave],summary,button')?.focus();
       }
     }
   }
@@ -693,7 +708,7 @@
         const explanation = document.createElement('p');
         explanation.textContent = 'Optional study: report whether you made a meaningful contribution during the study window. Your response is private, not used for recommendations, and can be deleted by withdrawing. Declining does not affect access.';
         slot.append(explanation);
-        button('Agree and join research',()=>client.from('hpe_research_consent').insert({consent_version:1}));
+        button('Agree and join research',()=>client.from('hpe_research_consent').insert({user_id:uid,consent_version:1}));
       }
       if (consent) {
         button('Withdraw research and delete response',()=>client.from('hpe_research_consent').delete().eq('user_id',uid));
@@ -709,7 +724,7 @@
           button('Save private response',()=> {
             if (!select.value) throw new Error('Choose a response');
             const table = client.from('hpe_outcome_response');
-            return responseResult.data ? table.update({response:select.value}).eq('user_id',uid) : table.insert({response:select.value});
+            return responseResult.data ? table.update({response:select.value}).eq('user_id',uid) : table.insert({user_id:uid,response:select.value});
           });
         }
       }
@@ -914,6 +929,7 @@
     if (host) host.innerHTML = '';
     host = null;
     state.memberId = null;
+    state.accountId = null;
     state.mine = null;
     state.attention = null;
     state.personId = null;
@@ -928,7 +944,7 @@
     const desktop = isDesktop();
     const target = document.getElementById(desktop ? 'cd-home' : 'mobile-you-content');
     if (!target || !p?.id) return;
-    if (state.memberId && String(state.memberId) !== String(p.id)) clear();
+    if (state.memberId && (String(state.memberId) !== String(p.id) || state.accountId !== p.user_id)) clear();
     if (host !== target || !target.querySelector('.home-view')) {
       if (host && host !== target) host.innerHTML = '';
       host = target;
@@ -937,6 +953,7 @@
       mountGoal();
     }
     state.memberId = p.id;
+    state.accountId = p.user_id;
     const avatarNode = target.querySelector('.home-avatar');
     if (avatarNode) {
       const photo = window.profilePhotoUrl?.(p);

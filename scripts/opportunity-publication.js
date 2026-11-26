@@ -26,7 +26,17 @@ module.exports = {proposeInventory};
 if (require.main === module) {
   const fs = require('node:fs');
   if (!process.argv[2]) throw new Error('Provide a reviewed evidence JSON file');
-  const result = proposeInventory(JSON.parse(fs.readFileSync(process.argv[2],'utf8')));
+  const reviews = JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+  // Artifact verification uses an explicit time so unrelated PRs still work after expiry.
+  const now = process.argv[3] === '--check'
+    ? Math.max(...reviews.map(row => Date.parse(row?.reviewedAt)))
+    : Date.now();
+  const result = proposeInventory(reviews, now);
+  if (!result.inventory.opportunities.length) throw new Error('No publishable reviews');
+  const output = JSON.stringify(result.inventory, null, 2) + '\n';
   if(result.rejectedCount) {console.error('Rejected reviews: '+result.rejectedCount);process.exitCode=1;}
-  else console.log(JSON.stringify(result.inventory,null,2));
+  else if (process.argv[3] === '--check') {
+    const file = require('node:path').join(__dirname, '../data/hpe-published-opportunities.json');
+    if (fs.readFileSync(file, 'utf8') !== output) throw new Error('Published inventory differs from reviewed evidence');
+  } else process.stdout.write(output);
 }

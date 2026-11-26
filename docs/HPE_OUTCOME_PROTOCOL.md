@@ -10,4 +10,4 @@ An authorized research steward may run node scripts/hpe-outcome-report.js aggreg
 
 Secondary outcomes (relatedness, autonomy, competence and barriers) require separately reviewed instruments and collection design. No causal or crime reduction claims from descriptive results.
 
-This change does not collect data, activate research, or add a database migration. Participant-facing collection and authenticated consent storage remain release blockers.
+The research UI and private consent migrations are staged. Research remains disabled pending the cohort, retention and approval gates in the [activation runbook](HPE_PRIVATE_CONSENT_RELEASE.md).

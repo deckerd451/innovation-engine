@@ -10,7 +10,8 @@ function reviewQueue(inventory, now = Date.now()) {
       Number.isFinite(reviewed) && reviewed <= now && Number.isFinite(deadline);
     const expires = valid ? Math.min(deadline, reviewed + 7 * DAY) : NaN;
     const status = !valid ? 'invalid' : expires <= now ? 'expired' : expires - now <= 2 * DAY ? 'review_due' : 'current';
-    return { organization: row?.organization || '', sourceUrl: valid ? url.href : null, status,
+    return { title: row?.title || '', organization: row?.organization || '', pathwayId: row?.pathwayId || null,
+      sourceUrl: valid ? url.href : null, status,
       reviewBy: valid ? new Date(expires).toISOString() : null };
   });
 }
@@ -19,5 +20,10 @@ if (require.main === module) {
   const fs = require('node:fs');
   const path = require('node:path');
   const inventory = JSON.parse(fs.readFileSync(path.join(__dirname,'../data/hpe-published-opportunities.json'),'utf8'));
-  console.log(JSON.stringify(reviewQueue(inventory),null,2));
+  const queue = reviewQueue(inventory);
+  if (process.argv.includes('--current-inventory')) {
+    const opportunities = inventory.opportunities.filter((_, index) =>
+      ['current', 'review_due'].includes(queue[index].status));
+    console.log(JSON.stringify({ schemaVersion: inventory.schemaVersion, opportunities }, null, 2));
+  } else console.log(JSON.stringify(queue, null, 2));
 }

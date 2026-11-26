@@ -4,11 +4,18 @@ INSERT INTO auth.users(id) VALUES ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'), ('bb
 INSERT INTO public.hpe_research_window VALUES (1,now()+interval '24 hours',now()+interval '744 hours',now()+interval '768 hours');
 SELECT set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',true);
 SET LOCAL ROLE authenticated;
-INSERT INTO public.hpe_participation_consent(consent_version,adult_confirmed,scope) VALUES (1,true,'charleston-sc');
-INSERT INTO public.hpe_research_consent(consent_version) VALUES (1);
 DO $$ BEGIN
  BEGIN
-  INSERT INTO public.hpe_outcome_response(response) VALUES ('yes');
+  INSERT INTO public.hpe_participation_consent(user_id,consent_version,adult_confirmed,scope) VALUES ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',1,true,'charleston-sc');
+  RAISE EXCEPTION 'cross-account enrollment accepted';
+ EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+END $$;
+INSERT INTO public.hpe_participation_consent(user_id,consent_version,adult_confirmed,scope) VALUES ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',1,true,'charleston-sc');
+INSERT INTO public.hpe_participation_consent(user_id,consent_version,adult_confirmed,scope) VALUES ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',1,true,'charleston-sc') ON CONFLICT (user_id) DO NOTHING;
+INSERT INTO public.hpe_research_consent(user_id,consent_version) VALUES ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',1);
+DO $$ BEGIN
+ BEGIN
+  INSERT INTO public.hpe_outcome_response(user_id,response) VALUES ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','yes');
   RAISE EXCEPTION 'early response accepted';
  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
  BEGIN
@@ -43,6 +50,19 @@ DELETE FROM public.hpe_research_consent;
 DO $$ BEGIN
  IF EXISTS (SELECT 1 FROM public.hpe_outcome_response) OR NOT EXISTS (SELECT 1 FROM public.hpe_participation_consent) THEN RAISE EXCEPTION 'research withdrawal incorrect'; END IF;
 END $$;
+RESET ROLE;
+-- Recreate a dependent chain as the operator to exercise participation withdrawal
+-- after the research enrollment window has closed.
+INSERT INTO public.hpe_research_consent(user_id,consent_version,enrolled_at)
+ VALUES ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',1,now()-interval '722 hours');
+SET LOCAL ROLE authenticated;
+INSERT INTO public.hpe_outcome_response(user_id,response)
+ VALUES ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','yes');
 DELETE FROM public.hpe_participation_consent;
+DO $$ BEGIN
+ IF EXISTS (SELECT 1 FROM public.hpe_participation_consent) OR EXISTS (SELECT 1 FROM public.hpe_research_consent) OR EXISTS (SELECT 1 FROM public.hpe_outcome_response) THEN
+  RAISE EXCEPTION 'participation withdrawal did not delete the dependent chain';
+ END IF;
+END $$;
 RESET ROLE;
 ROLLBACK;
