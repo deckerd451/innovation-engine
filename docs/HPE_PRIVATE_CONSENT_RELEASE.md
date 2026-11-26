@@ -22,7 +22,9 @@ Deploy the reviewed static-site revision with all three flags off and check ordi
   window.HPEPersistentConsent = true;
   window.HPEParticipationPilot = true;
 </script>
-``` Leave `window.HPEResearchPilot` unset. Enrollment is voluntary and separate for each account. The flag is a client feature control. Database row policies enforce account ownership.
+```
+
+Leave `window.HPEResearchPilot` unset. Enrollment is voluntary and separate for each account. The flag is a client feature control. Database row policies enforce account ownership.
 
 ## Research and retention
 
