@@ -15,7 +15,10 @@ const suggestion = 'document.querySelector("[data-home=join] a")';
 try {
   for (const width of [390, 1280]) {
     await app.load(width, 844);
-    await app.wait(`${pilot}?.hidden`, 'disabled by default');
+    assert.equal(await run('window.HPEParticipationPilot === true && window.HPEPersistentConsent === true && window.HPEResearchPilot !== true'), true);
+    await app.wait(`${pilot} && !${pilot}.hidden`, 'participation pilot visible');
+    await run('window.HPEParticipationPilot=false;window.HomeView.clear();window.HomeView.show();true');
+    await app.wait(`${pilot}?.hidden`, 'pilot hidden when switched off');
     await run(`(() => {
       window.AppNav.go('home');
       window.StartDailyDigest.inboundAttention = () => [];
@@ -71,6 +74,8 @@ try {
     })()`);
     await app.wait(`${join}?.disabled`, 'explicit consent required');
     assert.equal(await run(`!!${suggestion}`), false);
+    assert.ok(await run(`${pilot}.querySelector('summary').getBoundingClientRect().height >= 24`),
+      'pilot invitation meets the minimum target height');
     await run(`${pilot}.querySelector('summary').click();${pilot}.querySelector('input').click();${join}.focus();${join}.click();true`);
     await app.wait(`${leave} && ${suggestion}`, 'consent and suggestion');
     assert.equal(await run(`document.activeElement === ${leave}`), true);
@@ -79,7 +84,7 @@ try {
     await app.wait(`document.querySelector('[data-home=join] strong')?.textContent==='Fixture two'`, 'independent pathway dismissal');
     assert.equal(await run('document.documentElement.scrollWidth <= innerWidth'), true);
     await run(readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8') + ';true');
-    assert.deepEqual(await run(`axe.run(${pilot}, {runOnly:['wcag2a','wcag2aa','wcag21aa']}).then(result => result.violations.map(v=>v.id))`), []);
+    assert.deepEqual(await run(`axe.run(${pilot}, {runOnly:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}).then(result => result.violations.map(v=>v.id))`), []);
     await run(`${leave}.click();true`);
     await app.wait(`${join} && !${suggestion}`, 'withdrawal restores ordinary Home');
     assert.equal(await run('window.__consents.size'), 0);

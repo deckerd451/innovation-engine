@@ -200,3 +200,5 @@
 }
 
 .home-invite-action{color:#9eefff;font-size:.82rem;font-weight:700;margin-top:.25rem}
+
+.home-idea [data-pilot-control] summary{min-block-size:2rem;cursor:pointer}
