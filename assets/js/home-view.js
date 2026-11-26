@@ -602,6 +602,35 @@
     return match ? match[1].trim() : null;
   }
 
+  function paintPilotControl() {
+    const slot = part('goal')?.querySelector('[data-pilot-control]');
+    if (!slot) return;
+    const enabled = window.HPEParticipationPilot === true && !!profile()?.id;
+    slot.hidden = !enabled;
+    const mode = !enabled ? 'off' : pilotActive() ? 'joined' : 'invite';
+    if (slot.dataset.mode === mode) return;
+    slot.dataset.mode = mode;
+    if (!enabled) { slot.innerHTML = ''; return; }
+    slot.innerHTML = mode === 'joined'
+      ? '<p class="home-muted">Participation pilot active for this session.</p><button type="button" class="home-link" data-pilot-leave>Leave pilot</button>'
+      : '<details><summary>Try the local participation pilot (optional)</summary><p>Get suggestions for contributing, learning or connecting in the Charleston area. Your existing interests may help match suggestions. Enrollment lasts for this session; leaving restores the usual experience. Joining is not required to use the community.</p><label><input type="checkbox" data-pilot-confirm> I am 18 or older, want Charleston-area suggestions, and agree to try this pilot.</label><p><button type="button" class="home-action" data-pilot-join disabled>Join pilot</button></p></details>';
+    const confirm = slot.querySelector('[data-pilot-confirm]');
+    const join = slot.querySelector('[data-pilot-join]');
+    confirm?.addEventListener('change', () => { join.disabled = !confirm.checked; });
+    join?.addEventListener('click', () => {
+      if (!confirm.checked) return;
+      if (enrollPilot({adultConfirmed:true,scope:'charleston-sc',consentVersion:1})) {
+        paintPilotControl();
+        slot.querySelector('[data-pilot-leave]')?.focus();
+      }
+    });
+    slot.querySelector('[data-pilot-leave]')?.addEventListener('click', () => {
+      withdrawPilot();
+      paintPilotControl();
+      slot.querySelector('summary')?.focus();
+    });
+  }
+
   function mountGoal() {
     const el = part('goal');
     if (!el || el.dataset.mounted === 'true') return;
@@ -614,7 +643,7 @@
         <button type="submit">Search</button>
       </form>
       <p class="home-idea-example">Try: <button type="button" class="home-link" data-idea-example="I'm looking for help with community building">Community building</button></p>
-      <div class="home-idea-results" aria-live="polite"></div>`;
+      <div class="home-idea-results" aria-live="polite"></div><div data-pilot-control hidden></div>`;
     // The example fills the field to edit or send; it never searches by itself.
     el.querySelector('[data-idea-example]').addEventListener('click', (event) => {
       const input = el.querySelector('#home-idea-input');
@@ -771,6 +800,7 @@
       const photo = window.profilePhotoUrl?.(p);
       avatarNode.innerHTML = photo ? `<img src="${esc(photo)}" alt="">` : esc((displayName(p) || 'M').slice(0, 1).toUpperCase());
     }
+    paintPilotControl();
     paintProfilePrompt();
     paintAttention();
     paintMine();
