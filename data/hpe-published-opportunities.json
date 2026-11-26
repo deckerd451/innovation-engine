@@ -44,6 +44,17 @@
       "deadlineMeaning": "review expiry, not provider deadline",
       "availability": "provider confirmation required",
       "kind": "recurring_program"
+    },
+    {
+      "title": "Help run community farmers markets",
+      "organization": "City of Charleston",
+      "sourceUrl": "https://www.charleston-sc.gov/Farmers-Market",
+      "status": "published",
+      "reviewedAt": "2026-11-26T00:00:00Z",
+      "deadline": "2026-12-03T00:00:00Z",
+      "deadlineMeaning": "review expiry, not provider deadline",
+      "availability": "provider confirmation required",
+      "kind": "recurring_program"
     }
   ]
 }
