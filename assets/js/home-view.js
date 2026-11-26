@@ -257,8 +257,10 @@
 
   // Invitations only: never a project the member already created or joined.
   // External inventory is supplied by a reviewed publisher, never by inferred matches.
-  function externalPick(rows, dismissed, now = Date.now()) {
+  function externalPick(rows, dismissed, now = Date.now(), topics = []) {
     if (!Array.isArray(rows)) return null;
+    const wanted = new Set((Array.isArray(topics) ? topics : []).filter(t => typeof t === 'string').map(t => t.trim().toLowerCase()).filter(Boolean));
+    let best = null, bestScore = -1;
     for (const row of rows) {
       if (!row || row.status !== 'published' || typeof row.title !== 'string' || !row.title.trim() ||
           typeof row.organization !== 'string' || !row.organization.trim() || typeof row.sourceUrl !== 'string') continue;
@@ -268,9 +270,10 @@
       let url;
       try { url = new URL(row.sourceUrl); } catch (_) { continue; }
       if (url.protocol !== 'https:' || url.username || url.password || dismissed.has(url.href)) continue;
-      return { title: row.title, organization: row.organization, url: url.href };
+      const matched = [...new Set((Array.isArray(row.topics) ? row.topics : []).filter(t => typeof t === 'string').map(t => t.trim().toLowerCase()).filter(t => wanted.has(t)))];
+      if (matched.length > bestScore) { bestScore = matched.length; best = { title: row.title, organization: row.organization, url: url.href }; }
     }
-    return null;
+    return best;
   }
 
   const externalDismissed = new Set();
@@ -311,7 +314,7 @@
     const member = profile()?.id;
     if (externalMember !== member) { externalDismissed.clear(); externalMember = member; }
     const external = member && window.HPEParticipationPilot === true && suggestions.status !== 'loading' && !items.length
-      ? externalPick(externalInventory, externalDismissed) : null;
+      ? externalPick(externalInventory, externalDismissed, Date.now(), listedTerms(profile()?.interests)) : null;
     if (external) {
       setSection('join', `<ul class="home-picks"><li class="home-pick"><span class="home-kind">External opportunity</span><strong>${esc(external.title)}</strong><p class="home-muted">${esc(external.organization)} · Check availability with provider</p><div class="home-pick-actions"><a class="home-action" href="${esc(external.url)}" target="_blank" rel="noopener noreferrer">Visit provider (new tab)</a><button type="button" class="home-dismiss" data-external-skip>Not now</button></div></li></ul>`);
       part('join')?.querySelector('[data-external-skip]')?.addEventListener('click', () => {

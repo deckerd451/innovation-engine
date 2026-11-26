@@ -1,0 +1,44 @@
+name: HPE opportunity freshness
+on:
+  schedule:
+    - cron: '15 13 * * *'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'scripts/opportunity-renewal.js'
+      - 'scripts/opportunity-intake.js'
+      - 'scripts/opportunity-publication.js'
+      - 'scripts/opportunity-supply.js'
+      - 'scripts/tests/test-opportunity-publication.js'
+      - 'scripts/opportunity-evidence.js'
+      - 'scripts/tests/test-opportunity-evidence.js'
+      - 'scripts/tests/test-opportunity-intake.js'
+      - 'data/opportunity-sources-charleston.json'
+      - 'scripts/tests/test-opportunity-renewal.js'
+      - 'data/hpe-published-opportunities.json'
+      - '.github/workflows/hpe-opportunity-audit.yml'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/tests/test-opportunity-renewal.js
+      - run: node scripts/opportunity-renewal.js | tee opportunity-review.json
+      - run: node scripts/tests/test-opportunity-publication.js
+      - run: node scripts/tests/test-opportunity-intake.js
+      - run: node scripts/opportunity-intake.js | tee provider-candidates.json
+      - run: node scripts/tests/test-opportunity-evidence.js
+      - if: github.event_name != 'pull_request'
+        run: node scripts/opportunity-evidence.js > provider-evidence.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: opportunity-review
+          path: |
+            opportunity-review.json
+            provider-candidates.json
+            provider-evidence.json

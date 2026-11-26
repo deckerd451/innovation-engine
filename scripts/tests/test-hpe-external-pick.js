@@ -24,3 +24,9 @@ for (const reset of ['externalGeneration += 1','externalInventory = []','externa
   assert.ok(clear.includes(reset), 'session clear must reset: '+reset);
 }
 console.log('External inventory lifecycle guard passed');
+
+const garden={...row,title:'Garden',sourceUrl:'https://example.org/garden',topics:['Garden','garden']};
+assert.equal(pick([row,garden],new Set(),now,[' GARDEN ']).title,'Garden');
+assert.equal(pick([row,garden],new Set(),now,[]).url,row.sourceUrl);
+assert.equal(pick([row,garden],new Set([garden.sourceUrl]),now,['garden']).url,row.sourceUrl);
+assert.equal(pick([row,{...garden,deadline:'2026-11-25'}],new Set(),now,['garden']).url,row.sourceUrl);
