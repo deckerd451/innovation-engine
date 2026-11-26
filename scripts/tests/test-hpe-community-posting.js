@@ -12,3 +12,7 @@ assert.match(source,/organization_id: org\.id/);
 assert.match(source,/escapeHtml\(opportunity\.title\)/);
 assert.match(manager,/!member\.can_post_opportunities/);
 console.log('Community posting contract checks passed');
+
+assert.match(manager,/const \{ type, \.\.\.fields \} = opportunityData/);
+assert.match(manager,/opportunity_type: fields\.opportunity_type \?\? type/);
+assert.match(source,/opportunity_type: fields\.get\("type"\)/);
