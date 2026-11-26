@@ -465,7 +465,7 @@
     });
   }
 
-  function paintIdeaResults(idea, result) {
+  function paintIdeaResults(idea, result, learning = false) {
     const slot = part('goal')?.querySelector('.home-idea-results');
     if (!slot) return;
     const chevron = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
@@ -479,7 +479,7 @@
     } else if (!result.people.length && !result.projects.length && !result.skills.length && !result.organizations.length && !result.opportunities.length) {
       slot.innerHTML = `<p class="home-muted">No matches for “${esc(idea)}”. Try a name, skill, or keyword.</p>${explore}`;
     } else {
-      slot.innerHTML = `<p class="home-muted">Matches for “${esc(idea)}”</p>
+      slot.innerHTML = `<p class="home-muted">Matches for “${esc(idea)}”</p>${learning ? '<p class="home-muted">These are topic matches. Ask whether beginners are welcome or learning support is available.</p>' : ''}
         ${result.people.length ? `<h3 class="home-subheading">People</h3><ul class="home-mine-list">${result.people.map(person => row(`data-idea-person="${esc(person.id)}" data-name="${esc(person.name)}"`, `<span class="home-mine-icon home-idea-face" aria-hidden="true">${esc(initial(person.name))}</span>`, person.name, [person.reason, person.connected ? 'Connected' : ''].filter(Boolean).join(' · '))).join('')}</ul>` : ''}
         ${result.projects.length ? `<h3 class="home-subheading">Projects</h3><ul class="home-mine-list">${result.projects.map(project => row(`data-idea-project="${esc(project.id)}"`, `<span class="home-mine-icon" aria-hidden="true">${esc(initial(project.title))}</span>`, project.title, project.reason)).join('')}</ul>` : ''}`;
     }
@@ -546,8 +546,9 @@
       const slot = el.querySelector('.home-idea-results');
       slot.innerHTML = '<p class="home-muted" role="status">Looking…</p>';
       let result;
-      try { result = await findForIdea(window.HPEParticipationPilot === true ? (learningQuery(idea) || idea) : idea); } catch (error) { console.warn('[Home] idea search unavailable:', error?.message || error); result = 'error'; }
-      if (search === searchRequest && el.isConnected && part('goal') === el && state.memberId === memberId && input.value.trim() === idea) paintIdeaResults(idea, result);
+      const learning = window.HPEParticipationPilot === true ? learningQuery(idea) : null;
+      try { result = await findForIdea(learning || idea); } catch (error) { console.warn('[Home] idea search unavailable:', error?.message || error); result = 'error'; }
+      if (search === searchRequest && el.isConnected && part('goal') === el && state.memberId === memberId && input.value.trim() === idea) paintIdeaResults(idea, result, !!learning);
     });
   }
 
