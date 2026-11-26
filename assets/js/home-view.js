@@ -275,6 +275,34 @@
 
   const externalDismissed = new Set();
   let externalMember = null;
+  let externalInventory = [];
+  let externalLoadedAt = 0;
+  let externalLoading = false;
+  let externalGeneration = 0;
+
+  async function refreshExternalInventory() {
+    if (window.HPEParticipationPilot !== true || !state.memberId || externalLoading ||
+        Date.now() - externalLoadedAt < 300000) return;
+    externalLoading = true;
+    const generation = externalGeneration;
+    try {
+      const response = await fetch('/data/hpe-published-opportunities.json', { credentials: 'omit', cache: 'no-store' });
+      if (!response.ok) throw new Error('Inventory unavailable');
+      const data = await response.json();
+      if (generation !== externalGeneration) return;
+      externalInventory = data?.schemaVersion === 1 && Array.isArray(data.opportunities) ? data.opportunities : [];
+    } catch (_) {
+      if (generation !== externalGeneration) return;
+      externalInventory = [];
+    } finally {
+      if (generation === externalGeneration) {
+        externalLoading = false;
+        externalLoadedAt = Date.now();
+        if (host) calmly(paintSuggestions);
+      }
+    }
+  }
+
 
   function paintJoin() {
     const ownProjectIds = state.mine && state.mine !== 'error' ? state.mine.projects.map(project => project.id) : [];
@@ -283,7 +311,7 @@
     const member = profile()?.id;
     if (externalMember !== member) { externalDismissed.clear(); externalMember = member; }
     const external = member && window.HPEParticipationPilot === true && suggestions.status === 'ready' && !items.length
-      ? externalPick(window.HPEPublishedOpportunities, externalDismissed) : null;
+      ? externalPick(externalInventory, externalDismissed) : null;
     if (external) {
       setSection('join', `<ul class="home-picks"><li class="home-pick"><span class="home-kind">External opportunity</span><strong>${esc(external.title)}</strong><p class="home-muted">${esc(external.organization)} · Check availability with provider</p><div class="home-pick-actions"><a class="home-action" href="${esc(external.url)}" target="_blank" rel="noopener noreferrer">Visit provider (new tab)</a><button type="button" class="home-dismiss" data-external-skip>Not now</button></div></li></ul>`);
       part('join')?.querySelector('[data-external-skip]')?.addEventListener('click', () => {
@@ -607,6 +635,12 @@
         target.removeEventListener('blur', later, true);
         const paints = [...waiting];
         waiting.clear();
+    externalGeneration += 1;
+    externalInventory = [];
+    externalLoadedAt = 0;
+    externalLoading = false;
+    externalDismissed.clear();
+    externalMember = null;
         if (host !== target) return;
         paints.forEach(fn => fn());
       }, 0);
@@ -713,6 +747,7 @@
     paintSuggestions();
     refreshMine();
     refreshAttention();
+    refreshExternalInventory();
   }
 
   // "Write your own objective" (focused assistance) opens goal help here.
