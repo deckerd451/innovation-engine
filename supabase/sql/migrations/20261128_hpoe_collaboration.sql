@@ -1,5 +1,9 @@
 BEGIN;
 
+CREATE TABLE public.hpoe_audience (
+  user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE
+);
+
 CREATE TABLE public.hpoe_opt_in (
   user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE DEFAULT auth.uid()
 );
@@ -25,12 +29,26 @@ CREATE UNIQUE INDEX hpoe_open_pair ON public.hpoe_collaboration
   WHERE phase IN ('invited', 'accepted') OR (phase = 'started' AND NOT (initiator_confirmed AND invitee_confirmed));
 CREATE INDEX hpoe_incoming ON public.hpoe_collaboration (invitee, created_at DESC);
 
+ALTER TABLE public.hpoe_audience ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.hpoe_opt_in ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.hpoe_collaboration ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.hpoe_opt_in, public.hpoe_collaboration FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON public.hpoe_audience, public.hpoe_opt_in, public.hpoe_collaboration FROM PUBLIC, anon, authenticated;
 GRANT SELECT, INSERT, DELETE ON public.hpoe_opt_in TO authenticated;
-CREATE POLICY hpoe_own_opt_in ON public.hpoe_opt_in FOR ALL TO authenticated
-  USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+CREATE FUNCTION public.hpoe_status(p_actor uuid)
+RETURNS TABLE (eligible boolean, enrolled boolean, pending boolean)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''
+AS $$
+  SELECT EXISTS (SELECT FROM public.hpoe_audience WHERE user_id = p_actor),
+    EXISTS (SELECT FROM public.hpoe_opt_in WHERE user_id = p_actor),
+    EXISTS (SELECT FROM public.hpoe_collaboration WHERE invitee = p_actor AND phase = 'invited')
+  WHERE p_actor = auth.uid();
+$$;
+CREATE POLICY hpoe_own_opt_in_read ON public.hpoe_opt_in FOR SELECT TO authenticated
+  USING (user_id = auth.uid());
+CREATE POLICY hpoe_own_opt_in_delete ON public.hpoe_opt_in FOR DELETE TO authenticated
+  USING (user_id = auth.uid());
+CREATE POLICY hpoe_own_opt_in_insert ON public.hpoe_opt_in FOR INSERT TO authenticated
+  WITH CHECK (user_id = auth.uid() AND EXISTS (SELECT FROM public.hpoe_status(auth.uid()) WHERE eligible));
 CREATE POLICY hpoe_participant_read ON public.hpoe_collaboration FOR SELECT TO authenticated
   USING (auth.uid() IN (initiator, invitee));
 CREATE POLICY hpoe_participant_delete ON public.hpoe_collaboration FOR DELETE TO authenticated
@@ -45,6 +63,8 @@ AS $$
   JOIN public.hpoe_opt_in AS own ON own.user_id = me.user_id
   JOIN public.community AS p ON p.id <> me.id
   JOIN public.hpoe_opt_in AS peer ON peer.user_id = p.user_id
+  JOIN public.hpoe_audience AS audience_me ON audience_me.user_id = me.user_id
+  JOIN public.hpoe_audience AS audience_peer ON audience_peer.user_id = p.user_id
   WHERE me.user_id = auth.uid() AND me.user_id = p_actor
     AND me.is_hidden IS NOT TRUE AND me.is_disabled IS NOT TRUE
     AND p.is_hidden IS NOT TRUE AND p.is_disabled IS NOT TRUE
@@ -115,6 +135,10 @@ BEGIN
     initiator_confirmed = initiator_confirmed OR (p_action = 'confirm' AND initiator = v_actor),
     invitee_confirmed = invitee_confirmed OR (p_action = 'confirm' AND invitee = v_actor)
   WHERE id = p_id AND v_actor IN (initiator, invitee)
+    AND (p_action = 'decline' OR (
+      EXISTS (SELECT FROM public.hpoe_audience WHERE user_id = initiator)
+      AND EXISTS (SELECT FROM public.hpoe_audience WHERE user_id = invitee)
+    ))
     AND ((p_action = 'decline' AND phase = 'invited' AND invitee = v_actor)
       OR (p_action = 'accept' AND phase = 'invited' AND invitee = v_actor AND EXISTS (
         SELECT 1 FROM public.community AS sender
@@ -148,6 +172,8 @@ AS $$
     ON c.phase IN ('accepted', 'started')
     AND p.user_id = CASE WHEN c.invitee = p_actor THEN c.initiator ELSE c.invitee END
     AND p.is_hidden IS NOT TRUE AND p.is_disabled IS NOT TRUE
+    AND EXISTS (SELECT FROM public.hpoe_audience WHERE user_id = c.initiator)
+    AND EXISTS (SELECT FROM public.hpoe_audience WHERE user_id = c.invitee)
     AND me.is_hidden IS NOT TRUE AND me.is_disabled IS NOT TRUE
     AND EXISTS (
       SELECT 1 FROM public.connections AS relationship
@@ -160,9 +186,9 @@ AS $$
   LIMIT 20;
 $$;
 
-REVOKE ALL ON FUNCTION public.hpoe_candidates(uuid), public.hpoe_invite(uuid, uuid, text),
+REVOKE ALL ON FUNCTION public.hpoe_status(uuid), public.hpoe_candidates(uuid), public.hpoe_invite(uuid, uuid, text),
   public.hpoe_advance(uuid, uuid, text), public.hpoe_my_collaborations(uuid) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.hpoe_candidates(uuid), public.hpoe_invite(uuid, uuid, text),
+GRANT EXECUTE ON FUNCTION public.hpoe_status(uuid), public.hpoe_candidates(uuid), public.hpoe_invite(uuid, uuid, text),
   public.hpoe_advance(uuid, uuid, text), public.hpoe_my_collaborations(uuid) TO authenticated;
 
 COMMIT;

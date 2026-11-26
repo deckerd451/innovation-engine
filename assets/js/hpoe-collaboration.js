@@ -69,7 +69,24 @@
     body.append(status, content, support);
     details.className = 'home-collaboration';
     details.append(label, body);
+    details.hidden = true;
     container.append(details);
+    let eligible = false;
+    async function updateAvailability() {
+      const result = await client.rpc('hpoe_status', { p_actor: accountId });
+      if (!current() || result.error) return;
+      const state = result.data?.[0];
+      eligible = state?.eligible === true;
+      details.hidden = !eligible && state?.enrolled !== true;
+      label.textContent = state?.pending ? 'Review collaboration invitation' : 'Explore a collaboration (optional)';
+    }
+    const onFocus = () => {
+      if (!current()) { root.removeEventListener('focus', onFocus); return; }
+      updateAvailability().catch(() => {});
+    };
+    root.addEventListener('focus', onFocus);
+    updateAvailability().catch(() => {});
+
     let busy = false;
 
     function paragraph(text) {
@@ -109,8 +126,9 @@
       const result = await query;
       if (result.error) throw result.error;
       if (current()) {
+        await updateAvailability();
         await refresh();
-        if (current()) label.focus();
+        if (current() && !details.hidden) label.focus();
       }
     }
 
@@ -126,7 +144,7 @@
       if (row.phase === 'invited') {
         paragraph(incoming ? 'A connection invited you to explore this idea. Accepting shares your interest and opens the option to contact the other member. You can leave at any time.' : 'Invitation sent. You can withdraw it while you wait.');
         if (incoming) {
-          button('Accept invitation', () => advance('accept'));
+          if (eligible) button('Accept invitation', () => advance('accept'));
           button('Decline', () => advance('decline'));
         }
       }
@@ -138,10 +156,10 @@
           if (typeof root.openMessageForUser !== 'function') throw Error('Messaging unavailable');
           return root.openMessageForUser(row.peer_profile_id);
         });
-        if (row.phase === 'accepted') button('Record that we started', () => advance('start'));
-        else if (!settled && !ownConfirmed) button('Confirm we completed the first action', () => advance('confirm'));
-        else paragraph(settled ? 'Both members confirmed the first action.' : 'You confirmed the first action.');
-        if (row.phase === 'started') {
+        if (eligible && row.phase === 'accepted') button('Record that we started', () => advance('start'));
+        else if (eligible && row.phase === 'started' && !settled && !ownConfirmed) button('Confirm we completed the first action', () => advance('confirm'));
+        else if (ownConfirmed) paragraph(settled ? 'Both members confirmed the first action.' : 'You confirmed the first action.');
+        if (eligible && row.peer_profile_id && row.phase === 'started') {
           button('Open project creation', () => {
             if (typeof root.showEnhancedProjectCreation !== 'function') throw Error('Project creation unavailable');
             return root.showEnhancedProjectCreation({
@@ -165,13 +183,19 @@
       status.textContent = '';
       if (!opt.data) {
         paragraph('Opt in to explore ideas with connections who also opt in. Your listed skills can help suggest a collaborator. Joining is optional and your draft stays in this tab. Leaving deletes shared collaboration records for both members.');
-        button('Opt in to collaboration', () => write(client.from('hpoe_opt_in').insert({ user_id: accountId })));
+        if (eligible) button('Opt in to collaboration', () => write(client.from('hpoe_opt_in').insert({ user_id: accountId })));
         return;
       }
       const cases = await client.rpc('hpoe_my_collaborations', { p_actor: accountId });
       if (!current()) return;
       if (cases.error) throw cases.error;
       for (const row of cases.data || []) renderCase(row);
+      if (!eligible) {
+        paragraph('New collaboration actions are paused for this account.');
+        button('Leave collaboration pilot and delete my records', () =>
+          write(client.from('hpoe_opt_in').delete().eq('user_id', accountId)));
+        return;
+      }
       const field = document.createElement('input');
       field.maxLength = 160;
       const fieldLabel = document.createElement('label');
@@ -212,7 +236,7 @@
     details.addEventListener('toggle', () => {
       if (!details.open || !current() || busy) return;
       busy = true;
-      refresh().catch(() => {
+      updateAvailability().then(refresh).catch(() => {
         if (current()) status.textContent = 'Collaboration options are unavailable. Close and reopen to retry.';
       }).finally(() => { busy = false; });
     });

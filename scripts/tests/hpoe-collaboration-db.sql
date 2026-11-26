@@ -11,8 +11,9 @@ SELECT '10000000-0000-4000-8000-000000000001',
        ('10000000-0000-4000-8000-00000000000' || n)::uuid,
        CASE WHEN n = 5 THEN 'pending' ELSE 'accepted' END
 FROM generate_series(2,5) AS n;
+INSERT INTO public.hpoe_audience SELECT id FROM auth.users WHERE id <> '00000000-0000-4000-8000-000000000005';
 INSERT INTO public.hpoe_opt_in SELECT id FROM auth.users
-WHERE id <> '00000000-0000-4000-8000-000000000003';
+WHERE id NOT IN ('00000000-0000-4000-8000-000000000003', '00000000-0000-4000-8000-000000000005');
 
 SET LOCAL ROLE anon;
 DO $$ BEGIN
@@ -23,6 +24,16 @@ DO $$ BEGIN
 END $$;
 RESET ROLE;
 SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000005',true);
+DO $$ BEGIN
+  IF EXISTS (SELECT FROM public.hpoe_status(auth.uid()) WHERE eligible OR enrolled OR pending) THEN
+    RAISE EXCEPTION 'Unaudienced account reports availability';
+  END IF;
+  BEGIN
+    INSERT INTO public.hpoe_opt_in VALUES (auth.uid());
+    RAISE EXCEPTION 'Unaudienced opt-in accepted';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+END $$;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
 DO $$
 DECLARE a uuid := auth.uid(); invite uuid;
@@ -79,7 +90,13 @@ BEGIN
     PERFORM public.hpoe_advance(a,invite,'confirm');
     RAISE EXCEPTION 'Early confirmation';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  IF NOT EXISTS (SELECT FROM public.hpoe_status(a) WHERE pending) THEN
+    RAISE EXCEPTION 'Private invitation indicator missing';
+  END IF;
   PERFORM public.hpoe_advance(a,invite,'accept');
+  IF EXISTS (SELECT FROM public.hpoe_status(a) WHERE pending) THEN
+    RAISE EXCEPTION 'Private invitation indicator did not clear';
+  END IF;
   IF NOT EXISTS (SELECT FROM public.hpoe_my_collaborations(a)
                  WHERE phase = 'accepted' AND peer_profile_id IS NOT NULL) THEN
     RAISE EXCEPTION 'No accepted collaboration';
@@ -99,7 +116,15 @@ BEGIN
   IF NOT EXISTS (SELECT FROM public.hpoe_my_collaborations(a) WHERE jointly_confirmed) THEN
     RAISE EXCEPTION 'Joint outcome not recorded';
   END IF;
-  DELETE FROM public.hpoe_opt_in WHERE user_id = a;
+END $$;
+RESET ROLE;
+DELETE FROM public.hpoe_audience WHERE user_id = '00000000-0000-4000-8000-000000000001';
+SET LOCAL ROLE authenticated;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT FROM public.hpoe_status(auth.uid()) WHERE enrolled AND NOT eligible) THEN
+    RAISE EXCEPTION 'Withdrawal access lost after revocation';
+  END IF;
+  DELETE FROM public.hpoe_opt_in WHERE user_id = auth.uid();
 END $$;
 RESET ROLE;
 DO $$ BEGIN

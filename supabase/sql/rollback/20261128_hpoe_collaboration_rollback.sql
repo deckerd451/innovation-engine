@@ -5,4 +5,6 @@ DROP FUNCTION public.hpoe_invite(uuid, uuid, text);
 DROP FUNCTION public.hpoe_candidates(uuid);
 DROP TABLE public.hpoe_collaboration;
 DROP TABLE public.hpoe_opt_in;
+DROP FUNCTION public.hpoe_status(uuid);
+DROP TABLE public.hpoe_audience;
 COMMIT;
