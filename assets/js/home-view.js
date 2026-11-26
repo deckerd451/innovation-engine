@@ -211,13 +211,22 @@
     return Number.isFinite(date.getTime()) ? date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
   };
 
+  // Pilot: reuse the existing next-step slot, never add a second card.
+  // Explicit opt-in is session-local; no new tracking or persistence.
+  function preferParticipation(enabled, hasInvitation, hasPerson) {
+    return enabled === true && hasInvitation ? 'join' : hasPerson ? 'meet' : hasInvitation ? 'join' : null;
+  }
+
   // One next step: inbound attention, otherwise one person or reasoned invitation.
   function paintPicked() {
     const meet = part('meet'), join = part('join'), picked = part('picked');
     if (!picked) return;
-    const hasMeet = !!meet?.innerHTML && !meet.hidden;
-    if (join) join.hidden = hasMeet || !join.innerHTML;
-    picked.hidden = part('attention')?.hidden === false || !(hasMeet || (join && !join.hidden));
+    const hasMeet = !!meet?.innerHTML;
+    const hasInvitation = !!join?.innerHTML;
+    const selected = preferParticipation(window.HPEParticipationPilot === true, hasInvitation, hasMeet);
+    if (meet) meet.hidden = selected !== 'meet';
+    if (join) join.hidden = selected !== 'join';
+    picked.hidden = part('attention')?.hidden === false || !selected;
   }
 
   function paintMeet() {
@@ -247,10 +256,72 @@
   }
 
   // Invitations only: never a project the member already created or joined.
+  // External inventory is supplied by a reviewed publisher, never by inferred matches.
+  function externalPick(rows, dismissed, now = Date.now()) {
+    if (!Array.isArray(rows)) return null;
+    for (const row of rows) {
+      if (!row || row.status !== 'published' || typeof row.title !== 'string' || !row.title.trim() ||
+          typeof row.organization !== 'string' || !row.organization.trim() || typeof row.sourceUrl !== 'string') continue;
+      const reviewed = Date.parse(row.reviewedAt), expires = Date.parse(row.deadline);
+      if (!Number.isFinite(reviewed) || reviewed > now || now - reviewed > 7 * 86400000 ||
+          !Number.isFinite(expires) || expires <= now) continue;
+      let url;
+      try { url = new URL(row.sourceUrl); } catch (_) { continue; }
+      if (url.protocol !== 'https:' || url.username || url.password || dismissed.has(url.href)) continue;
+      return { title: row.title, organization: row.organization, url: url.href };
+    }
+    return null;
+  }
+
+  const externalDismissed = new Set();
+  let externalMember = null;
+  let externalInventory = [];
+  let externalLoadedAt = 0;
+  let externalLoading = false;
+  let externalGeneration = 0;
+
+  async function refreshExternalInventory() {
+    if (window.HPEParticipationPilot !== true || !state.memberId || externalLoading ||
+        Date.now() - externalLoadedAt < 300000) return;
+    externalLoading = true;
+    const generation = externalGeneration;
+    try {
+      const response = await fetch('/data/hpe-published-opportunities.json', { credentials: 'omit', cache: 'no-store' });
+      if (!response.ok) throw new Error('Inventory unavailable');
+      const data = await response.json();
+      if (generation !== externalGeneration) return;
+      externalInventory = data?.schemaVersion === 1 && Array.isArray(data.opportunities) ? data.opportunities : [];
+    } catch (_) {
+      if (generation !== externalGeneration) return;
+      externalInventory = [];
+    } finally {
+      if (generation === externalGeneration) {
+        externalLoading = false;
+        externalLoadedAt = Date.now();
+        if (host) calmly(paintSuggestions);
+      }
+    }
+  }
+
+
   function paintJoin() {
     const ownProjectIds = state.mine && state.mine !== 'error' ? state.mine.projects.map(project => project.id) : [];
     const suggestions = digest().homeSuggestions?.({ ownProjectIds }) || { joinIn: [] };
     const items = (suggestions.joinIn || []).slice(0, 1);
+    const member = profile()?.id;
+    if (externalMember !== member) { externalDismissed.clear(); externalMember = member; }
+    const external = member && window.HPEParticipationPilot === true && suggestions.status !== 'loading' && !items.length
+      ? externalPick(externalInventory, externalDismissed) : null;
+    if (external) {
+      setSection('join', `<ul class="home-picks"><li class="home-pick"><span class="home-kind">External opportunity</span><strong>${esc(external.title)}</strong><p class="home-muted">${esc(external.organization)} · Check availability with provider</p><div class="home-pick-actions"><a class="home-action" href="${esc(external.url)}" target="_blank" rel="noopener noreferrer">Visit provider (new tab)</a><button type="button" class="home-dismiss" data-external-skip>Not now</button></div></li></ul>`);
+      part('join')?.querySelector('[data-external-skip]')?.addEventListener('click', () => {
+        externalDismissed.add(external.url);
+        paintJoin();
+        paintHappening();
+      });
+      paintPicked();
+      return;
+    }
     const kind = (type) => ({ project: 'Project you could join', opportunity: 'Opportunity' }[type] || '');
     setSection('join', items.length ? `<ul class="home-picks">${items.map((item, index) => {
       const reasons = String(item.reason || '').split(' · ').filter(Boolean);
@@ -456,7 +527,7 @@
     });
   }
 
-  function paintIdeaResults(idea, result) {
+  function paintIdeaResults(idea, result, learning = false) {
     const slot = part('goal')?.querySelector('.home-idea-results');
     if (!slot) return;
     const chevron = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
@@ -470,7 +541,7 @@
     } else if (!result.people.length && !result.projects.length && !result.skills.length && !result.organizations.length && !result.opportunities.length) {
       slot.innerHTML = `<p class="home-muted">No matches for “${esc(idea)}”. Try a name, skill, or keyword.</p>${explore}`;
     } else {
-      slot.innerHTML = `<p class="home-muted">Matches for “${esc(idea)}”</p>
+      slot.innerHTML = `<p class="home-muted">Matches for “${esc(idea)}”</p>${learning ? '<p class="home-muted">These are topic matches. Ask whether beginners are welcome or learning support is available.</p>' : ''}
         ${result.people.length ? `<h3 class="home-subheading">People</h3><ul class="home-mine-list">${result.people.map(person => row(`data-idea-person="${esc(person.id)}" data-name="${esc(person.name)}"`, `<span class="home-mine-icon home-idea-face" aria-hidden="true">${esc(initial(person.name))}</span>`, person.name, [person.reason, person.connected ? 'Connected' : ''].filter(Boolean).join(' · '))).join('')}</ul>` : ''}
         ${result.projects.length ? `<h3 class="home-subheading">Projects</h3><ul class="home-mine-list">${result.projects.map(project => row(`data-idea-project="${esc(project.id)}"`, `<span class="home-mine-icon" aria-hidden="true">${esc(initial(project.title))}</span>`, project.title, project.reason)).join('')}</ul>` : ''}`;
     }
@@ -495,6 +566,13 @@
   }
 
   // Built once per Home: typing here survives every other update.
+  // Explicit learning intent uses the existing search, not a new profile field.
+  // No inferred aspirations, persistence, or new telemetry.
+  function learningQuery(text) {
+    const match = String(text || '').trim().match(/^(?:i want to learn|i would like to learn|help me learn|learn)\s+(.+)$/i);
+    return match ? match[1].trim() : null;
+  }
+
   function mountGoal() {
     const el = part('goal');
     if (!el || el.dataset.mounted === 'true') return;
@@ -530,8 +608,9 @@
       const slot = el.querySelector('.home-idea-results');
       slot.innerHTML = '<p class="home-muted" role="status">Looking…</p>';
       let result;
-      try { result = await findForIdea(idea); } catch (error) { console.warn('[Home] idea search unavailable:', error?.message || error); result = 'error'; }
-      if (search === searchRequest && el.isConnected && part('goal') === el && state.memberId === memberId && input.value.trim() === idea) paintIdeaResults(idea, result);
+      const learning = window.HPEParticipationPilot === true ? learningQuery(idea) : null;
+      try { result = await findForIdea(learning || idea); } catch (error) { console.warn('[Home] idea search unavailable:', error?.message || error); result = 'error'; }
+      if (search === searchRequest && el.isConnected && part('goal') === el && state.memberId === memberId && input.value.trim() === idea) paintIdeaResults(idea, result, !!learning);
     });
   }
 
@@ -625,6 +704,12 @@
 
   function clear() {
     request += 1;
+    externalGeneration += 1;
+    externalInventory = [];
+    externalLoadedAt = 0;
+    externalLoading = false;
+    externalDismissed.clear();
+    externalMember = null;
     if (host) host.innerHTML = '';
     host = null;
     state.memberId = null;
@@ -662,6 +747,7 @@
     paintSuggestions();
     refreshMine();
     refreshAttention();
+    refreshExternalInventory();
   }
 
   // "Write your own objective" (focused assistance) opens goal help here.
@@ -672,7 +758,7 @@
   // chooseNextTask: the rule a project's own overview uses for its next step
   // (node-panel.js); Home itself no longer picks a task.
   window.HomeView = { show, clear, focusGoal, chooseNextTask };
-  window.HomeViewTesting = { taskScore, chooseNextTask, loadMine, wantsCuriosityPrompt, matchIdea };
+  window.HomeViewTesting = { taskScore, chooseNextTask, loadMine, wantsCuriosityPrompt, matchIdea, preferParticipation, learningQuery, externalPick };
 
   window.addEventListener('daily-brief-updated', () => { if (host) calmly(paintSuggestions); });
   window.addEventListener('total-unread-messages-updated', (event) => {
