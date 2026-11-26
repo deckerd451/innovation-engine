@@ -15,7 +15,10 @@ const suggestion = 'document.querySelector("[data-home=join] a")';
 try {
   for (const width of [390, 1280]) {
     await app.load(width, 844);
-    await app.wait(`${pilot}?.hidden`, 'disabled by default');
+    assert.equal(await run('window.HPEParticipationPilot === true && window.HPEPersistentConsent === true && window.HPEResearchPilot !== true'), true);
+    await app.wait(`${pilot} && !${pilot}.hidden`, 'participation pilot visible');
+    await run('window.HPEParticipationPilot=false;window.HomeView.clear();window.HomeView.show();true');
+    await app.wait(`${pilot}?.hidden`, 'pilot hidden when switched off');
     await run(`(() => {
       window.AppNav.go('home');
       window.StartDailyDigest.inboundAttention = () => [];
