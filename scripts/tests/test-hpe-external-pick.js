@@ -38,3 +38,14 @@ for(const args of [[false,consent,'a'],[true,null,'a'],[true,consent,'b'],[true,
 assert.equal(pick([row],new Set(),now,[],'charleston-sc'),null);
 assert.equal(pick([{...row,geographicRelevance:'charleston-sc',eligibility:'adult_public',participationType:'contribution'}],new Set(),now,[],'charleston-sc').url,row.sourceUrl);
 assert.ok(clear.includes('pilotEnrollment = null'));
+
+assert.ok(source.includes('data-pilot-control hidden'));
+assert.ok(source.includes('data-pilot-join disabled'));
+assert.ok(source.includes('if (!confirm.checked) return;'));
+page.currentUserProfile={id:'a'};
+page.HPEParticipationPilot=true;
+assert.equal(page.HomeView.enrollPilot({adultConfirmed:false,scope:'charleston-sc',consentVersion:1}),false);
+assert.equal(page.HomeView.enrollPilot({adultConfirmed:true,scope:'charleston-sc',consentVersion:1}),true);
+page.HomeView.withdrawPilot();
+page.HPEParticipationPilot=false;
+assert.equal(page.HomeView.enrollPilot({adultConfirmed:true,scope:'charleston-sc',consentVersion:1}),false);
