@@ -188,3 +188,10 @@ for f in scripts/tests/fixtures/supabase-minimal-bootstrap.sql scripts/tests/hpo
   "${PSQL[@]}" -d ie_hpoe -f "$ROOT/$f" >/dev/null
 done
 echo "   ok (including rollback)"
+
+echo "HPOE synthetic inference quota"
+"${PSQL[@]}" -d postgres -c "CREATE DATABASE ie_hpoe_quota" >/dev/null
+for f in scripts/tests/fixtures/supabase-minimal-bootstrap.sql scripts/tests/hpoe-collaboration-bootstrap.sql supabase/sql/migrations/20261128_hpoe_collaboration.sql supabase/sql/migrations/20261129_hpoe_generative_limits.sql scripts/tests/hpoe-generation-db.sql supabase/sql/rollback/20261129_hpoe_generative_limits_rollback.sql; do
+  "${PSQL[@]}" -d ie_hpoe_quota -f "$ROOT/$f" >/dev/null
+done
+echo "   ok (including rollback)"
