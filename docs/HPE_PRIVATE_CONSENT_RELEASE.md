@@ -2,8 +2,8 @@
 
 ## Before deploying
 
-1. Keep `HPEParticipationPilot`, `HPEPersistentConsent` and `HPEResearchPilot` unset in production. Use the exact reviewed PR revision after required checks pass. Confirm the release owner has approved deployment.
-2. Apply the migration sequence below to staging first. Use two separate test accounts on phone and desktop. Verify Home starts in its ordinary mode, consent requires a deliberate action, active consent survives refresh, switching accounts clears the previous account's state, and leaving deletes the stored consent. Verify one adult Charleston-area account can open a provider pathway, dismiss one role without dismissing another on the same page, and still reach usual Home features.
+1. Preserve the intentional participation pilot state already present on `main`: `HPEPersistentConsent` and `HPEParticipationPilot` are enabled by the recorded pilot decision. Do not unset them merely to conform to this runbook. `HPEResearchPilot` remains unset; research stays off. This PR does not change these flags.
+2. When an isolated staging project is available, verify the migration sequence there with separate synthetic accounts. If staging is unavailable and the release owner accepts the residual risk, validate schema compatibility read-only and limit production validation to designated test accounts and clearly labeled test projects. Require deliberate consent, verify account switching and withdrawal, and do not use or alter other members' data.
 3. Confirm the current inventory contains at least 25 reviewed pathways with `node scripts/opportunity-renewal.js --current-inventory`, and verify the daily freshness workflow is available. See [opportunity operations](HPE_OPPORTUNITY_OPERATIONS.md).
 
 ## Migrate and deploy
@@ -15,7 +15,7 @@ psql "$HPE_RELEASE_DATABASE_URL" -X -v ON_ERROR_STOP=1 -f supabase/sql/migration
 psql "$HPE_RELEASE_DATABASE_URL" -X -v ON_ERROR_STOP=1 -f supabase/sql/migrations/20261127_hpe_explicit_consent_identity.sql
 ```
 
-Deploy the reviewed static-site revision with all three flags off and check ordinary signed-in and signed-out Home. Once the gates pass, add this script in the deployment revision of `index.html` immediately before the deferred `assets/js/home-view.js` script, then deploy that revision through the normal release process.
+The participation flags below are already intentionally enabled on `main`. Preserve them in the reviewed deployment; do not add a separate flag toggle as a release gate. Verify signed-in and signed-out Home and confirm that enrollment still requires an explicit member action.
 
 ```html
 <script>
@@ -34,7 +34,7 @@ Participation uses adult self-attestation and Charleston scope. Research is a se
 
 Turn off the pilot and research client flags, redeploy, and verify Home returns to ordinary behavior. Turning flags off preserves stored records. Preserve the approved withdrawal and deletion route for existing participants during a pause.
 
-For a full schema rollback, confirm the data-handling decision before proceeding. The second command drops the pilot tables and their data.
+For a client regression in a release that does not change these migrations, revert the release commit and retain pilot flags and database rows so existing members can still reach consent and withdrawal controls. Pause a pilot only for a privacy or security incident, with an explicit withdrawal plan. For a full schema rollback, confirm the data-handling decision before proceeding. The second command drops the pilot tables and their data.
 
 ```sh
 psql "$HPE_RELEASE_DATABASE_URL" -X -v ON_ERROR_STOP=1 -f supabase/sql/rollback/20261127_hpe_explicit_consent_identity_rollback.sql
