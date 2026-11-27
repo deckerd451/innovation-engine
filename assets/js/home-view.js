@@ -133,17 +133,14 @@
     const view = host.querySelector('.home-view');
     view.dataset.homeMode = participating ? 'participating' : 'discover';
     const order = participating
-      ? ['attention', 'mine', 'goal', 'picked', 'happening', 'profile']
+      ? ['attention', 'goal', 'mine', 'picked', 'happening', 'profile']
       : ['goal', 'attention', 'picked', 'mine', 'happening', 'profile'];
     const grid = view.querySelector('.home-grid');
     order.forEach((name, index) => {
       const section = part(name);
       if (section && grid.children[index] !== section) grid.insertBefore(section, grid.children[index] || null);
     });
-    const title = part('goal')?.querySelector('h2');
-    if (title) title.textContent = 'Search the community';
-    const description = part('goal')?.querySelector('.home-muted');
-    if (description) description.textContent = 'People, projects, skills, organizations, and opportunities.';
+
   }
 
   function paintAttention() {
@@ -738,6 +735,8 @@
     if (!slot) return;
     const enabled = window.HPEParticipationPilot === true && !!profile()?.id;
     slot.hidden = !enabled;
+    const settings = slot.closest('[data-participation-settings]');
+    if (settings) settings.hidden = !enabled;
     const persistent = window.HPEPersistentConsent === true;
     const mode = !enabled ? 'off' : persistent && !pilotStorageLoaded ? 'loading' : pilotActive() ? 'joined' : 'invite';
     if (slot.dataset.mode === mode) return;
@@ -788,20 +787,28 @@
     const el = part('goal');
     if (!el || el.dataset.mounted === 'true') return;
     el.dataset.mounted = 'true';
-    el.innerHTML = `<h2 class="home-heading home-label" id="home-idea-title">Search the community</h2>
-      <p class="home-muted">People, projects, skills, organizations, and opportunities.</p>
+    el.innerHTML = `<h2 class="home-heading" id="home-idea-title">What would you like to make possible?</h2>
+      <p class="home-entry-description">Find people and projects, learn something new, or explore an idea together.</p>
       <form class="home-idea-form" aria-labelledby="home-idea-title">
-        <label class="home-sr" for="home-idea-input">Search the community</label>
-        <input id="home-idea-input" name="idea" required maxlength="280" autocomplete="off" enterkeyhint="search" placeholder="Name, skill, or keyword…">
-        <button type="submit">Search</button>
+        <label class="home-sr" for="home-idea-input">What would you like to make possible?</label>
+        <input id="home-idea-input" name="idea" required maxlength="280" autocomplete="off" enterkeyhint="go" placeholder="Share an idea, name, or skill…">
+        <button type="submit">Explore</button>
       </form>
-      <p class="home-idea-example">Try: <button type="button" class="home-link" data-idea-example="I'm looking for help with community building">Community building</button></p>
-      <div class="home-idea-results" aria-live="polite"></div><div data-pilot-control hidden></div>`;
-    if (window.HPOECollaborationPilot === true && profile()?.user_id && window.supabase) {
-      window.HPOECollaboration?.mount(el, window.supabase, profile().user_id, profile);
-    }
+      <p class="home-idea-example">Try <button type="button" class="home-link" data-idea-example="I'm looking for help with community building">Community building</button></p>
+      <div class="home-idea-results" aria-live="polite"></div>
+      <div class="home-entry-settings">
+        <details data-participation-settings hidden><summary>Participation settings</summary><div data-pilot-control hidden></div></details>
+      </div>`;
+    const example = el.querySelector('[data-idea-example]');
+    const setExample = canCollaborate => {
+      example.textContent = canCollaborate ? 'Community garden' : 'Community building';
+      example.dataset.ideaExample = canCollaborate ? 'Explore a community garden' : "I'm looking for help with community building";
+    };
+    const collaboration = window.HPOECollaborationPilot === true && profile()?.user_id && window.supabase
+      ? window.HPOECollaboration?.mount(el.querySelector('.home-entry-settings'), window.supabase, profile().user_id, profile, setExample)
+      : null;
     // The example fills the field to edit or send; it never searches by itself.
-    el.querySelector('[data-idea-example]').addEventListener('click', (event) => {
+    example.addEventListener('click', (event) => {
       const input = el.querySelector('#home-idea-input');
       input.value = event.currentTarget.dataset.ideaExample;
       input.focus();
@@ -821,10 +828,25 @@
       input.blur();
       const slot = el.querySelector('.home-idea-results');
       slot.innerHTML = '<p class="home-muted" role="status">Looking…</p>';
-      let result;
+      const memberAccount = profile()?.user_id;
+      const current = () => search === searchRequest && el.isConnected && part('goal') === el &&
+        state.memberId === memberId && profile()?.user_id === memberAccount && input.value.trim() === idea;
+      const explicitSearch = idea.match(/^(?:search for|find)\s+(.+)/i);
       const learning = pilotActive() ? learningQuery(idea) : null;
-      try { result = await findForIdea(learning || idea); } catch (error) { console.warn('[Home] idea search unavailable:', error?.message || error); result = 'error'; }
-      if (search === searchRequest && el.isConnected && part('goal') === el && state.memberId === memberId && input.value.trim() === idea) paintIdeaResults(idea, result, !!learning);
+      const searchCommunity = async () => {
+        if (!current()) return;
+        slot.innerHTML = '<p class="home-muted" role="status">Searching the community…</p>';
+        let result;
+        try { result = await findForIdea(learning || explicitSearch?.[1] || idea); }
+        catch (error) { console.warn('[Home] idea search unavailable:', error?.message || error); result = 'error'; }
+        if (current()) paintIdeaResults(idea, result, !!learning);
+      };
+      if (!learning && !explicitSearch && collaboration) {
+        try {
+          if (await collaboration.explore(idea, slot, current, searchCommunity)) return;
+        } catch (error) { console.warn('[Home] collaboration lookup unavailable:', error?.message || error); }
+      }
+      await searchCommunity();
     });
   }
 

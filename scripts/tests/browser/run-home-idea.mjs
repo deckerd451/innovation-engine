@@ -377,7 +377,7 @@ async function askIdea(idea) {
     i.form.requestSubmit();
     return true;
   }, ROOT(), idea);
-  await waitFor(`!/Looking…/.test(document.querySelector('${ROOT()} .home-idea-results')?.textContent || 'Looking…')`, 'idea results', 8000);
+  await waitFor(`!/Looking…|Searching the community…/.test(document.querySelector('${ROOT()} .home-idea-results')?.textContent || 'Looking…')`, 'idea results', 8000);
   await sleep(300);
   return callInPage(function (root) {
     const slot = document.querySelector(root + ' .home-idea-results');
@@ -399,11 +399,11 @@ try {
     await loadHome('established', VIEWPORTS[name]);
     const section = await callInPage(function (root) {
       const s = document.querySelector(root + ' [data-home="goal"]');
-      return { tag: s.tagName, text: [s.querySelector('h2')?.textContent, s.querySelector('p')?.textContent].join(' ').replace(/\s+/g, ' ').trim(), inputs: s.querySelectorAll('input').length, buttons: [...s.querySelectorAll('form button')].map(b => b.textContent.trim()), resume: !!document.querySelector(root + ' .home-resume'), beforeMine: !!(s.compareDocumentPosition(document.querySelector(root + ' [data-home="mine"]')) & Node.DOCUMENT_POSITION_FOLLOWING) };
+      return { tag: s.tagName, text: [s.querySelector('h2')?.textContent, s.querySelector('p')?.textContent].join(' ').replace(/\s+/g, ' ').trim(), inputs: s.querySelectorAll('form input').length, buttons: [...s.querySelectorAll('form button')].map(b => b.textContent.trim()), resume: !!document.querySelector(root + ' .home-resume'), beforeMine: !!(s.compareDocumentPosition(document.querySelector(root + ' [data-home="mine"]')) & Node.DOCUMENT_POSITION_FOLLOWING) };
     }, ROOT());
-    check(/^Search the community People, projects, skills, organizations, and opportunities\.$/i.test(section.text) && section.inputs === 1 && JSON.stringify(section.buttons) === '["Search"]',
+    check(/What would you like to make possible/i.test(section.text) && section.inputs === 1 && JSON.stringify(section.buttons) === '["Explore"]',
       `${name}: one input and one action, with the plain promise`, JSON.stringify(section));
-    check(!section.resume && !/worksheet|draft|Get help|next step/i.test(section.text) && !section.beforeMine, `${name}: available after projects for participating members; no worksheet language or draft resume`, JSON.stringify(section));
+    check(!section.resume && !/worksheet|draft|Get help|next step/i.test(section.text) && section.beforeMine, `${name}: available before projects for participating members; no worksheet language or draft resume`, JSON.stringify(section));
 
     // The example fills the field to edit or send; it never searches by itself.
     await evaluate(`(() => { const s = document.querySelector('${ROOT()} [data-home="goal"]'); s.scrollIntoView({ block: 'start' }); s.querySelector('[data-idea-example]').click(); return true; })()`);

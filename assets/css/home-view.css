@@ -189,7 +189,6 @@
 .home-grid>.home-idea{padding:.85rem;background:rgba(0,224,255,.025)}
 .home-idea .home-heading{font-size:1.08rem;margin-bottom:.25rem}
 .home-idea>.home-muted{margin-bottom:.65rem}
-.home-view[data-home-mode=participating] .home-idea-example{display:none}
 .home-view[data-home-mode=participating] .home-mine{border-color:rgba(0,224,255,.2)}
 .home-view .home-header{padding-bottom:0}
 @media(min-width:1024px){
@@ -207,3 +206,97 @@
 .home-collaboration summary { min-block-size: 2rem; cursor: pointer; }
 .home-collaboration button { min-block-size: 2rem; margin-inline-end: .75rem; }
 .home-collaboration input { max-inline-size: 100%; }
+
+/* Home entry and proposals. The restrained color field keeps the prompt
+   dominant without adding a separate destination or an ornamental image. */
+.home-grid > .home-idea {
+  padding: clamp(1rem, 3vw, 2rem);
+  border-color: #426260;
+  border-radius: 22px;
+  background:
+    radial-gradient(ellipse at 100% 0%, #214841 0%, transparent 58%),
+    linear-gradient(123deg, #182936, #1b2738 68%, #21313d);
+}
+.home-idea #home-idea-title {
+  max-width: 25ch;
+  margin: 0;
+  color: #fff9ed;
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  font-weight: 720;
+  letter-spacing: -.045em;
+  line-height: 1.08;
+}
+.home-entry-description {
+  margin: .7rem 0 1.15rem;
+  max-width: 56ch;
+  color: #d5e0e4;
+  font-size: .98rem;
+  line-height: 1.5;
+}
+.home-idea .home-idea-form { gap: .65rem; max-width: 54rem; }
+.home-idea .home-idea-form input {
+  flex: 1 1 15rem;
+  min-height: 52px;
+  border: 1px solid #6b8a8a;
+  border-radius: 12px;
+  background: #101d29;
+}
+.home-idea .home-idea-form input::placeholder { color: #b4c8d1; }
+.home-idea .home-idea-form button, .home-possibility .home-action {
+  padding-inline: 1.2rem;
+  min-height: 52px;
+  border: 1px solid #b5eed5;
+  border-radius: 12px;
+  background: #b5eed5;
+  color: #102a26;
+  transition: background-color .15s ease;
+}
+.home-idea .home-idea-form button:hover, .home-possibility .home-action:hover { background: #d1f9e6; }
+.home-idea :is(input, button, summary, a):focus-visible {
+  outline: 2px solid #f8d9a7;
+  outline-offset: 3px;
+}
+.home-idea .home-idea-example { color: #d1dce0; }
+.home-idea .home-idea-example .home-link { color: #bbefdc; }
+.home-entry-settings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  gap: .25rem 1.25rem;
+  margin-top: .65rem;
+}
+.home-entry-settings:has(> details:not([hidden])) {
+  padding-top: .45rem;
+  border-top: 1px solid #58716f;
+}
+.home-entry-settings > details { max-width: 100%; margin: 0; }
+.home-entry-settings > details[open] { flex: 1 1 100%; }
+.home-entry-settings summary {
+  min-block-size: 2rem;
+  padding-block: .35rem;
+  color: #d5e0e4;
+  font-size: .875rem;
+  cursor: pointer;
+}
+.home-entry-settings :is(button, a) { overflow-wrap: anywhere; }
+.home-possibility {
+  max-width: 54rem;
+  margin-top: 1rem;
+  padding: clamp(.85rem, 2vw, 1.25rem);
+  border: 1px solid #608781;
+  border-radius: 16px;
+  background: #142631;
+}
+.home-possibility h3 { margin: .2rem 0 .5rem; color: #fff9ed; font-size: 1.18rem; }
+.home-possibility p { margin: .4rem 0; line-height: 1.5; }
+.home-possibility .home-possibility-label { color: #bbefdc; font-size: .84rem; font-weight: 700; }
+.home-possibility .home-action { min-height: 44px; margin: .5rem .8rem .25rem 0; }
+.home-possibility .home-link { color: #bbefdc; }
+.home-possibility [role="status"]:empty { display: none; }
+@media (max-width: 699px) {
+  .home-grid > .home-idea { border-radius: 17px; }
+  .home-entry-settings { gap: .1rem 1rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-idea .home-idea-form button, .home-possibility .home-action { transition: none; }
+}

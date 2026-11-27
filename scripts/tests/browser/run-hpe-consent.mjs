@@ -73,6 +73,7 @@ try {
       return true;
     })()`);
     await app.wait(`${join}?.disabled`, 'explicit consent required');
+    await run("document.querySelector('[data-participation-settings]').open=true;true");
     assert.equal(await run(`!!${suggestion}`), false);
     assert.ok(await run(`${pilot}.querySelector('summary').getBoundingClientRect().height >= 24`),
       'pilot invitation meets the minimum target height');
