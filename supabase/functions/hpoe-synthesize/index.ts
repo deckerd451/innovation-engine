@@ -8,8 +8,10 @@ function valid(value: unknown): boolean {
   return Object.keys(v).length === fields.length && fields.every(k => typeof v[k] === "string" && (v[k] as string).trim().length > 0 && (v[k] as string).length <= 1200)
     && v.outputAsset === v.nextInputAsset && v.capability === v.nextUsesCapability;
 }
-const reply = (status: number, body: unknown) => new Response(JSON.stringify(body), {status,headers:{"Content-Type":"application/json","Cache-Control":"no-store"}});
+const cors = {"Access-Control-Allow-Origin":"https://deckerd451.github.io","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Access-Control-Allow-Methods":"POST, OPTIONS","Vary":"Origin"};
+const reply = (status: number, body: unknown) => new Response(JSON.stringify(body), {status,headers:{...cors,"Content-Type":"application/json","Cache-Control":"no-store"}});
 Deno.serve(async req => {
+  if (req.method === "OPTIONS") return new Response(null,{status:204,headers:cors});
   if (req.method !== "POST") return reply(405,{error:"POST required"});
   try {
     const url = Deno.env.get("SUPABASE_URL"), anon = Deno.env.get("SUPABASE_ANON_KEY"), service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
