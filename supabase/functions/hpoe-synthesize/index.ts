@@ -41,12 +41,12 @@ Deno.serve(async req => {
       signal:AbortSignal.timeout(25000),
       body:JSON.stringify({contents:[{parts:[{text:scenario+" Generate one feasible collaborative developmental opportunity and a subsequent opportunity that reuses the first output asset and learned capability. Include an achievable first action and material constraints. All outcomes are hypothetical. Repeat outputAsset exactly in nextInputAsset and capability exactly in nextUsesCapability."}]}],generationConfig:{responseMimeType:"application/json",responseSchema:{type:"OBJECT",properties,required:fields},maxOutputTokens:2048}})
     });
-    if(!result.ok)return reply(502,{error:"Model request unsuccessful"});
+    if(!result.ok){console.warn("HPOE provider HTTP status",result.status);return reply(502,{error:"Model request unsuccessful"});}
     const response=await result.json();
     const candidate=response.candidates?.[0];
-    if(candidate?.finishReason!=="STOP")return reply(502,{error:"Incomplete model response"});
+    if(candidate?.finishReason!=="STOP"){console.warn("HPOE incomplete model response");return reply(502,{error:"Incomplete model response"});}
     const proposal=JSON.parse(candidate.content.parts.filter((p:{thought?:boolean})=>!p.thought).map((p:{text?:string})=>p.text||"").join(""));
-    if(!valid(proposal))return reply(502,{error:"Invalid model response"});
+    if(!valid(proposal)){console.warn("HPOE proposal validation failed");return reply(502,{error:"Invalid model response"});}
     return reply(200,{synthetic:true,verified:false,proposal});
   }catch{return reply(503,{error:"Pilot unavailable"});}
 });
