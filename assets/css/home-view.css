@@ -300,3 +300,9 @@
 @media (prefers-reduced-motion: reduce) {
   .home-idea .home-idea-form button, .home-possibility .home-action { transition: none; }
 }
+
+.home-possibility h4 { margin: .75rem 0 .2rem; color: #fff9ed; }
+.home-possibility details { margin-block: .65rem; }
+.home-possibility summary { min-height: 32px; padding-block: .35rem; cursor: pointer; color: #bbefdc; }
+.home-possibility li { margin-block: .25rem; line-height: 1.5; }
+.home-possibility .home-link { margin-inline-end: .8rem; }
