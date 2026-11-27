@@ -154,9 +154,9 @@ try {
       'organization/resource search includes matched public opportunities');
     await run("document.querySelector('#home-idea-input').value='Explore a community garden';document.querySelector('.home-idea-form').requestSubmit();true");
     await app.wait("document.querySelector('.home-possibility')?.textContent.includes('Starter plan')", 'saved starter plan restored after organization search');
-    await run("window.__test.noMatch=false;document.querySelector('#home-idea-input').value='Find a community garden';document.querySelector('.home-idea-form').requestSubmit();true");
+    await run("window.__test.noMatch=false;window.__test.lookupsBeforeExplicit=window.__test.lookups;document.querySelector('#home-idea-input').value='Find a community garden';document.querySelector('.home-idea-form').requestSubmit();true");
     await app.wait("document.querySelector('.home-idea-results')?.textContent.includes('Matches for') || document.querySelector('.home-idea-results')?.textContent.includes('No matches for')", 'explicit search results');
-    assert.equal(await run('window.__test.lookups'), 2, 'explicit search bypasses collaboration lookup');
+    assert.equal(await run('window.__test.lookups'), await run('window.__test.lookupsBeforeExplicit'), 'explicit search bypasses collaboration lookup');
     await run(`document.querySelector('#home-idea-input').value='Explore a community garden. Private fixture draft.';document.querySelector('.home-idea-form').requestSubmit();true`);
     await app.wait("document.querySelector('.home-possibility h3')?.textContent==='Explore a small community garden'", 'routed collaboration proposal');
     assert.deepEqual(await run(`axe.run(document.querySelector('.home-possibility'), {runOnly:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}).then(r=>r.violations.map(v=>v.id))`), []);
