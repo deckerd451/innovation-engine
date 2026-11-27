@@ -468,6 +468,12 @@ export async function showEnhancedProjectCreation(draft) {
   // Add event listeners
   setupEnhancedModalEventListeners();
 
+  // A starter plan already supplies the project concept; do not require a template.
+  if (typeof draft?.title === 'string' && draft.title.trim()) {
+    showProjectDetailsStep();
+    modal.querySelector('#skill-suggestions')?.replaceChildren();
+  }
+
   console.log('✅ Enhanced project creation modal opened');
 }
 
