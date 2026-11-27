@@ -1057,8 +1057,14 @@
   window.addEventListener('profile-loaded', () => { if (document.body.dataset.destination === 'home') show(); });
   window.addEventListener('user-logged-out', clear);
   // What was done in focused assistance or a project shows on return.
-  ['mobile-assistance-closed', 'project-task-updated', 'capability-outcome-recorded', 'project-created'].forEach(type => window.addEventListener(type, () => {
+  ['mobile-assistance-closed', 'project-task-updated', 'capability-outcome-recorded'].forEach(type => window.addEventListener(type, () => {
     if (!showing()) return;
     refreshMine();
   }));
+  // The project creator dispatches this event on document after its insert
+  // succeeds; listen at the same target so Home's ongoing-project list updates.
+  if (typeof document !== 'undefined') document.addEventListener?.('project-created', () => {
+    if (!showing()) return;
+    refreshMine();
+  });
 })();

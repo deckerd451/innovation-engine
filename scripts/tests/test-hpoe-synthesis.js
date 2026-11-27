@@ -18,7 +18,7 @@ assert.match(result.recipe.missing, /Confirm permission/);
 assert.match(result.recipe.first, /one-bed trial/);
 
 // Replay the same synthetic evidence through the current Home keyword finder.
-const page = { addEventListener() {} };
+const page = { addEventListener() {}, document: { addEventListener() {} } };
 page.window = page;
 vm.runInNewContext(fs.readFileSync('assets/js/home-view.js', 'utf8'), page);
 const baseline = page.HomeViewTesting.matchIdea({
@@ -92,5 +92,5 @@ const projectCreation = fs.readFileSync('assets/js/enhanced-project-creation.js'
 assert.match(projectCreation, /modal\.querySelector\('#template-selection-step'\)\?\.remove\(\)/, 'a prefilled idea cannot be routed back to unrelated templates');
 assert.match(projectCreation, /required_skills: skills/, 'project creation persists the member-selected capabilities');
 const homeSource = fs.readFileSync('assets/js/home-view.js', 'utf8');
-assert.match(homeSource, /'capability-outcome-recorded', 'project-created'/, 'Home reloads its ongoing project list after creation');
+assert.match(homeSource, /typeof document !== 'undefined'\) document\.addEventListener\?\.\('project-created'/, 'Home listens to the project creator event and reloads its ongoing list');
 console.log('Prefilled drafts stay on their idea and created projects rejoin Home continuity');
