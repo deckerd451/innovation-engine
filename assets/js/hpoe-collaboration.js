@@ -32,9 +32,13 @@
     return new Set(entries.filter(entry => typeof entry === 'string').map(entry => entry.trim().toLowerCase()));
   }
 
+  function relevantRecipes(intent) {
+    if (typeof intent !== 'string' || /\b(?:no|not|never|avoid|without|don['’]t)\b/i.test(intent)) return [];
+    return Object.entries(recipes).filter(([, recipe]) => recipe.topic.test(intent));
+  }
+
   function propose(intent, ownSkills, candidates) {
-    if (typeof intent !== 'string' || /\b(?:no|not|never|avoid|without|don['’]t)\b/i.test(intent)) return null;
-    const relevant = Object.entries(recipes).filter(([, recipe]) => recipe.topic.test(intent));
+    const relevant = relevantRecipes(intent);
     if (relevant.length !== 1) return null;
     const own = skills(ownSkills);
     for (const [key, recipe] of relevant) {
@@ -50,12 +54,12 @@
     return null;
   }
 
-  function mount(container, client, accountId, getProfile) {
+  function mount(container, client, accountId, getProfile, onAvailability = () => {}) {
     const current = () => container.isConnected && root.HPOECollaborationPilot === true &&
       getProfile()?.user_id === accountId;
     const details = document.createElement('details');
     const label = document.createElement('summary');
-    label.textContent = 'Explore a collaboration (optional)';
+    label.textContent = 'Collaboration settings';
     const body = document.createElement('div');
     const status = document.createElement('p');
     status.setAttribute('role', 'status');
@@ -72,13 +76,17 @@
     details.hidden = true;
     container.append(details);
     let eligible = false;
+    let enrolled = false;
     async function updateAvailability() {
       const result = await client.rpc('hpoe_status', { p_actor: accountId });
-      if (!current() || result.error) return;
+      if (!current() || result.error) return false;
       const state = result.data?.[0];
       eligible = state?.eligible === true;
-      details.hidden = !eligible && state?.enrolled !== true;
-      label.textContent = state?.pending ? 'Review collaboration invitation' : 'Explore a collaboration (optional)';
+      enrolled = state?.enrolled === true;
+      details.hidden = !eligible && !enrolled;
+      onAvailability(eligible && enrolled);
+      label.textContent = state?.pending ? 'Review collaboration invitation' : 'Collaboration settings';
+      return true;
     }
     const onFocus = () => {
       if (!current()) { root.removeEventListener('focus', onFocus); return; }
@@ -98,7 +106,7 @@
       return element;
     }
 
-    function button(title, action, target = content) {
+    function button(title, action, target = content, feedback = status) {
       const element = document.createElement('button');
       element.type = 'button';
       element.className = 'home-link';
@@ -107,14 +115,14 @@
         if (!current() || busy) return;
         busy = true;
         element.disabled = true;
-        status.textContent = '';
+        feedback.textContent = '';
         try {
           const auth = await client.auth.getUser();
           if (!current()) return;
           if (auth.error || auth.data?.user?.id !== accountId) throw Error('Account changed');
           await action();
         } catch {
-          if (current()) status.textContent = 'Could not complete that action. Please try again.';
+          if (current()) feedback.textContent = 'Could not complete that action. Please try again.';
         } finally {
           busy = false;
           element.disabled = false;
@@ -217,50 +225,98 @@
           write(client.from('hpoe_opt_in').delete().eq('user_id', accountId)));
         return;
       }
-      const field = document.createElement('input');
-      field.maxLength = 160;
-      const fieldLabel = document.createElement('label');
-      fieldLabel.textContent = 'What would you like to explore? ';
-      fieldLabel.append(field);
-      paragraph('Try a community garden, coding workshop, or local resource guide.');
-      content.append(fieldLabel);
-      const proposal = document.createElement('div');
-      proposal.setAttribute('aria-live', 'polite');
-      field.addEventListener('input', () => proposal.replaceChildren());
-      button('Explore idea', async () => {
-        const intent = field.value.trim();
-        if (!intent) { status.textContent = 'Enter an idea first.'; return; }
-        const result = await client.rpc('hpoe_candidates', { p_actor: accountId });
-        if (!current() || field.value.trim() !== intent) return;
-        if (result.error) throw result.error;
-        proposal.replaceChildren();
-        const match = propose(intent, getProfile()?.skills, result.data || []);
-        const message = document.createElement('p');
-        if (!match) {
-          message.textContent = 'No complementary match was found for this idea.';
-          proposal.append(message);
-          return;
-        }
-        message.textContent = 'Proposal: ' + match.recipe.title + '. You list ' + match.ownMatch +
-          '; ' + match.peer.name + ' lists ' + match.peerMatch + '. ' + match.recipe.missing;
-        proposal.append(message);
-        button('Invite ' + match.peer.name + ' to explore', () =>
-          write(client.rpc('hpoe_invite', {
-            p_actor: accountId, p_profile_id: match.peer.profile_id, p_recipe: match.key
-          }), 0), proposal);
-      });
-      content.append(proposal);
+      paragraph('Use the prompt above to explore a community garden, coding workshop, or local resource guide.');
       button('Leave collaboration pilot and delete my records', () =>
         write(client.from('hpoe_opt_in').delete().eq('user_id', accountId)));
+    }
+
+    async function explore(idea, slot, stillCurrent, searchInstead) {
+      const relevant = relevantRecipes(idea);
+      if (relevant.length !== 1 || !current()) return false;
+      if (!await updateAvailability() || !stillCurrent() || !eligible) return false;
+      if (!enrolled) {
+        if (!current()) return false;
+        const note = document.createElement('p');
+        note.className = 'home-muted';
+        note.textContent = 'To explore this with connections, opt in under Collaboration settings. You can also search the community now.';
+        slot.replaceChildren(note);
+        button('Open collaboration settings', async () => {
+          if (!details.open) details.open = true;
+          await refresh();
+          label.focus();
+        }, slot);
+        addSearchAlternative(slot, searchInstead);
+        return true;
+      }
+      const result = await client.rpc('hpoe_candidates', { p_actor: accountId });
+      if (!current() || !stillCurrent()) return true;
+      if (result.error) return false;
+      const match = propose(idea, getProfile()?.skills, result.data || []);
+      const card = document.createElement('article');
+      card.className = 'home-possibility';
+      const copy = (tag, value, className = '') => {
+        const node = document.createElement(tag);
+        node.className = className;
+        node.textContent = value;
+        card.append(node);
+        return node;
+      };
+      if (match) {
+        copy('p', 'Collaboration proposal', 'home-possibility-label');
+        copy('h3', match.recipe.title);
+        copy('p', 'You list ' + match.ownMatch + '. ' + (match.peer.name || 'Your connection') +
+          ' lists ' + match.peerMatch + '.');
+        copy('p', match.recipe.missing, 'home-muted');
+        copy('p', match.recipe.first);
+        const feedback = document.createElement('p');
+        feedback.className = 'home-muted';
+        feedback.setAttribute('role', 'status');
+        const invite = button('Invite ' + (match.peer.name || 'your connection') + ' to explore', async () => {
+          if (!stillCurrent()) return;
+          const sent = await client.rpc('hpoe_invite', {
+            p_actor: accountId, p_profile_id: match.peer.profile_id, p_recipe: match.key
+          });
+          if (sent.error) throw sent.error;
+          if (!current() || !stillCurrent()) return;
+          card.replaceChildren();
+          copy('p', 'Invitation sent. You can withdraw it in Collaboration settings.');
+          const settingsButton = button('Open collaboration settings', async () => {
+            details.open = true;
+            await refresh(0);
+            if (current()) label.focus();
+          }, card);
+          settingsButton.focus();
+          await updateAvailability();
+          if (details.open) await refresh(0);
+        }, card, feedback);
+        card.append(feedback);
+        invite.className = 'home-action';
+      } else {
+        copy('h3', 'No collaboration match yet');
+        copy('p', 'This idea needs two complementary skills listed by you and an opted-in connection. Search for existing people, projects, and opportunities below.');
+      }
+      addSearchAlternative(card, searchInstead);
+      slot.replaceChildren(card);
+      return true;
+    }
+
+    function addSearchAlternative(target, action) {
+      const search = document.createElement('button');
+      search.type = 'button';
+      search.className = 'home-link';
+      search.textContent = 'Search existing listings';
+      search.addEventListener('click', action);
+      target.append(search);
     }
 
     details.addEventListener('toggle', () => {
       if (!details.open || !current() || busy) return;
       busy = true;
-      updateAvailability().then(refresh).catch(() => {
+      updateAvailability().then(() => refresh()).catch(() => {
         if (current()) status.textContent = 'Collaboration options are unavailable. Close and reopen to retry.';
       }).finally(() => { busy = false; });
     });
+    return { explore };
   }
 
   const engine = Object.freeze({ propose, mount });

@@ -16,6 +16,7 @@ async function open() {
 try {
   for (const width of [390, 1280]) {
     await app.load(width, 844);
+    await app.send('Emulation.setFocusEmulationEnabled', { enabled: true });
     assert.equal(await run('window.HPOECollaborationPilot === true && window.HPOECompositionalPilot !== true && window.HPEResearchPilot !== true'), true);
     await app.wait(`${panel}?.hidden`, 'collaboration hidden without audience authorization');
     await run(`(async () => {
@@ -48,7 +49,10 @@ try {
           eligible:args.p_actor!=='c',enrolled:opted.has(args.p_actor),
           pending:args.p_actor==='b' && invite?.phase==='invited'
         }]};
-        if (name === 'hpoe_candidates') return {data:[{profile_id:'peer-b',name:'Synthetic B',skills:['Gardening']}]};
+        if (name === 'hpoe_candidates') {
+          window.__test.lookups = (window.__test.lookups || 0)+1;
+          return {data:window.__test.noMatch ? [] : [{profile_id:'peer-b',name:'Synthetic B',skills:['Gardening']}]};
+        }
         if (name === 'hpoe_invite') {
           if (Object.keys(args).sort().join() !== 'p_actor,p_profile_id,p_recipe' || args.p_recipe !== 'garden') {
             return {error:Error('Unexpected invitation payload')};
@@ -94,11 +98,25 @@ try {
     await waitText('Opt in to collaboration');
     assert.equal(await run(`${panel}.querySelector('a').href`), 'https://www.tuw.org/211');
     await click('Opt in to collaboration');
-    await waitText('What would you like to explore?');
-    await run(`${panel}.querySelector('input').value='Explore a community garden. Private fixture draft.';true`);
-    await click('Explore idea');
-    await waitText('Proposal: Explore a small community garden');
-    await click('Invite Synthetic B to explore');
+    await waitText('Use the prompt above');
+    assert.equal(await run("document.querySelectorAll('.home-idea input:not([type=checkbox])').length"), 1);
+    await run("window.__test.noMatch=true;document.querySelector('[data-idea-example]').click();true");
+    assert.equal(await run("document.activeElement.id"), 'home-idea-input');
+    await app.send('Input.dispatchKeyEvent', {
+      type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: '\r', unmodifiedText: '\r'
+    });
+    await app.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+    await app.wait("document.querySelector('.home-possibility')?.textContent.includes('No collaboration match yet')", 'honest no-match response');
+    await run("document.querySelector('.home-possibility .home-link').click();true");
+    await app.wait("!document.querySelector('.home-possibility')", 'fallback to existing search');
+    await run("window.__test.noMatch=false;document.querySelector('#home-idea-input').value='Find a community garden';document.querySelector('.home-idea-form').requestSubmit();true");
+    await app.wait("document.querySelector('.home-idea-results')?.textContent.includes('Matches for') || document.querySelector('.home-idea-results')?.textContent.includes('No matches for')", 'explicit search results');
+    assert.equal(await run('window.__test.lookups'), 1, 'explicit search bypasses collaboration lookup');
+    await run(`document.querySelector('#home-idea-input').value='Explore a community garden. Private fixture draft.';document.querySelector('.home-idea-form').requestSubmit();true`);
+    await app.wait("document.querySelector('.home-possibility h3')?.textContent==='Explore a small community garden'", 'routed collaboration proposal');
+    await run(fs.readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8') + ';true');
+    assert.deepEqual(await run(`axe.run(document.querySelector('.home-possibility'), {runOnly:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}).then(r=>r.violations.map(v=>v.id))`), []);
+    await run("document.querySelector('.home-possibility .home-action').click();true");
     await waitText('Invitation sent');
 
     await run("window.__test.switch('b');true");
@@ -135,7 +153,6 @@ try {
     await click('More collaborations');
     await waitText('Both members confirmed the first action');
     await waitText('Previous collaborations');
-    await run(fs.readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8') + ';true');
     const violations = await run(`axe.run(${panel}, {runOnly:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}).then(r=>r.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)})))`);
     assert.deepEqual(violations, []);
     assert.ok(await run('document.documentElement.scrollWidth <= innerWidth'));
