@@ -600,8 +600,10 @@ window.selectProjectTemplate = function(templateId) {
 
 // Show project details step
 function showProjectDetailsStep() {
-  document.getElementById('template-selection-step').style.display = 'none';
-  document.getElementById('project-details-step').style.display = 'block';
+  const templateStep = document.getElementById('template-selection-step');
+  if (templateStep) templateStep.style.display = 'none';
+  const detailsStep = document.getElementById('project-details-step');
+  if (detailsStep) detailsStep.style.display = 'block';
   
   // Focus on project name field
   setTimeout(() => {

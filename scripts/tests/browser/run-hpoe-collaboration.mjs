@@ -133,6 +133,9 @@ try {
       'prefilled project dialog meets the automated accessibility checks');
     assert.equal(await run("!document.querySelector('#enhanced-project-modal .template-grid') && !document.querySelector('#enhanced-project-modal button[onclick=\\\"goBackToTemplates()\\\"]')"), true,
       'a direct draft does not expose unrelated templates or a route back to them');
+    assert.equal(await run("getComputedStyle(document.querySelector('#project-details-step')).display !== 'none'"), true,
+      'direct project details are visible after templates are removed');
+    await app.wait("document.activeElement.id==='enhanced-project-name'", 'project name receives focus');
     assert.equal(await run("Array.from(document.querySelectorAll('#selected-skills .skill-tag')).map(el=>el.dataset.skill).join(',')"),
       'Gardening,Project coordination', 'only capabilities relevant to this idea are prefilled');
     await run(`window.__test.testSkill='<img src=x onerror=window.__test.xss=1>';document.querySelector('#skill-input').value=window.__test.testSkill;window.addCustomSkill();true`);
