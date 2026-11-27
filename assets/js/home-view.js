@@ -508,25 +508,25 @@
     ['translation', 'community outreach', 'community organizing'],
   ];
 
-  function capabilitySearchTerms(terms) {
-    const expanded = new Set(terms);
+  function capabilityHitsFor(terms, entries) {
     const query = new Set(terms);
-    for (const group of IDEA_CAPABILITY_ALIASES) {
-      const relevant = group.some(alias => {
-        const words = wordsOf(alias);
-        return words.length && words.every(word => query.has(word));
+    return entries.filter(entry => {
+      const listed = String(entry || '').trim().toLowerCase();
+      if (wordsOf(entry).some(word => query.has(word))) return true;
+      return IDEA_CAPABILITY_ALIASES.some(group => {
+        const queryMatches = group.some(alias => {
+          const words = wordsOf(alias);
+          return words.length && words.every(word => query.has(word));
+        });
+        return queryMatches && group.includes(listed);
       });
-      if (relevant) group.flatMap(wordsOf).forEach(word => expanded.add(word));
-    }
-    return expanded;
+    });
   }
 
   function matchIdea({ idea, me, myAuth, connected = new Set(), isAdmin = false, people = [], projects = [], organizations = [], opportunities = [] }) {
     const terms = ideaTerms(idea);
     if (!terms.length) return { terms, people: [], projects: [], skills: [], organizations: [], opportunities: [] };
     const hits = (entries) => entries.filter(entry => terms.some(term => wordsOf(entry).includes(term)));
-    const capabilityTerms = capabilitySearchTerms(terms);
-    const capabilityHits = (entries) => entries.filter(entry => capabilityTerms.size && wordsOf(entry).some(term => capabilityTerms.has(term)));
     const seen = new Set();
     const matchedPeople = [];
     for (const person of people) {
@@ -536,7 +536,7 @@
       if (seen.has(identity)) continue;
       const full = isAdmin || connected.has(String(person.id));
       const skills = listedTerms(person.skills);
-      const skillHits = capabilityHits(full ? skills : skills.slice(0, 3));
+      const skillHits = capabilityHitsFor(terms, full ? skills : skills.slice(0, 3));
       const interestHits = full ? hits(listedTerms(person.interests)) : [];
       const nameHit = hits([full ? person.name : limitedName(person.name)]).length > 0;
       if (!skillHits.length && !interestHits.length && !nameHit) continue;

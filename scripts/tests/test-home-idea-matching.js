@@ -83,6 +83,7 @@ assert.deepEqual(plain(matchIdea({...base,idea:'Ana'})).people.map(p=>p.id), ['a
 assert.deepEqual(plain(matchIdea({...base,idea:'Lopez'})).people, [], 'a stranger surname is not searchable through the abbreviated-name preview');
 const gardener = plain(matchIdea({ idea: 'gardening', me: 'me', myAuth: 'auth-me', people: [
   { id: 'gardener', user_id: 'auth-gardener', name: 'Synthetic Gardener', skills: ['Horticulture'] },
+  { id: 'designer', user_id: 'auth-designer', name: 'Synthetic Designer', skills: ['Design'] },
 ] }));
 assert.deepEqual(gardener.people.map(person => [person.name, person.reason]), [['Synthetic G.', 'Lists Horticulture']],
   'related capability terms find relevant people while keeping the nonconnection name redacted and listed skill wording intact');
