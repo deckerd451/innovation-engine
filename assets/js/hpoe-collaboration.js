@@ -373,6 +373,7 @@
     async function explore(idea, slot, stillCurrent, searchInstead) {
       const relevant = relevantRecipes(idea);
       if (relevant.length !== 1 || !current()) return false;
+      const recipe = relevant[0][1];
       if (!await updateAvailability() || !stillCurrent() || !eligible) return false;
       const [result, externalRows] = await Promise.all([
         enrolled ? client.rpc('hpoe_candidates', { p_actor: accountId }) : Promise.resolve({}),
