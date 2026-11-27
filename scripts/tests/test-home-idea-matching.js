@@ -81,4 +81,9 @@ assert.deepEqual(all.organizations.map(o=>o.id), ['org']);
 assert.deepEqual(all.opportunities.map(o=>o.id), ['opp'], 'only open, public, unexpired opportunities');
 assert.deepEqual(plain(matchIdea({...base,idea:'Ana'})).people.map(p=>p.id), ['ana'], 'visible names are searchable and deduplicated');
 assert.deepEqual(plain(matchIdea({...base,idea:'Lopez'})).people, [], 'a stranger surname is not searchable through the abbreviated-name preview');
+const gardener = plain(matchIdea({ idea: 'gardening', me: 'me', myAuth: 'auth-me', people: [
+  { id: 'gardener', user_id: 'auth-gardener', name: 'Synthetic Gardener', skills: ['Horticulture'] },
+] }));
+assert.deepEqual(gardener.people.map(person => [person.name, person.reason]), [['Synthetic G.', 'Lists Horticulture']],
+  'related capability terms find relevant people while keeping the nonconnection name redacted and listed skill wording intact');
 console.log('All-category community search checks passed');
