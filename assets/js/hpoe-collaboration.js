@@ -414,6 +414,8 @@
           title: recipe.title,
           description: [
             'Proposed first action: ' + first,
+            'Objective: ' + recipe.title,
+            ...coverage.map(role => role.label + ': ' + (role.own ? 'listed on your profile' : role.connection ? 'listed by an eligible connection; availability unconfirmed' : 'still needed')),
             'Roles to confirm: ' + recipe.roleLabels.join(', '),
             'Resources to verify: ' + resources.join(', '),
             ...recipe.steps
