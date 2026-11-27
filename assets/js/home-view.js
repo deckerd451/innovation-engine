@@ -544,24 +544,34 @@
 
   }
 
-  async function findForIdea(idea) {
+  function focusIdeaResults(matches, focus = 'all') {
+    if (focus === 'people') return { ...matches, projects: [], skills: [], organizations: [], opportunities: [] };
+    if (focus === 'resources') return { ...matches, people: [], projects: [], skills: [] };
+    return matches;
+  }
+
+  async function findForIdea(idea, focus = 'all') {
     const client = window.supabase;
     const me = profile();
     if (!client || !me?.id) throw new Error('Not signed in');
+    const peopleFocus = focus === 'people';
+    const resourcesFocus = focus === 'resources';
+    const skipped = { data: [], error: null };
     const [peopleResult, projectsResult, linksResult, orgResult, oppResult] = await Promise.all([
-      client.from('community').select('id, user_id, name, skills, interests').or('is_hidden.is.null,is_hidden.eq.false').limit(1000),
-      client.from('projects').select('id, title, description, required_skills, status, creator_id').limit(500),
-      client.from('connections').select('from_user_id, to_user_id').or(`from_user_id.eq.${me.id},to_user_id.eq.${me.id}`).eq('status', 'accepted'),
-      client.from('organizations').select('id, name, description').limit(500),
-      client.from('opportunities').select('id, title, description, status, is_public, application_deadline').eq('status','open').eq('is_public',true).or(`application_deadline.is.null,application_deadline.gt.${new Date().toISOString()}`).limit(500),
+      !resourcesFocus ? client.from('community').select('id, user_id, name, skills, interests').or('is_hidden.is.null,is_hidden.eq.false').limit(1000) : skipped,
+      focus === 'all' ? client.from('projects').select('id, title, description, required_skills, status, creator_id').limit(500) : skipped,
+      peopleFocus || focus === 'all' ? client.from('connections').select('from_user_id, to_user_id').or(`from_user_id.eq.${me.id},to_user_id.eq.${me.id}`).eq('status', 'accepted') : skipped,
+      !peopleFocus ? client.from('organizations').select('id, name, description').limit(500) : skipped,
+      !peopleFocus ? client.from('opportunities').select('id, title, description, status, is_public, application_deadline').eq('status','open').eq('is_public',true).or(`application_deadline.is.null,application_deadline.gt.${new Date().toISOString()}`).limit(500) : skipped,
     ]);
     if (peopleResult.error || projectsResult.error || orgResult.error || oppResult.error) throw (peopleResult.error || projectsResult.error || orgResult.error || oppResult.error);
     const connected = new Set((linksResult.data || []).map(row => String(String(row.from_user_id) === String(me.id) ? row.to_user_id : row.from_user_id)));
-    return matchIdea({
+    const matches = matchIdea({
       idea, me: me.id, myAuth: me.user_id, connected,
       isAdmin: typeof window.isAdminUser === 'function' && window.isAdminUser(),
       people: peopleResult.data || [], projects: projectsResult.data || [], organizations: orgResult.data || [], opportunities: oppResult.data || [],
     });
+    return focusIdeaResults(matches, focus);
   }
 
   function paintIdeaResults(idea, result, learning = false) {
@@ -836,11 +846,12 @@
         state.memberId === memberId && profile()?.user_id === memberAccount && input.value.trim() === idea;
       const explicitSearch = idea.match(/^(?:search for|find)\s+(.+)/i);
       const learning = pilotActive() ? learningQuery(idea) : null;
-      const searchCommunity = async (suggestedQuery) => {
+      const searchCommunity = async (suggestedQuery, focus = 'all') => {
         if (!current()) return;
-        slot.innerHTML = '<p class="home-muted" role="status">Searching the community…</p>';
+        const focusLabel = focus === 'people' ? 'people' : focus === 'resources' ? 'organizations and opportunities' : 'community';
+        slot.innerHTML = `<p class="home-muted" role="status">Searching ${focusLabel}…</p>`;
         let result;
-        try { result = await findForIdea(suggestedQuery || learning || explicitSearch?.[1] || idea); }
+        try { result = await findForIdea(suggestedQuery || learning || explicitSearch?.[1] || idea, focus); }
         catch (error) { console.warn('[Home] idea search unavailable:', error?.message || error); result = 'error'; }
         if (current()) paintIdeaResults(suggestedQuery || idea, result, !!learning);
       };
@@ -1006,7 +1017,7 @@
   // chooseNextTask: the rule a project's own overview uses for its next step
   // (node-panel.js); Home itself no longer picks a task.
   window.HomeView = { show, clear, focusGoal, chooseNextTask, enrollPilot, withdrawPilot };
-  window.HomeViewTesting = { taskScore, chooseNextTask, loadMine, wantsCuriosityPrompt, matchIdea, preferParticipation, learningQuery, externalPick, pilotEligible };
+  window.HomeViewTesting = { taskScore, chooseNextTask, loadMine, wantsCuriosityPrompt, matchIdea, focusIdeaResults, preferParticipation, learningQuery, externalPick, pilotEligible };
 
   window.addEventListener('daily-brief-updated', () => { if (host) calmly(paintSuggestions); });
   window.addEventListener('total-unread-messages-updated', (event) => {
@@ -1018,7 +1029,7 @@
   window.addEventListener('profile-loaded', () => { if (document.body.dataset.destination === 'home') show(); });
   window.addEventListener('user-logged-out', clear);
   // What was done in focused assistance or a project shows on return.
-  ['mobile-assistance-closed', 'project-task-updated', 'capability-outcome-recorded'].forEach(type => window.addEventListener(type, () => {
+  ['mobile-assistance-closed', 'project-task-updated', 'capability-outcome-recorded', 'project-created'].forEach(type => window.addEventListener(type, () => {
     if (!showing()) return;
     refreshMine();
   }));

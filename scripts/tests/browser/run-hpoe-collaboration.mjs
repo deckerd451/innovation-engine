@@ -8,6 +8,7 @@ const run = app.evaluate;
 const require = createRequire(import.meta.url);
 const panel = 'document.querySelector(".home-collaboration")';
 const click = text => run(`Array.from(${panel}.querySelectorAll('button')).find(b=>b.textContent===${JSON.stringify(text)}).click();true`);
+const clickIdea = text => run(`Array.from(document.querySelectorAll('.home-possibility button')).find(b=>b.textContent===${JSON.stringify(text)}).click();true`);
 const waitText = text => app.wait(`${panel}.textContent.includes(${JSON.stringify(text)})`, text);
 async function open() {
   await app.wait(`${panel} && !${panel}.hidden`, 'eligible collaboration control');
@@ -17,6 +18,7 @@ try {
   for (const width of [390, 1280]) {
     await app.load(width, 844);
     await app.send('Emulation.setFocusEmulationEnabled', { enabled: true });
+    await run(fs.readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8') + ';true');
     assert.equal(await run('window.HPOECollaborationPilot === true && window.HPOECompositionalPilot !== true && window.HPEResearchPilot !== true'), true);
     await app.wait(`${panel}?.hidden`, 'collaboration hidden without audience authorization');
     await run(`(async () => {
@@ -31,6 +33,9 @@ try {
       const opted = new Set(['b']);
       let invite;
       window.__test = { actor:'a', messages:[], projects:0 };
+      client.__db.community.push({id:'garden-person',user_id:'auth-garden',name:'Synthetic Gardener',skills:['Horticulture'],interests:[]});
+      client.__db.organizations = [{id:'garden-org',name:'Community Garden Network',description:'Local garden growing space'}];
+      client.__db.opportunities = [{id:'garden-opp',title:'Garden volunteer shift',description:'Help with gardening',status:'open',is_public:true}];
       window.__test.switch = actor => {
         window.__test.actor = actor;
         window.currentUserProfile = profiles[actor];
@@ -108,22 +113,47 @@ try {
     await app.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
     await app.wait("document.querySelector('.home-possibility')?.textContent.includes('Starter plan')", 'starter plan without a match');
     assert.equal(await run("document.querySelector('.home-possibility').textContent.includes('Spend 10 minutes')"), true);
+    assert.equal(await run("Array.from(document.querySelectorAll('.home-possibility button')).some(b=>b.textContent==='Find people with gardening skills')"), true);
+    await clickIdea('Find people with gardening skills');
+    await app.wait("document.querySelector('.home-idea-results')?.textContent.includes('Synthetic Gardener')", 'targeted gardener discovery');
+    assert.equal(await run("document.querySelector('.home-idea-results').textContent.includes('Organizations')"), false,
+      'people discovery filters out organizations and opportunities');
+    await run("document.querySelector('#home-idea-input').value='Explore a community garden';document.querySelector('.home-idea-form').requestSubmit();true");
+    await app.wait("document.querySelector('.home-possibility')?.textContent.includes('Starter plan')", 'garden starter plan restored');
+    assert.equal(await run("document.querySelector('.home-possibility').textContent.includes('Gather & Garden')"), true,
+      'recently reviewed, topic-matched external provider is discoverable');
     await run("document.querySelector('.home-possibility .home-action').click();true");
     await app.wait("document.querySelector('#enhanced-project-description')?.value.includes('Roles to confirm')", 'editable fallback draft');
+    assert.deepEqual(await run(`axe.run(document.querySelector('#enhanced-project-modal'), {runOnly:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}).then(r=>r.violations.map(v=>v.id))`), [],
+      'prefilled project dialog meets the automated accessibility checks');
+    assert.equal(await run("!document.querySelector('#enhanced-project-modal .template-grid') && !document.querySelector('#enhanced-project-modal button[onclick=\\\"goBackToTemplates()\\\"]')"), true,
+      'a direct draft does not expose unrelated templates or a route back to them');
+    assert.equal(await run("Array.from(document.querySelectorAll('#selected-skills .skill-tag')).map(el=>el.dataset.skill).join(',')"),
+      'Gardening,Project coordination', 'only capabilities relevant to this idea are prefilled');
+    await run(`window.__test.testSkill='<img src=x onerror=window.__test.xss=1>';document.querySelector('#skill-input').value=window.__test.testSkill;window.addCustomSkill();true`);
+    assert.equal(await run("document.querySelectorAll('#selected-skills img').length===0 && document.querySelector('#selected-skills').textContent.includes(window.__test.testSkill) && !window.__test.xss"), true,
+      'member-entered capability text is rendered as text, not markup');
+    await run('window.removeSkillFromProject(window.__test.testSkill);true');
     await run("window.closeEnhancedProjectModal();document.querySelector('.home-possibility details').open=true;true");
     assert.equal(await run("document.querySelector('.home-possibility details').textContent.includes('Gardening: still needed')"), true);
     await run("Array.from(document.querySelectorAll('.home-possibility button')).find(el=>el.textContent==='Save idea for later').click();true");
     await app.wait(`${panel}.querySelector('summary').textContent.includes('Saved idea')`, 'saved idea visible in settings');
     await click('Revisit: Explore a small community garden');
     await app.wait("document.querySelector('.home-possibility')?.textContent.includes('Starter plan')", 'saved idea reruns planning');
-    await run("document.querySelector('.home-possibility details').open=true;document.querySelector('.home-possibility details button').click();true");
-    await app.wait("!document.querySelector('.home-possibility')", 'targeted fallback to existing search');
+    await run("document.querySelector('.home-possibility details').open=true;true");
+    await clickIdea('Find relevant organizations and opportunities');
+    await app.wait("document.querySelector('.home-idea-results')?.textContent.includes('Community Garden Network')", 'targeted organization discovery');
+    assert.equal(await run("document.querySelector('.home-idea-results').textContent.includes('Synthetic Gardener')"), false,
+      'organization and opportunity discovery filters out people');
+    assert.equal(await run("document.querySelector('.home-idea-results').textContent.includes('Garden volunteer shift')"), true,
+      'organization/resource search includes matched public opportunities');
+    await run("document.querySelector('#home-idea-input').value='Explore a community garden';document.querySelector('.home-idea-form').requestSubmit();true");
+    await app.wait("document.querySelector('.home-possibility')?.textContent.includes('Starter plan')", 'saved starter plan restored after organization search');
     await run("window.__test.noMatch=false;document.querySelector('#home-idea-input').value='Find a community garden';document.querySelector('.home-idea-form').requestSubmit();true");
     await app.wait("document.querySelector('.home-idea-results')?.textContent.includes('Matches for') || document.querySelector('.home-idea-results')?.textContent.includes('No matches for')", 'explicit search results');
     assert.equal(await run('window.__test.lookups'), 2, 'explicit search bypasses collaboration lookup');
     await run(`document.querySelector('#home-idea-input').value='Explore a community garden. Private fixture draft.';document.querySelector('.home-idea-form').requestSubmit();true`);
     await app.wait("document.querySelector('.home-possibility h3')?.textContent==='Explore a small community garden'", 'routed collaboration proposal');
-    await run(fs.readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8') + ';true');
     assert.deepEqual(await run(`axe.run(document.querySelector('.home-possibility'), {runOnly:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}).then(r=>r.violations.map(v=>v.id))`), []);
     await run("document.querySelector('.home-possibility .home-action').click();true");
     await app.wait("document.querySelector('.home-possibility')?.textContent.includes('Invitation sent')", 'invitation sent confirmation');
@@ -155,6 +185,12 @@ try {
     await waitText('Confirm we completed the first action');
     await click('Confirm we completed the first action');
     await waitText('Both members confirmed the first action');
+    await click('Open project creation');
+    await app.wait("document.querySelector('#enhanced-project-name')?.value==='Explore a small community garden'", 'project draft from completed community action');
+    await run(`window.dispatchEvent(new CustomEvent('profile-loaded',{detail:{profile:window.currentUserProfile}}));document.querySelector('#enhanced-project-form').requestSubmit();true`);
+    await app.wait("document.querySelector('.home-mine-list')?.textContent.includes('Explore a small community garden')", 'created project returns to Home continuity');
+    assert.equal(await run("window.supabase.__db.projects.some(p=>p.title==='Explore a small community garden' && p.required_skills.includes('Gardening'))"), true,
+      'project and its capability requirements persist in the test database');
     await run(`window.__test.history=true;${panel}.open=false;true`);
     await app.sleep(100);
     await open();

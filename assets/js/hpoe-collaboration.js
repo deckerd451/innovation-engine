@@ -47,12 +47,66 @@
 
   function skills(value) {
     const entries = Array.isArray(value) ? value : typeof value === 'string' ? value.split(/[,;\n]/) : [];
-    return new Set(entries.filter(entry => typeof entry === 'string').map(entry => entry.trim().toLowerCase()));
+    return new Set(entries.filter(entry => typeof entry === 'string').map(entry => entry.trim().toLowerCase()).filter(Boolean));
+  }
+
+  const capabilityAliases = Object.freeze([
+    ['gardening', 'horticulture', 'agriculture', 'urban agriculture', 'garden design', 'food growing'],
+    ['community organizing', 'community organization', 'community outreach', 'community engagement'],
+    ['project management', 'project coordination', 'coordination', 'logistics'],
+    ['software development', 'software engineering', 'programming', 'coding', 'javascript', 'python'],
+    ['teaching', 'facilitation', 'mentoring', 'instruction'],
+    ['research', 'writing', 'editing', 'copy editing'],
+    ['translation', 'community outreach', 'community organizing']
+  ]);
+
+  function matchedCapability(personSkills, roleTerms) {
+    const exact = roleTerms.find(term => personSkills.has(term));
+    if (exact) return exact;
+    const aliases = capabilityAliases.find(group => group.some(term => roleTerms.includes(term)) &&
+      group.some(term => personSkills.has(term)));
+    return aliases?.find(term => personSkills.has(term)) || null;
   }
 
   function relevantRecipes(intent) {
     if (typeof intent !== 'string' || /\b(?:no|not|never|avoid|without|don['’]t)\b/i.test(intent)) return [];
     return Object.entries(recipes).filter(([, recipe]) => recipe.topic.test(intent));
+  }
+
+  let externalInventory = null;
+  async function loadExternalResources() {
+    if (externalInventory) return externalInventory;
+    try {
+      const response = await fetch('./data/hpe-published-opportunities.json', { credentials: 'omit', cache: 'no-store' });
+      if (!response.ok) return [];
+      const data = await response.json();
+      externalInventory = data?.schemaVersion === 1 && Array.isArray(data.opportunities) ? data.opportunities : [];
+    } catch (_) {
+      externalInventory = [];
+    }
+    return externalInventory;
+  }
+
+  function externalResources(recipe, rows, now = Date.now()) {
+    const query = recipe.searchResource.toLowerCase();
+    const aliases = query === 'garden' ? new Set(['garden', 'gardening', 'community garden'])
+      : query === 'coding workshop' ? new Set(['coding', 'software', 'education'])
+      : new Set(['community resources', 'local resources', 'community']);
+    return (Array.isArray(rows) ? rows : []).filter(row => {
+      if (!row || row.status !== 'published' || typeof row.title !== 'string' || !row.title.trim() ||
+          typeof row.organization !== 'string' || !row.organization.trim() || typeof row.sourceUrl !== 'string' ||
+          typeof row.availability !== 'string' || !row.availability.trim() ||
+          row.geographicRelevance !== 'charleston-sc' || row.eligibility !== 'adult_public' ||
+          !['contribution', 'learning', 'social'].includes(row.participationType) ||
+          typeof row.pathwayId !== 'string' || !/^[a-z0-9][a-z0-9-]{0,79}$/.test(row.pathwayId)) return false;
+      const reviewed = Date.parse(row.reviewedAt), expires = Date.parse(row.deadline);
+      if (!Number.isFinite(reviewed) || reviewed > now || now - reviewed > 7 * 86400000 ||
+          !Number.isFinite(expires) || expires <= now) return false;
+      let url;
+      try { url = new URL(row.sourceUrl); } catch (_) { return false; }
+      if (url.protocol !== 'https:' || url.username || url.password) return false;
+      return Array.isArray(row.topics) && row.topics.some(topic => typeof topic === 'string' && aliases.has(topic.trim().toLowerCase()));
+    }).slice(0, 3).map(row => ({ title: row.title, organization: row.organization, url: new URL(row.sourceUrl).href }));
   }
 
   function propose(intent, ownSkills, candidates) {
@@ -63,8 +117,8 @@
       for (const peer of candidates) {
         const theirSkills = skills(peer.skills);
         for (const [ours, theirs] of [recipe.roles, [...recipe.roles].reverse()]) {
-          const ownMatch = ours.find(skill => own.has(skill));
-          const peerMatch = theirs.find(skill => theirSkills.has(skill) && !own.has(skill));
+          const ownMatch = ours.map(skill => matchedCapability(own, [skill])).find(Boolean);
+          const peerMatch = theirs.map(skill => matchedCapability(theirSkills, [skill])).find(skill => skill && !matchedCapability(own, [skill]));
           if (ownMatch && peerMatch) return { key, recipe, peer, ownMatch, peerMatch };
         }
       }
@@ -81,8 +135,8 @@
     const coverage = recipe.roles.map((terms, i) => ({
       label: recipe.roleLabels[i],
       query: terms[0],
-      own: terms.some(term => own.has(term)),
-      connection: peers.some(peer => terms.some(term => peer.has(term)))
+      own: !!matchedCapability(own, terms),
+      connection: peers.some(peer => !!matchedCapability(peer, terms))
     }));
     const unresolved = coverage.filter(role => !role.own && !role.connection);
     // The optional composer receives only information already authorized for
@@ -97,7 +151,7 @@
         ...candidates.map((peer, i) => ({
           id: peer.profile_id, shared: true,
           capabilities: recipe.roles.flatMap((terms, j) =>
-            terms.some(term => peers[i].has(term)) ? [recipe.roleLabels[j]] : [])
+            matchedCapability(peers[i], terms) ? [recipe.roleLabels[j]] : [])
         }))
       ],
       resources: []
@@ -241,6 +295,7 @@
             if (typeof root.showEnhancedProjectCreation !== 'function') throw Error('Project creation unavailable');
             return root.showEnhancedProjectCreation({
               title: recipe.title,
+              requiredSkills: recipe.roleLabels,
               description: 'Proposed first action: ' + recipe.first + '\n' + recipe.missing
             });
           });
@@ -319,7 +374,10 @@
       const relevant = relevantRecipes(idea);
       if (relevant.length !== 1 || !current()) return false;
       if (!await updateAvailability() || !stillCurrent() || !eligible) return false;
-      const result = enrolled ? await client.rpc('hpoe_candidates', { p_actor: accountId }) : {};
+      const [result, externalRows] = await Promise.all([
+        enrolled ? client.rpc('hpoe_candidates', { p_actor: accountId }) : Promise.resolve({}),
+        loadExternalResources()
+      ]);
       if (!current() || !stillCurrent()) return true;
       const candidates = result.error ? [] : (result.data || []);
       const match = propose(idea, getProfile()?.skills, candidates);
@@ -368,14 +426,14 @@
         const plan = starterPlan(idea, getProfile()?.skills, candidates, compose);
         const feedback = copy('p', '', 'home-muted');
         feedback.setAttribute('role', 'status');
-        renderStarter(card, copy, plan, stillCurrent, searchInstead, feedback);
+        renderStarter(card, copy, plan, stillCurrent, searchInstead, feedback, externalResources(recipe, externalRows));
       }
       if (match) addSearchAlternative(card, searchInstead);
       slot.replaceChildren(card);
       return true;
     }
 
-    function renderStarter(card, copy, plan, stillCurrent, searchInstead, feedback) {
+    function renderStarter(card, copy, plan, stillCurrent, searchInstead, feedback, external) {
       const { recipe, coverage, unresolved, resources, first } = plan;
       copy('p', 'Starter plan', 'home-possibility-label');
       copy('h3', recipe.title);
@@ -400,9 +458,28 @@
       planDetails.append(needs);
       card.append(planDetails);
       for (const role of unresolved) {
-        addSearchAlternative(planDetails, () => searchInstead(role.query), 'Find people with ' + role.label.toLowerCase() + ' skills');
+        addSearchAlternative(planDetails, () => searchInstead(role.query, 'people'), 'Find people with ' + role.label.toLowerCase() + ' skills');
       }
-      addSearchAlternative(planDetails, () => searchInstead(recipe.searchResource), 'Find relevant organizations and opportunities');
+      addSearchAlternative(planDetails, () => searchInstead(recipe.searchResource, 'resources'), 'Find relevant organizations and opportunities');
+      if (external.length) {
+        const externalHeading = document.createElement('h4');
+        externalHeading.textContent = 'Reviewed community starting point';
+        planDetails.append(externalHeading);
+        for (const item of external) {
+          const link = document.createElement('a');
+          link.className = 'home-link';
+          link.href = item.url;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.textContent = item.title + ' — ' + item.organization + ' (provider details; confirm availability)';
+          planDetails.append(link);
+        }
+      } else {
+        const noExternal = document.createElement('p');
+        noExternal.className = 'home-muted';
+        noExternal.textContent = 'No recently reviewed external listing matched this idea. Check the provider directly before making plans.';
+        planDetails.append(noExternal);
+      }
       if (!enrolled) button('Open collaboration settings', async () => {
         details.open = true;
         await refresh();
@@ -412,6 +489,7 @@
         if (!stillCurrent() || typeof root.showEnhancedProjectCreation !== 'function') throw Error('Draft form unavailable');
         return root.showEnhancedProjectCreation({
           title: recipe.title,
+          requiredSkills: recipe.roleLabels,
           description: [
             'Proposed first action: ' + first,
             'Objective: ' + recipe.title,
@@ -452,7 +530,7 @@
     return { explore };
   }
 
-  const engine = Object.freeze({ propose, starterPlan, mount });
+  const engine = Object.freeze({ propose, starterPlan, externalResources, mount });
   if (typeof module !== 'undefined' && module.exports) module.exports = engine;
   else root.HPOECollaboration = engine;
 })(globalThis);

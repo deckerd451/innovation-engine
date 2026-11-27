@@ -136,6 +136,9 @@ export async function showEnhancedProjectCreation(draft) {
   // Create modal
   const modal = document.createElement('div');
   modal.id = 'enhanced-project-modal';
+  modal.setAttribute('role', 'dialog');
+  modal.setAttribute('aria-modal', 'true');
+  modal.setAttribute('aria-labelledby', 'enhanced-project-heading');
   modal.style.cssText = `
     position: fixed;
     top: 0;
@@ -168,14 +171,14 @@ export async function showEnhancedProjectCreation(draft) {
       <div style="padding: 2rem 2rem 1rem; border-bottom: 1px solid rgba(0, 224, 255, 0.2);">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <div>
-            <h2 style="color: #00e0ff; margin: 0 0 0.5rem 0; font-size: 1.75rem;">
+            <h2 id="enhanced-project-heading" style="color: #00e0ff; margin: 0 0 0.5rem 0; font-size: 1.75rem;">
               <i class="fas fa-rocket"></i> Create New Project
             </h2>
             <p style="color: rgba(255, 255, 255, 0.7); margin: 0; font-size: 1rem;">
               Choose a template or start from scratch
             </p>
           </div>
-          <button onclick="closeEnhancedProjectModal()" style="
+          <button type="button" aria-label="Close project creation" onclick="closeEnhancedProjectModal()" style="
             background: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.2);
             color: white;
@@ -259,7 +262,7 @@ export async function showEnhancedProjectCreation(draft) {
           <form id="enhanced-project-form">
             <!-- Project Name -->
             <div style="margin-bottom: 1.5rem;">
-              <label style="display: block; color: rgba(255, 255, 255, 0.8); margin-bottom: 0.5rem; font-weight: 600;">
+              <label for="enhanced-project-name" style="display: block; color: rgba(255, 255, 255, 0.8); margin-bottom: 0.5rem; font-weight: 600;">
                 Project Name *
               </label>
               <input type="text" id="enhanced-project-name" required style="
@@ -276,7 +279,7 @@ export async function showEnhancedProjectCreation(draft) {
 
             <!-- Description -->
             <div style="margin-bottom: 1.5rem;">
-              <label style="display: block; color: rgba(255, 255, 255, 0.8); margin-bottom: 0.5rem; font-weight: 600;">
+              <label for="enhanced-project-description" style="display: block; color: rgba(255, 255, 255, 0.8); margin-bottom: 0.5rem; font-weight: 600;">
                 Description *
               </label>
               <textarea id="enhanced-project-description" rows="4" required style="
@@ -318,6 +321,7 @@ export async function showEnhancedProjectCreation(draft) {
 
               <!-- Skill Input -->
               <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
+                <label for="skill-input" class="sr-only">Add a required skill</label>
                 <input type="text" id="skill-input" placeholder="Type a skill and press Enter" style="
                   flex: 1;
                   padding: 0.75rem;
@@ -468,10 +472,23 @@ export async function showEnhancedProjectCreation(draft) {
   // Add event listeners
   setupEnhancedModalEventListeners();
 
+  const requiredSkills = Array.isArray(draft?.requiredSkills) ? [...new Set(draft.requiredSkills
+    .filter(skill => typeof skill === 'string').map(skill => skill.trim()).filter(skill => skill && skill.length <= 80))] : [];
+  requiredSkills.forEach(skill => window.addSkillToProject(skill));
+
   // A starter plan already supplies the project concept; do not require a template.
   if (typeof draft?.title === 'string' && draft.title.trim()) {
+    modal.querySelector('#template-selection-step')?.remove();
+    const intro = modal.querySelector('.enhanced-project-container > div:first-child p');
+    if (intro) intro.textContent = 'Review and edit the project details before creating it.';
+    const number = modal.querySelector('#project-details-step .step-number');
+    if (number) number.textContent = '1';
+    const back = modal.querySelector('button[onclick="goBackToTemplates()"]');
+    if (back) back.remove();
     showProjectDetailsStep();
     modal.querySelector('#skill-suggestions')?.replaceChildren();
+    const suggestionsLabel = modal.querySelector('#skill-suggestions')?.parentElement;
+    if (suggestionsLabel) suggestionsLabel.hidden = true;
   }
 
   console.log('✅ Enhanced project creation modal opened');
@@ -601,9 +618,11 @@ window.goBackToTemplates = function() {
 
 // Add skill to project
 window.addSkillToProject = function(skill) {
+  if (typeof skill !== 'string' || !skill.trim() || skill.trim().length > 80) return;
+  skill = skill.trim();
   const selectedSkills = getSelectedSkills();
   
-  if (selectedSkills.includes(skill)) {
+  if (selectedSkills.some(value => value.toLowerCase() === skill.toLowerCase())) {
     console.log('Skill already added:', skill);
     return;
   }
@@ -617,20 +636,16 @@ window.addSkillToProject = function(skill) {
 
   const skillTag = document.createElement('span');
   skillTag.className = 'skill-tag';
-  skillTag.innerHTML = `
-    ${skill}
-    <button type="button" onclick="removeSkillFromProject('${skill}')" style="
-      background: none;
-      border: none;
-      color: inherit;
-      cursor: pointer;
-      padding: 0;
-      margin-left: 0.25rem;
-      opacity: 0.7;
-    ">
-      <i class="fas fa-times"></i>
-    </button>
-  `;
+  skillTag.dataset.skill = skill;
+  const label = document.createElement('span');
+  label.textContent = skill;
+  const remove = document.createElement('button');
+  remove.type = 'button';
+  remove.setAttribute('aria-label', `Remove ${skill}`);
+  remove.textContent = '×';
+  remove.style.cssText = 'background:none;border:0;color:inherit;cursor:pointer;padding:0;margin-left:.25rem;opacity:.7';
+  remove.addEventListener('click', () => window.removeSkillFromProject(skill));
+  skillTag.append(label, remove);
 
   container.appendChild(skillTag);
   
@@ -648,12 +663,7 @@ window.addSkillToProject = function(skill) {
 window.removeSkillFromProject = function(skill) {
   const container = document.getElementById('selected-skills');
   const skillTags = container.querySelectorAll('.skill-tag');
-  
-  skillTags.forEach(tag => {
-    if (tag.textContent.trim().startsWith(skill)) {
-      tag.remove();
-    }
-  });
+  skillTags.forEach(tag => { if (tag.dataset.skill === skill) tag.remove(); });
 
   // Show placeholder if no skills
   const remainingSkills = container.querySelectorAll('.skill-tag');
@@ -684,9 +694,7 @@ function getSelectedSkills() {
   const skillTags = container.querySelectorAll('.skill-tag');
   
   return Array.from(skillTags).map(tag => {
-    const text = tag.textContent.trim();
-    // Remove the 'x' button text
-    return text.substring(0, text.length - 1).trim();
+    return tag.dataset.skill || '';
   });
 }
 
@@ -753,6 +761,7 @@ window.createEnhancedProject = async function(event) {
     const projectData = {
       title: name,
       description,
+      required_skills: skills,
       creator_id: currentUserProfile.id,
       status: 'active'
     };

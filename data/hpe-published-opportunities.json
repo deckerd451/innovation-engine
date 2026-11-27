@@ -494,6 +494,26 @@
         "volunteering"
       ],
       "availability": "provider confirmation required"
+    },
+    {
+      "title": "Gather & Garden and Garden in the Parks",
+      "organization": "Charleston Parks Conservancy",
+      "sourceUrl": "https://www.charlestonparksconservancy.org/volunteer/",
+      "pathwayId": "gather-and-garden",
+      "deadline": "2026-12-04T12:00:00.000Z",
+      "reviewedAt": "2026-11-27T12:00:00.000Z",
+      "status": "published",
+      "participationType": "contribution",
+      "geographicRelevance": "charleston-sc",
+      "eligibility": "adult_public",
+      "kind": "recurring_program",
+      "deadlineMeaning": "review expiry; confirm current schedule with provider",
+      "topics": [
+        "garden",
+        "gardening",
+        "community garden"
+      ],
+      "availability": "provider confirmation required"
     }
   ]
 }

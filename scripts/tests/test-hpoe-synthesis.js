@@ -12,6 +12,8 @@ const result = propose('Explore a community garden', ['Project management'], [du
 assert.equal(result.peer, garden);
 assert.equal(result.ownMatch, 'project management');
 assert.equal(result.peerMatch, 'gardening');
+const aliasMatch = propose('community garden', ['Project management'], [{ profile_id: 'horticulturist', skills: ['Horticulture'] }]);
+assert.equal(aliasMatch.peerMatch, 'horticulture', 'related capability language matches while preserving listed evidence');
 assert.match(result.recipe.missing, /Confirm permission/);
 assert.match(result.recipe.first, /one-bed trial/);
 
@@ -25,6 +27,13 @@ const baseline = page.HomeViewTesting.matchIdea({
   connected: new Set([garden.profile_id])
 });
 assert.equal(baseline.projects.length + baseline.opportunities.length, 0);
+const allCategories = { people: [{id:'p'}], projects: [{id:'x'}], skills: ['garden'], organizations: [{id:'o'}], opportunities: [{id:'e'}] };
+assert.deepEqual(JSON.parse(JSON.stringify(page.HomeViewTesting.focusIdeaResults(allCategories, 'people'))),
+  { people: allCategories.people, projects: [], skills: [], organizations: [], opportunities: [] },
+  'targeted people discovery excludes unrelated result types');
+assert.deepEqual(JSON.parse(JSON.stringify(page.HomeViewTesting.focusIdeaResults(allCategories, 'resources'))),
+  { people: [], projects: [], skills: [], organizations: allCategories.organizations, opportunities: allCategories.opportunities },
+  'targeted organization/resource discovery excludes unrelated result types');
 assert.equal(result.key, 'garden');
 assert.equal(propose('Learn to code', ['Teaching'], [{skills: ['Python']}]).key, 'workshop');
 assert.equal(propose('Make a local resource guide', ['Editing'], [{skills: ['Translation']}]).key, 'resource-guide');
@@ -54,9 +63,34 @@ const all = starterPlan('community garden', ['Project management'], [garden], co
 assert.equal(all.unresolved.length, 0);
 assert.equal(all.coverage[0].connection, true);
 assert.equal(all.resources.length, 3, 'skill coverage does not establish resource availability');
+assert.equal(starterPlan('community garden', ['urban agriculture'], [{ skills: ['horticulture'] }]).coverage[0].connection, true,
+  'related capability language contributes to coverage');
 assert.equal(starterPlan('Find a garden', [], []), null);
 for (const idea of ['coding workshop', 'local resource guide']) {
   const plan = starterPlan(idea, [], []);
   assert.ok(plan.first && plan.recipe.steps.length >= 2 && plan.resources.length);
 }
 console.log('Starter plans work with zero, partial and full capability coverage');
+
+const externalResources = require('../../assets/js/hpoe-collaboration').externalResources;
+const now = Date.parse('2026-11-27T12:00:00.000Z');
+const resourceBase = {
+  title: 'Gather & Garden', organization: 'Charleston Parks Conservancy',
+  sourceUrl: 'https://www.charlestonparksconservancy.org/volunteer/',
+  status: 'published', availability: 'provider confirmation required',
+  geographicRelevance: 'charleston-sc', eligibility: 'adult_public', participationType: 'contribution', pathwayId: 'gather-and-garden',
+  reviewedAt: '2026-11-27T11:00:00.000Z', deadline: '2026-12-04T12:00:00.000Z', topics: ['garden']
+};
+assert.equal(externalResources({ searchResource: 'garden' }, [resourceBase], now).length, 1);
+assert.equal(externalResources({ searchResource: 'garden' }, [{ ...resourceBase, sourceUrl: 'http://not-secure.example' }], now).length, 0);
+assert.equal(externalResources({ searchResource: 'garden' }, [{ ...resourceBase, reviewedAt: '2026-11-18T11:00:00.000Z' }], now).length, 0);
+assert.equal(externalResources({ searchResource: 'garden' }, [{ ...resourceBase, topics: ['animals'] }], now).length, 0);
+assert.equal(externalResources({ searchResource: 'garden' }, [{ ...resourceBase, geographicRelevance: 'elsewhere' }], now).length, 0);
+console.log('Reviewed external resources require recent review, a live HTTPS source and a matching topic');
+
+const projectCreation = fs.readFileSync('assets/js/enhanced-project-creation.js', 'utf8');
+assert.match(projectCreation, /modal\.querySelector\('#template-selection-step'\)\?\.remove\(\)/, 'a prefilled idea cannot be routed back to unrelated templates');
+assert.match(projectCreation, /required_skills: skills/, 'project creation persists the member-selected capabilities');
+const homeSource = fs.readFileSync('assets/js/home-view.js', 'utf8');
+assert.match(homeSource, /'capability-outcome-recorded', 'project-created'/, 'Home reloads its ongoing project list after creation');
+console.log('Prefilled drafts stay on their idea and created projects rejoin Home continuity');
