@@ -115,7 +115,10 @@ try {
     assert.equal(await run("document.querySelector('.home-possibility').textContent.includes('Spend 10 minutes')"), true);
     assert.equal(await run("Array.from(document.querySelectorAll('.home-possibility button')).some(b=>b.textContent==='Find people with gardening skills')"), true);
     await clickIdea('Find people with gardening skills');
-    await app.wait("document.querySelector('.home-idea-results [data-idea-person=\"garden-person\"]')", 'targeted gardener discovery');
+    await app.wait("['Matches for','No matches for','couldn’t be done'].some(text=>document.querySelector('.home-idea-results')?.textContent.includes(text))", 'targeted people search result');
+    const gardenerFound = await run("Boolean(document.querySelector('.home-idea-results [data-idea-person=\"garden-person\"]'))");
+    if (!gardenerFound) console.error('Targeted gardener discovery diagnostics:', await run(`JSON.stringify({results:document.querySelector('.home-idea-results')?.textContent,profile:{id:window.currentUserProfile?.id,user_id:window.currentUserProfile?.user_id},fixture:window.supabase.__db.community.filter(row=>row.id==='garden-person'),errors:window.__hpoeErrors})`), app.errors);
+    assert.equal(gardenerFound, true, 'targeted gardener discovery returns the seeded profile');
     assert.equal(await run("document.querySelector('.home-idea-results [data-idea-person=\"garden-person\"]').dataset.name"),
       'Synthetic G.', 'targeted discovery retains the existing nonconnection name privacy rule');
     assert.equal(await run("document.querySelector('.home-idea-results').textContent.includes('Organizations')"), false,
