@@ -106,22 +106,32 @@ try {
       type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: '\r', unmodifiedText: '\r'
     });
     await app.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
-    await app.wait("document.querySelector('.home-possibility')?.textContent.includes('No collaboration match yet')", 'honest no-match response');
-    await run("document.querySelector('.home-possibility .home-link').click();true");
-    await app.wait("!document.querySelector('.home-possibility')", 'fallback to existing search');
+    await app.wait("document.querySelector('.home-possibility')?.textContent.includes('Starter plan')", 'starter plan without a match');
+    assert.equal(await run("document.querySelector('.home-possibility').textContent.includes('Spend 10 minutes')"), true);
+    await run("document.querySelector('.home-possibility .home-action').click();true");
+    await app.wait("document.querySelector('#enhanced-project-description')?.value.includes('Roles to confirm')", 'editable fallback draft');
+    await run("window.closeEnhancedProjectModal();document.querySelector('.home-possibility details').open=true;true");
+    assert.equal(await run("document.querySelector('.home-possibility details').textContent.includes('Gardening: still needed')"), true);
+    await run("Array.from(document.querySelectorAll('.home-possibility button')).find(el=>el.textContent==='Save idea for later').click();true");
+    await app.wait(`${panel}.querySelector('summary').textContent.includes('Saved idea')`, 'saved idea visible in settings');
+    await click('Revisit: Explore a small community garden');
+    await app.wait("document.querySelector('.home-possibility')?.textContent.includes('Starter plan')", 'saved idea reruns planning');
+    await run("document.querySelector('.home-possibility details').open=true;document.querySelector('.home-possibility details button').click();true");
+    await app.wait("!document.querySelector('.home-possibility')", 'targeted fallback to existing search');
     await run("window.__test.noMatch=false;document.querySelector('#home-idea-input').value='Find a community garden';document.querySelector('.home-idea-form').requestSubmit();true");
     await app.wait("document.querySelector('.home-idea-results')?.textContent.includes('Matches for') || document.querySelector('.home-idea-results')?.textContent.includes('No matches for')", 'explicit search results');
-    assert.equal(await run('window.__test.lookups'), 1, 'explicit search bypasses collaboration lookup');
+    assert.equal(await run('window.__test.lookups'), 2, 'explicit search bypasses collaboration lookup');
     await run(`document.querySelector('#home-idea-input').value='Explore a community garden. Private fixture draft.';document.querySelector('.home-idea-form').requestSubmit();true`);
     await app.wait("document.querySelector('.home-possibility h3')?.textContent==='Explore a small community garden'", 'routed collaboration proposal');
     await run(fs.readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8') + ';true');
     assert.deepEqual(await run(`axe.run(document.querySelector('.home-possibility'), {runOnly:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}).then(r=>r.violations.map(v=>v.id))`), []);
     await run("document.querySelector('.home-possibility .home-action').click();true");
-    await waitText('Invitation sent');
+    await app.wait("document.querySelector('.home-possibility')?.textContent.includes('Invitation sent')", 'invitation sent confirmation');
 
     await run("window.__test.switch('b');true");
     await open();
     await waitText('Accept invitation');
+    assert.equal(await run(`${panel}.textContent.includes('Revisit:')`), false, 'saved idea stays with its account');
     assert.equal(await run(`${panel}.querySelector('summary').textContent`), 'Review collaboration invitation');
     assert.equal(await run(`${panel}.textContent.includes('Private fixture draft')`), false);
     assert.equal(await run(`${panel}.textContent.includes('Open your conversation')`), false);
@@ -132,7 +142,7 @@ try {
     await click('Record that we started');
     await waitText('Confirm we completed the first action');
     await click('Open project creation');
-    assert.equal(await run('window.__test.projects'), 1);
+    assert.equal(await run('window.__test.projects'), 2);
     await app.wait("document.querySelector('#enhanced-project-description')?.value.includes('one-bed trial')", 'editable project draft');
     assert.match(await run('window.__test.draft.description'), /one-bed trial/);
     assert.ok(!(await run('JSON.stringify(window.__test.draft)')).includes('Private fixture draft'));
@@ -158,6 +168,7 @@ try {
     assert.ok(await run('document.documentElement.scrollWidth <= innerWidth'));
     await click('Leave collaboration pilot and delete my records');
     await waitText('Opt in to collaboration');
+    assert.equal(await run("localStorage.getItem('hpoe-starter:a')"), null, 'withdrawal clears the saved topic');
     console.log(`HPOE collaboration, opt-out and accessibility passed at ${width}px`);
   }
 } finally {

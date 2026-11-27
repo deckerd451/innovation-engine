@@ -8,6 +8,12 @@
       topic: /\b(community garden|food garden|grow food)\b/i,
       title: 'Explore a small community garden',
       roles: [['gardening', 'horticulture', 'agriculture'], ['community organizing', 'project management', 'logistics']],
+      roleLabels: ['Gardening', 'Project coordination'],
+      resources: ['An approved site', 'Water access', 'Basic supplies'],
+      steps: ['Sketch a one-bed trial and list what it would need.', 'Ask a gardener and a site representative to review the sketch.', 'Confirm permission, water, upkeep and any costs before planting.'],
+      solo: 'Spend 10 minutes sketching one garden bed and writing down a question to ask a potential site owner.',
+      prompt: 'community garden',
+      searchResource: 'garden',
       missing: 'Confirm permission to use a site, access to water, and who would maintain it.',
       first: 'Agree on a 20-minute planning conversation. Sketch a one-bed trial and identify a site contact.'
     },
@@ -15,6 +21,12 @@
       topic: /\b(coding workshop|coding class|coding mentorship|learn to code)\b/i,
       title: 'Explore a beginner coding session',
       roles: [['software development', 'programming', 'javascript', 'python'], ['teaching', 'facilitation', 'mentoring']],
+      roleLabels: ['Coding', 'Teaching or facilitation'],
+      resources: ['An accessible meeting format', 'A way to run one beginner exercise'],
+      steps: ['Draft one exercise with a clear finish.', 'Ask a facilitator and a developer to try it.', 'Check learner interest and access to equipment before scheduling.'],
+      solo: 'Write one thing a beginner should be able to do at the end of a 20-minute session.',
+      prompt: 'coding workshop',
+      searchResource: 'coding workshop',
       missing: 'Confirm the learners’ interests, an accessible meeting format, and any equipment needs.',
       first: 'Agree on one beginner exercise and try it together before inviting learners.'
     },
@@ -22,6 +34,12 @@
       topic: /\b(community resource guide|local resource guide|neighborhood resource guide)\b/i,
       title: 'Explore a neighborhood resource guide',
       roles: [['research', 'writing', 'editing'], ['community outreach', 'community organizing', 'translation']],
+      roleLabels: ['Research or editing', 'Community outreach'],
+      resources: ['One official resource listing', 'A way to contact its provider'],
+      steps: ['Choose one topic and make a one-entry sample.', 'Ask someone who knows the neighborhood to review it.', 'Check eligibility and contact details with the provider before sharing it.'],
+      solo: 'Write down one question the guide should answer and one detail you would need to verify.',
+      prompt: 'local resource guide',
+      searchResource: 'community resources',
       missing: 'Confirm which organizations want to participate and who would keep information current.',
       first: 'Pick one public resource and check its contact and eligibility information with the provider.'
     }
@@ -54,9 +72,57 @@
     return null;
   }
 
-  function mount(container, client, accountId, getProfile, onAvailability = () => {}) {
+  function starterPlan(idea, ownSkills, candidates = [], compose) {
+    const relevant = relevantRecipes(idea);
+    if (relevant.length !== 1) return null;
+    const [key, recipe] = relevant[0];
+    const own = skills(ownSkills);
+    const peers = candidates.map(peer => skills(peer.skills));
+    const coverage = recipe.roles.map((terms, i) => ({
+      label: recipe.roleLabels[i],
+      query: terms[0],
+      own: terms.some(term => own.has(term)),
+      connection: peers.some(peer => terms.some(term => peer.has(term)))
+    }));
+    const unresolved = coverage.filter(role => !role.own && !role.connection);
+    // The optional composer receives only information already authorized for
+    // this session. No site, contact, supplies or availability are inferred.
+    const composition = compose?.({
+      objective: {
+        id: key, description: recipe.title, kind: 'project', shared: true,
+        capabilityGaps: recipe.roleLabels, resources: recipe.resources
+      },
+      participants: [
+        { id: 'self', shared: true, capabilities: coverage.filter(role => role.own).map(role => role.label) },
+        ...candidates.map((peer, i) => ({
+          id: peer.profile_id, shared: true,
+          capabilities: recipe.roles.flatMap((terms, j) =>
+            terms.some(term => peers[i].has(term)) ? [recipe.roleLabels[j]] : [])
+        }))
+      ],
+      resources: []
+    }, { enabled: true });
+    return {
+      key, recipe, coverage, unresolved,
+      resources: composition?.missing.resources ?? recipe.resources,
+      first: recipe.solo
+    };
+  }
+
+  function mount(container, client, accountId, getProfile, onAvailability = () => {}, revisit = () => {}) {
     const current = () => container.isConnected && root.HPOECollaborationPilot === true &&
       getProfile()?.user_id === accountId;
+    const savedKey = 'hpoe-starter:' + accountId;
+    function savedIdea() {
+      try {
+        const key = root.localStorage.getItem(savedKey);
+        return Object.hasOwn(recipes, key) ? key : null;
+      } catch { return null; }
+    }
+    function saveIdea(key) {
+      if (key) root.localStorage.setItem(savedKey, key);
+      else root.localStorage.removeItem(savedKey);
+    }
     const details = document.createElement('details');
     const label = document.createElement('summary');
     label.textContent = 'Collaboration settings';
@@ -85,7 +151,8 @@
       enrolled = state?.enrolled === true;
       details.hidden = !eligible && !enrolled;
       onAvailability(eligible && enrolled);
-      label.textContent = state?.pending ? 'Review collaboration invitation' : 'Collaboration settings';
+      label.textContent = state?.pending ? 'Review collaboration invitation'
+        : eligible && savedIdea() ? 'Saved idea and collaboration settings' : 'Collaboration settings';
       return true;
     }
     const onFocus = () => {
@@ -191,6 +258,19 @@
       if (opt.error) throw opt.error;
       content.replaceChildren();
       status.textContent = '';
+      const saved = eligible && savedIdea();
+      if (saved) {
+        button('Revisit: ' + recipes[saved].title, () => {
+          details.open = false;
+          revisit(recipes[saved].prompt);
+        });
+        button('Forget saved idea', async () => {
+          saveIdea(null);
+          await updateAvailability();
+          await refresh();
+          if (current()) label.focus();
+        });
+      }
       if (!opt.data) {
         pageOffset = 0;
         paragraph('Opt in to explore ideas with connections who also opt in. Your listed skills can help suggest a collaborator. Joining is optional and your draft stays in this tab. Leaving deletes shared collaboration records for both members.');
@@ -221,37 +301,28 @@
       }
       if (!eligible) {
         paragraph('New collaboration actions are paused for this account.');
-        button('Leave collaboration pilot and delete my records', () =>
-          write(client.from('hpoe_opt_in').delete().eq('user_id', accountId)));
+        button('Leave collaboration pilot and delete my records', leave);
         return;
       }
       paragraph('Use the prompt above to explore a community garden, coding workshop, or local resource guide.');
-      button('Leave collaboration pilot and delete my records', () =>
-        write(client.from('hpoe_opt_in').delete().eq('user_id', accountId)));
+      button('Leave collaboration pilot and delete my records', leave);
+    }
+
+    async function leave() {
+      const result = await client.from('hpoe_opt_in').delete().eq('user_id', accountId);
+      if (result.error) throw result.error;
+      try { saveIdea(null); } catch { /* Withdrawal still took effect on the server. */ }
+      await write(result);
     }
 
     async function explore(idea, slot, stillCurrent, searchInstead) {
       const relevant = relevantRecipes(idea);
       if (relevant.length !== 1 || !current()) return false;
       if (!await updateAvailability() || !stillCurrent() || !eligible) return false;
-      if (!enrolled) {
-        if (!current()) return false;
-        const note = document.createElement('p');
-        note.className = 'home-muted';
-        note.textContent = 'To explore this with connections, opt in under Collaboration settings. You can also search the community now.';
-        slot.replaceChildren(note);
-        button('Open collaboration settings', async () => {
-          if (!details.open) details.open = true;
-          await refresh();
-          label.focus();
-        }, slot);
-        addSearchAlternative(slot, searchInstead);
-        return true;
-      }
-      const result = await client.rpc('hpoe_candidates', { p_actor: accountId });
+      const result = enrolled ? await client.rpc('hpoe_candidates', { p_actor: accountId }) : {};
       if (!current() || !stillCurrent()) return true;
-      if (result.error) return false;
-      const match = propose(idea, getProfile()?.skills, result.data || []);
+      const candidates = result.error ? [] : (result.data || []);
+      const match = propose(idea, getProfile()?.skills, candidates);
       const card = document.createElement('article');
       card.className = 'home-possibility';
       const copy = (tag, value, className = '') => {
@@ -292,20 +363,80 @@
         card.append(feedback);
         invite.className = 'home-action';
       } else {
-        copy('h3', 'No collaboration match yet');
-        copy('p', 'This idea needs two complementary skills listed by you and an opted-in connection. Search for existing people, projects, and opportunities below.');
+        const compose = enrolled && root.HPOECompositionalPilot === true
+          ? root.HPOECompose?.compose : undefined;
+        const plan = starterPlan(idea, getProfile()?.skills, candidates, compose);
+        const feedback = copy('p', '', 'home-muted');
+        feedback.setAttribute('role', 'status');
+        renderStarter(card, copy, plan, stillCurrent, searchInstead, feedback);
       }
-      addSearchAlternative(card, searchInstead);
+      if (match) addSearchAlternative(card, searchInstead);
       slot.replaceChildren(card);
       return true;
     }
 
-    function addSearchAlternative(target, action) {
+    function renderStarter(card, copy, plan, stillCurrent, searchInstead, feedback) {
+      const { recipe, coverage, unresolved, resources, first } = plan;
+      copy('p', 'Starter plan', 'home-possibility-label');
+      copy('h3', recipe.title);
+      copy('p', 'Start with a small step you can take yourself. No collaborator or resource is confirmed.');
+      copy('h4', 'First action');
+      copy('p', first);
+      const planDetails = document.createElement('details');
+      const summary = document.createElement('summary');
+      summary.textContent = 'See the plan and what’s needed';
+      planDetails.append(summary);
+      const needs = document.createElement('ul');
+      for (const text of [
+        ...coverage.map(role => role.label + ': ' + (role.own ? 'listed on your profile' :
+          role.connection ? 'listed by an eligible connection, availability unknown' : 'still needed')),
+        'Resources to verify: ' + resources.join(', ') + '.',
+        ...recipe.steps
+      ]) {
+        const item = document.createElement('li');
+        item.textContent = text;
+        needs.append(item);
+      }
+      planDetails.append(needs);
+      card.append(planDetails);
+      for (const role of unresolved) {
+        addSearchAlternative(planDetails, () => searchInstead(role.query), 'Find people with ' + role.label.toLowerCase() + ' skills');
+      }
+      addSearchAlternative(planDetails, () => searchInstead(recipe.searchResource), 'Find relevant organizations and opportunities');
+      if (!enrolled) button('Open collaboration settings', async () => {
+        details.open = true;
+        await refresh();
+        if (current()) label.focus();
+      }, planDetails, feedback);
+      const draft = button('Open editable project draft', () => {
+        if (!stillCurrent() || typeof root.showEnhancedProjectCreation !== 'function') throw Error('Draft form unavailable');
+        return root.showEnhancedProjectCreation({
+          title: recipe.title,
+          description: [
+            'Proposed first action: ' + first,
+            'Roles to confirm: ' + recipe.roleLabels.join(', '),
+            'Resources to verify: ' + resources.join(', '),
+            ...recipe.steps
+          ].join('\n')
+        });
+      }, card, feedback);
+      draft.className = 'home-action';
+      button('Save idea for later', async () => {
+        if (!stillCurrent()) return;
+        saveIdea(plan.key);
+        feedback.textContent = 'Saved in this browser. Revisit it under Collaboration settings.';
+        await updateAvailability();
+        if (current() && details.open) await refresh();
+      }, card, feedback);
+      card.append(feedback);
+    }
+
+    function addSearchAlternative(target, action, title = 'Search existing listings') {
       const search = document.createElement('button');
       search.type = 'button';
       search.className = 'home-link';
-      search.textContent = 'Search existing listings';
-      search.addEventListener('click', action);
+      search.textContent = title;
+      search.addEventListener('click', () => action());
       target.append(search);
     }
 
@@ -319,7 +450,7 @@
     return { explore };
   }
 
-  const engine = Object.freeze({ propose, mount });
+  const engine = Object.freeze({ propose, starterPlan, mount });
   if (typeof module !== 'undefined' && module.exports) module.exports = engine;
   else root.HPOECollaboration = engine;
 })(globalThis);

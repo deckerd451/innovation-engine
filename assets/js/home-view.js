@@ -805,7 +805,10 @@
       example.dataset.ideaExample = canCollaborate ? 'Explore a community garden' : "I'm looking for help with community building";
     };
     const collaboration = window.HPOECollaborationPilot === true && profile()?.user_id && window.supabase
-      ? window.HPOECollaboration?.mount(el.querySelector('.home-entry-settings'), window.supabase, profile().user_id, profile, setExample)
+      ? window.HPOECollaboration?.mount(el.querySelector('.home-entry-settings'), window.supabase, profile().user_id, profile, setExample, idea => {
+        el.querySelector('#home-idea-input').value = idea;
+        el.querySelector('form').requestSubmit();
+      })
       : null;
     // The example fills the field to edit or send; it never searches by itself.
     example.addEventListener('click', (event) => {
@@ -833,13 +836,13 @@
         state.memberId === memberId && profile()?.user_id === memberAccount && input.value.trim() === idea;
       const explicitSearch = idea.match(/^(?:search for|find)\s+(.+)/i);
       const learning = pilotActive() ? learningQuery(idea) : null;
-      const searchCommunity = async () => {
+      const searchCommunity = async (suggestedQuery) => {
         if (!current()) return;
         slot.innerHTML = '<p class="home-muted" role="status">Searching the community…</p>';
         let result;
-        try { result = await findForIdea(learning || explicitSearch?.[1] || idea); }
+        try { result = await findForIdea(suggestedQuery || learning || explicitSearch?.[1] || idea); }
         catch (error) { console.warn('[Home] idea search unavailable:', error?.message || error); result = 'error'; }
-        if (current()) paintIdeaResults(idea, result, !!learning);
+        if (current()) paintIdeaResults(suggestedQuery || idea, result, !!learning);
       };
       if (!learning && !explicitSearch && collaboration) {
         try {

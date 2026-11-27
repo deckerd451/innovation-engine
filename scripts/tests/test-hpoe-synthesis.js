@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const { performance } = require('node:perf_hooks');
-const { propose } = require('../../assets/js/hpoe-collaboration');
+const { propose, starterPlan } = require('../../assets/js/hpoe-collaboration');
 
 const garden = { profile_id: 'fixture-gardener', name: 'Synthetic gardener', skills: ['Gardening'] };
 const duplicate = { profile_id: 'fixture-coordinator', name: 'Synthetic coordinator', skills: ['Project management'] };
@@ -40,3 +40,23 @@ const candidates = [...Array(49).fill(duplicate), garden];
 const time = performance.now();
 for (let i = 0; i < 1000; i++) assert.equal(propose('Community garden', ['Project management'], candidates).peer, garden);
 console.log('HPOE synthesis and abstention checks passed. 1,000 bounded runs: ' + Math.round(performance.now() - time) + ' ms');
+
+const zero = starterPlan('community garden', [], []);
+assert.equal(zero.unresolved.length, 2);
+assert.equal(zero.first, zero.recipe.solo);
+assert.match(zero.first, /sketching/);
+assert.equal(zero.resources.length, 3);
+const some = starterPlan('community garden', ['Project management'], []);
+assert.deepEqual(some.unresolved.map(role => role.label), ['Gardening']);
+assert.equal(some.coverage[1].own, true);
+const compose = require('../../assets/js/hpoe-compose').compose;
+const all = starterPlan('community garden', ['Project management'], [garden], compose);
+assert.equal(all.unresolved.length, 0);
+assert.equal(all.coverage[0].connection, true);
+assert.equal(all.resources.length, 3, 'skill coverage does not establish resource availability');
+assert.equal(starterPlan('Find a garden', [], []), null);
+for (const idea of ['coding workshop', 'local resource guide']) {
+  const plan = starterPlan(idea, [], []);
+  assert.ok(plan.first && plan.recipe.steps.length >= 2 && plan.resources.length);
+}
+console.log('Starter plans work with zero, partial and full capability coverage');
