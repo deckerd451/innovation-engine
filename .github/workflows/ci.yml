@@ -116,3 +116,6 @@ jobs:
         run: npm exec --yes --package=deno@2.9.6 -- deno check --frozen --config supabase/functions/campaign-email/deno.json supabase/functions/campaign-email/index.ts supabase/functions/campaign-email-events/index.ts
       - name: Campaign SDK boundary (synthetic delivery, no network)
         run: npm exec --yes --package=deno@2.9.6 -- deno test --allow-env --frozen --config supabase/functions/campaign-email/deno.json supabase/functions/campaign-email/adapter_test.ts
+
+      - name: Type-check synthetic Gemini inference endpoint
+        run: npm exec --yes --package=deno@2.9.6 -- deno check supabase/functions/hpoe-synthesize/index.ts
