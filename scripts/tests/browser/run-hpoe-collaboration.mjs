@@ -16,14 +16,16 @@ async function open() {
 try {
   for (const width of [390, 1280]) {
     await app.load(width, 844);
-    assert.equal(await run(`!!${panel}`), false, 'experimental pilot off on normal entry');
+    assert.equal(await run('window.HPOECollaborationPilot === true && window.HPOECompositionalPilot !== true && window.HPEResearchPilot !== true'), true);
+    await app.wait(`${panel}?.hidden`, 'collaboration hidden without audience authorization');
     await run(`(async () => {
       const client = window.supabase;
       const from = client.from.bind(client);
       const rpc = client.rpc.bind(client);
       const profiles = {
         a: {...window.currentUserProfile, user_id:'a', skills:['Project management']},
-        b: {...window.currentUserProfile, user_id:'b', skills:['Gardening']}
+        b: {...window.currentUserProfile, user_id:'b', skills:['Gardening']},
+        c: {...window.currentUserProfile, user_id:'c', skills:['Gardening']}
       };
       const opted = new Set(['b']);
       let invite;
@@ -43,7 +45,7 @@ try {
         if (!name.startsWith('hpoe_')) return rpc(name, args);
         if (args.p_actor !== window.__test.actor) return {error:Error('Wrong account')};
         if (name === 'hpoe_status') return {data:[{
-          eligible:true,enrolled:opted.has(args.p_actor),
+          eligible:args.p_actor!=='c',enrolled:opted.has(args.p_actor),
           pending:args.p_actor==='b' && invite?.phase==='invited'
         }]};
         if (name === 'hpoe_candidates') return {data:[{profile_id:'peer-b',name:'Synthetic B',skills:['Gardening']}]};
@@ -83,10 +85,11 @@ try {
         window.__test.draft = draft;
         return showEnhancedProjectCreation(draft);
       };
-      window.HPOECollaborationPilot = true;
-      window.__test.switch('a');
+      window.__test.switch('c');
       return true;
     })()`);
+    assert.equal(await run(`${panel}.hidden`), true, 'account outside audience cannot see invitation controls');
+    await run("window.__test.switch('a');true");
     await open();
     await waitText('Opt in to collaboration');
     assert.equal(await run(`${panel}.querySelector('a').href`), 'https://www.tuw.org/211');
