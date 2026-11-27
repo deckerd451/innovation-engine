@@ -518,5 +518,26 @@
       "community",
       "volunteering"
     ]
+  },
+  {
+    "title": "Gather & Garden and Garden in the Parks",
+    "organization": "Charleston Parks Conservancy",
+    "sourceUrl": "https://www.charlestonparksconservancy.org/volunteer/",
+    "pathwayId": "gather-and-garden",
+    "reviewStatus": "verified",
+    "reviewedAt": "2026-11-27T13:07:16+00:00",
+    "deadline": "2027-11-27T13:07:16+00:00",
+    "reviewer": "Codex independent official-source review",
+    "evidenceNote": "The Conservancy volunteer page lists recurring Garden in the Parks and Gather & Garden opportunities across its parks and gardens. The community gardens page describes weekly sessions for harvesting, planting and garden maintenance, says no prior experience is needed and supplies are provided, and directs volunteers to register and choose shifts. The provider page does not state minimum age or current shift availability; confirm eligibility, schedule and open shifts directly with the Conservancy.",
+    "availability": "provider_confirmation_required",
+    "participationType": "contribution",
+    "geographicRelevance": "charleston-sc",
+    "eligibility": "adult_public",
+    "kind": "recurring_program",
+    "topics": [
+      "garden",
+      "gardening",
+      "community garden"
+    ]
   }
 ]

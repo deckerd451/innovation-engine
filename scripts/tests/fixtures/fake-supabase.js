@@ -98,11 +98,14 @@
         const rows = db[table] = db[table] || [];
         const canSee = visible[table] || (() => true);
         if (mode === 'insert') {
-          const row = { id: newId(), created_at: new Date().toISOString(), ...payload };
-          if (table === 'capability_packages') row.evidence_status = 'untested';
-          if (writable[table] && !writable[table](row)) return { data: null, error: { code: '42501', message: 'new row violates row-level security policy' } };
-          rows.push(row);
-          return { data: single ? row : [row], error: null };
+          const inserted = (Array.isArray(payload) ? payload : [payload]).map(values => {
+            const row = { id: newId(), created_at: new Date().toISOString(), ...values };
+            if (table === 'capability_packages') row.evidence_status = 'untested';
+            return row;
+          });
+          if (writable[table] && inserted.some(row => !writable[table](row))) return { data: null, error: { code: '42501', message: 'new row violates row-level security policy' } };
+          rows.push(...inserted);
+          return { data: single ? inserted[0] : inserted, error: null };
         }
         let matched = rows.filter(canSee).filter(row => filters.every(f => f(row)));
         if (mode === 'delete') {
