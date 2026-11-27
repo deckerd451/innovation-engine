@@ -115,7 +115,9 @@ try {
     assert.equal(await run("document.querySelector('.home-possibility').textContent.includes('Spend 10 minutes')"), true);
     assert.equal(await run("Array.from(document.querySelectorAll('.home-possibility button')).some(b=>b.textContent==='Find people with gardening skills')"), true);
     await clickIdea('Find people with gardening skills');
-    await app.wait("document.querySelector('.home-idea-results')?.textContent.includes('Synthetic Gardener')", 'targeted gardener discovery');
+    await app.wait("document.querySelector('.home-idea-results [data-idea-person=\"garden-person\"]')", 'targeted gardener discovery');
+    assert.equal(await run("document.querySelector('.home-idea-results [data-idea-person=\"garden-person\"]').dataset.name"),
+      'Synthetic G.', 'targeted discovery retains the existing nonconnection name privacy rule');
     assert.equal(await run("document.querySelector('.home-idea-results').textContent.includes('Organizations')"), false,
       'people discovery filters out organizations and opportunities');
     await run("document.querySelector('#home-idea-input').value='Explore a community garden';document.querySelector('.home-idea-form').requestSubmit();true");
